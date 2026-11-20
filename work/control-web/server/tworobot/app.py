@@ -22,7 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__
 from . import params as P
 from .coordinator import Coordinator
-from .discovery import start_listener
+from .discovery import local_subnet, scan
 from .links import LinkError, NetLink, SimLink
 from .planner import plan_path
 from .registry import Registry, RobotSession
@@ -56,13 +56,13 @@ class Server:
         self.replay_info: dict | None = None
         self.last_path: dict | None = None
         self._bg: list[asyncio.Task] = []
-        self._udp = None
+        self._t0 = time.monotonic()
 
     # ------------------------------------------------------------ time
     def clock(self) -> float:
         if self.sim is not None and all(s.source == "SIM" for s in self.reg.sessions.values()):
             return self.sim.t
-        return time.monotonic()
+        return time.monotonic() - self._t0  # robot thật: giây kể từ lúc server khởi động
 
     # ------------------------------------------------------------ events
     def _on_event(self, sess: RobotSession, msg: dict) -> None:
@@ -138,14 +138,6 @@ class Server:
         for ws in dead:
             self.clients.discard(ws)
 
-    async def heartbeat(self) -> None:
-        """Heartbeat 5 Hz cho robot thật (robot ảo nhận heartbeat theo thời gian sim)."""
-        while True:
-            await asyncio.sleep(0.2)
-            for s in list(self.reg.sessions.values()):
-                if s.source == "REAL":
-                    s.link.post({"t": "hb"})
-
     # ------------------------------------------------------------ sim
     async def sim_start(self, seed: int = 1) -> None:
         if self.sim is not None:
@@ -180,19 +172,28 @@ class Server:
         self.sim, self.sim_task = None, None
         self.note("Đã tắt mô phỏng")
 
-    # ------------------------------------------------------------ real robots
-    def on_beacon(self, msg: dict, ip: str) -> None:
-        rid = str(msg["id"])
-        if rid in self.reg.sessions:
-            s = self.reg.sessions[rid]
-            s.last_seen = time.monotonic()
-            s.ip = ip
-            return
-        s = RobotSession(rid, msg.get("name", rid), NetLink(ip), "REAL", role=msg.get("role"), ip=ip)
+    # ------------------------------------------------------------ real robots (HTTP)
+    async def add_real(self, base: str, info: dict) -> RobotSession:
+        rid = str(info["id"])
+        old = self.reg.sessions.get(rid)
+        if old is not None:
+            if old.source == "REAL" and old.ip == base:
+                return old
+            self.reg.remove(rid)
+        link = NetLink(base)
+        s = RobotSession(rid, info.get("name", rid), link, "REAL", role=info.get("role"), ip=base)
+        s.info = info
         s.last_seen = time.monotonic()
-        s.info = {"fw": msg.get("fw")}
         self.reg.add(s)
-        self.note(f"Phát hiện robot thật {s.name} @ {ip}")
+        link.start()
+        try:
+            # Tham số chung 2 xe: PC là bản chuẩn → đẩy xuống RAM của robot khi kết nối.
+            await link.request("PUT", "/api/config", {"patch": self.shared})
+            await self.reg.refresh(s)
+        except LinkError as e:
+            self.note(f"{s.name}: lỗi khi đọc cấu hình ({e})", "warn")
+        self.note(f"Kết nối robot thật {s.name} @ {base}")
+        return s
 
     # ------------------------------------------------------------ replay
     async def replay(self, path: Path, speed: float) -> None:
@@ -216,14 +217,13 @@ S = Server()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    S._bg = [asyncio.create_task(S.broadcaster()), asyncio.create_task(S.heartbeat())]
-    S._udp = await start_listener(S.on_beacon)
+    S._bg = [asyncio.create_task(S.broadcaster())]
     yield
     for t in S._bg:
         t.cancel()
-    if S._udp:
-        S._udp.close()
     await S.sim_stop()
+    for rid in list(S.reg.sessions):
+        S.reg.remove(rid)
 
 
 app = FastAPI(title="two-robot Web Control", version=__version__, lifespan=lifespan)
@@ -262,6 +262,39 @@ def get_state():
 @app.get("/api/robots")
 def robots():
     return [s.summary() for s in S.reg.sessions.values()]
+
+
+@app.get("/api/discover/default")
+def discover_default():
+    return {"subnet": local_subnet()}
+
+
+@app.post("/api/discover")
+async def discover(body: dict = Body(...)):
+    """Quét HTTP GET /api/info trên các mục tiêu (subnet, IP, IP:cổng, IP:cổng1-cổng2)."""
+    targets = body.get("targets") or [local_subnet()]
+    try:
+        found = await scan(list(targets))
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    added = []
+    for base, info in found:
+        s = await S.add_real(base, info)
+        added.append({"id": s.id, "name": s.name, "base": base, "fw": info.get("fw")})
+    S.note(f"Quét {', '.join(targets)}: thấy {len(found)} robot")
+    return {"ok": True, "found": added}
+
+
+@app.delete("/api/robots/{rid}")
+async def remove_robot(rid: str):
+    s = _sess(rid)
+    if s.source != "REAL":
+        raise HTTPException(400, "robot ảo: tắt bằng nút Tắt mô phỏng")
+    if S.coord.state == "RUNNING" and s in (S.coord.L, S.coord.F):
+        raise HTTPException(409, "robot đang chạy")
+    S.reg.remove(rid)
+    S.note(f"Đã ngắt {s.name}")
+    return {"ok": True}
 
 
 @app.put("/api/robots/{rid}/role")

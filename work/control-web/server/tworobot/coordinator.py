@@ -134,9 +134,18 @@ class Coordinator:
 
     async def _start_prim(self, sess: RobotSession, prim: str, **args) -> asyncio.Future:
         pid = next(self._ids)
-        fut = asyncio.get_running_loop().create_future()
+        loop = asyncio.get_running_loop()
+        fut = loop.create_future()
         self._waiters[pid] = fut
-        await self._cmd(sess, "prim", id=pid, prim=prim, **args)
+        seq = 200000 + pid
+        ack = loop.create_future()
+        self._acks[seq] = ack
+        await sess.link.send({"t": "cmd", "op": "prim", "seq": seq, "id": pid, "prim": prim, **args})
+        # SimLink/NetLink trả ack ngay trong lúc gửi; robot từ chối → báo lỗi ngay, không chờ timeout.
+        if ack.done() and ack.result().get("t") == "nack":
+            self._waiters.pop(pid, None)
+            raise RunFault(f"{sess.name} từ chối {prim}: {ack.result().get('err')}")
+        self._acks.pop(seq, None)
         return fut
 
     async def _wait(self, fut: asyncio.Future, timeout: float, what: str) -> dict:

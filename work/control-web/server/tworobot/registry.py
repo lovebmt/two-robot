@@ -29,7 +29,7 @@ class RobotSession:
             "state": tel.get("state", "?"), "cfg_rev": tel.get("cfg_rev"),
             "online": (time.monotonic() - self.last_seen) < 2.0, "ip": self.ip,
             "flags": tel.get("flags", []), "fault": tel.get("fault"),
-            "fw": self.info.get("fw"),
+            "fw": self.info.get("fw"), "link": self.link.stats(),
         }
 
 
