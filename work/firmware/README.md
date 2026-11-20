@@ -63,9 +63,18 @@ Lúc boot, log in kết quả quét từng bus I2C (MPU: `0x68`; ToF: `0x29 0x30
 `POST /api/cmd {"op":"motor_test","side":"l"|"r","duty":0.4,"ms":500}`: cấp duty cố định cho 1 bánh (không qua PI, bánh kia phanh, |duty| ≤ 0.8, ≤ 2 s).
 Kết quả trong sự kiện `motor_test_done`: tick/mm 2 encoder, góc gyro. Dùng để biết motor nào quay, encoder nào đếm, chiều có khớp không.
 
-## Console serial (USB, 115200)
-`pio device monitor`, gõ:
+## Nạp qua WiFi (OTA) — không cần USB (từ fw 0.2.2)
+```bash
+pio run -e ota -t upload --upload-port 192.168.1.2      # IP robot (hoặc tworobot-<id>.local)
+```
+Mật khẩu OTA `tworobot` (trong `platformio.ini` env `ota`). Bắt đầu nạp → firmware **tự E-STOP + phanh motor**.
+macOS có thể hỏi cho phép Python nhận kết nối đến (espota mở cổng tạm để robot tải firmware về) → Allow.
+
+## Console (USB serial 115200 hoặc WiFi telnet cổng 23)
+`pio device monitor` (USB) hoặc `nc 192.168.1.2 23` (WiFi), gõ:
 - `status`: số đo 2 ToF, hướng/bias/nhiệt độ gyro, tick encoder, tốc độ bánh, trạng thái.
+- `watch`: bật/tắt in `status` 2 lần/giây.
+- Log 10 s/lần và log OTA cũng hiện trên telnet.
 - `wifi <ssid> <mật khẩu>`: lưu WiFi rồi khởi động lại (không cần vào AP).
 - `reboot`
 
