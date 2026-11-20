@@ -23,6 +23,12 @@ STEP_NAMES = [
     "Đi tiếp đoạn sau",
 ]
 
+# Chế độ 1 xe: chạy theo đường vẽ sẵn, dừng-quay-đi ở mỗi góc (không có xe sau)
+STEP_NAMES_SOLO = [
+    "Chạy thẳng tới cuối đoạn (dừng tại góc)",
+    "TURN 90° sang hướng đoạn sau",
+]
+
 
 class RunFault(Exception):
     pass
@@ -80,6 +86,29 @@ async def preflight(L: RobotSession, F: RobotSession, form: dict, sh: dict,
     return checks
 
 
+async def preflight_solo(L: RobotSession, sh: dict) -> list[dict]:
+    """Kiểm tra trước khi chạy 1 xe: kết nối, pin, IMU, phía trước trống."""
+    checks: list[dict] = []
+
+    def add(name: str, ok: bool, detail: str) -> None:
+        checks.append({"name": name, "ok": ok, "detail": detail, "level": "ok" if ok else "err"})
+
+    tel = L.last_tel or {}
+    st = tel.get("state")
+    add(f"{L.name}: kết nối, trạng thái", st not in (None, "FAULT", "ESTOP", "CALIB"),
+        f"{st}" + (f" · lỗi {tel.get('fault')}" if tel.get("fault") else ""))
+    add(f"{L.name}: pin", "BAT_LOW" not in tel.get("flags", []), f"{tel.get('vbat', 0):.1f} V")
+    imu = tel.get("imu") or {}
+    add(f"{L.name}: IMU đã calib", bool(imu.get("ok")),
+        f"bias {imu.get('bias_dps', 0):+.2f}°/s" if imu.get("ok") else "chưa calib")
+    tof = tel.get("tof") or {}
+    near = [v["mm"] for v in tof.values() if v.get("st") == 0]
+    dmin = min(near) if near else None
+    add("Phía trước xe trống", dmin is None or dmin >= sh["start.front_clear_mm"],
+        "không thấy vật cản" if dmin is None else f"vật gần nhất {dmin:.0f} mm (cần ≥ {sh['start.front_clear_mm']:.0f})")
+    return checks
+
+
 class Coordinator:
     def __init__(self, clock: Callable[[], float] = time.monotonic, poll: float = 0.02,
                  on_change: Callable[[], None] = lambda: None,
@@ -94,7 +123,7 @@ class Coordinator:
         self.step = 0
         self.path: dict | None = None
         self.L: RobotSession | None = None
-        self.F: RobotSession | None = None
+        self.F: RobotSession | None = None  # None = chế độ 1 xe
         self.log: list[dict] = []
         self._task: asyncio.Task | None = None
         self._ids = itertools.count(1)
@@ -112,9 +141,17 @@ class Coordinator:
         return {"state": "PAUSED" if self.paused and self.state == "RUNNING" else self.state,
                 "error": self.error, "seg": self.seg, "step": self.step, "phase": self.phase, "checks": self.checks,
                 "n_segments": len(self.path["segments"]) if self.path else 0,
-                "n_corners": n_corners, "steps": STEP_NAMES,
+                "n_corners": n_corners, "steps": STEP_NAMES_SOLO if self.solo else STEP_NAMES,
+                "mode": "solo" if self.solo else "pair",
                 "path_id": self.path["path_id"] if self.path else None,
                 "log": self.log[-12:]}
+
+    @property
+    def solo(self) -> bool:
+        return self.L is not None and self.F is None
+
+    def _robots(self) -> list[RobotSession]:
+        return [s for s in (self.L, self.F) if s is not None]
 
     def _set(self, seg: int, step: int, msg: str | None = None) -> None:
         self.seg, self.step = seg, step
@@ -267,7 +304,8 @@ class Coordinator:
                 raise RunFault(f"timeout: {sess.name} không dừng")
 
     # ------------------------------------------------------------ control
-    def start(self, path: dict, leader: RobotSession, follower: RobotSession, shared: dict) -> None:
+    def start(self, path: dict, leader: RobotSession, follower: RobotSession | None, shared: dict) -> None:
+        """follower=None → chế độ 1 xe (leader chạy một mình theo đường vẽ)."""
         if self._task and not self._task.done():
             raise RuntimeError("đang chạy")
         self.path, self.L, self.F, self.shared = path, leader, follower, shared
@@ -279,14 +317,14 @@ class Coordinator:
     async def pause(self) -> None:
         if self.state == "RUNNING":
             self.paused = True
-            for s in (self.L, self.F):
+            for s in self._robots():
                 await self._cmd(s, "pause")
             self.on_change()
 
     async def resume(self) -> None:
         if self.state == "RUNNING" and self.paused:
             self.paused = False
-            for s in (self.L, self.F):
+            for s in self._robots():
                 await self._cmd(s, "resume")
             self.on_change()
 
@@ -297,7 +335,7 @@ class Coordinator:
                 await self._task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
                 pass
-        for s in (self.L, self.F):
+        for s in self._robots():
             if s is not None:
                 try:
                     await self._cmd(s, "stop")
@@ -314,6 +352,8 @@ class Coordinator:
 
     # ------------------------------------------------------------ main
     async def _run(self) -> None:
+        if self.solo:
+            return await self._run_solo()
         p, L, F = self.path, self.L, self.F
         form, sh = p["formation"], self.shared
         segs = p["segments"]
@@ -396,6 +436,61 @@ class Coordinator:
                     await self._cmd(s, "pause")
                 except Exception:  # noqa: BLE001
                     pass
+            self.on_change()
+        finally:
+            for fut in [*self._waiters.values(), *self._calib.values()]:
+                if not fut.done():
+                    fut.cancel()
+            self._waiters.clear()
+            self._calib.clear()
+            self.phase = ""
+
+    # ------------------------------------------------------------ chế độ 1 xe
+    async def _run_solo(self) -> None:
+        """1 xe chạy theo đường vẽ: mỗi đoạn DRIVE_TO tới góc (dừng hẳn) → TURN sang hướng đoạn sau."""
+        p, L, sh = self.path, self.L, self.shared
+        segs = p["segments"]
+        v = max(sh["motion.v_cruise"], 20.0)
+        try:
+            if self._cfg(L, "imu.recal_before_run", True) or not ((L.last_tel or {}).get("imu") or {}).get("ok"):
+                self.phase = "CALIB_IMU"
+                self._set(0, 0, "Calib IMU: giữ xe đứng yên…")
+                await self._calib_imu([L])
+            self.checks = []
+            if sh.get("start.check_enable", True):
+                self.phase = "CHECK"
+                self._set(0, 0, "Kiểm tra trước khi chạy…")
+                await self._wait_until(lambda: (L.last_tel or {}).get("state") not in (None, "CALIB"), 2.0)
+                self.checks = await preflight_solo(L, sh)
+                bad = [c for c in self.checks if not c["ok"]]
+                if bad:
+                    raise RunFault("Kiểm tra trước khi chạy KHÔNG đạt: "
+                                   + "; ".join(f"{c['name']}: {c['detail']}" for c in bad))
+                self.log.append({"t": round(self.clock(), 2), "msg": "Kiểm tra trước khi chạy: đạt"})
+            self.phase = "RUN"
+            await self._cmd_ack(L, "arm", path_id=p["path_id"])
+            for i, seg in enumerate(segs):
+                last = i == len(segs) - 1
+                s_end = p["total_len"] if last else p["corners_s"][i]
+                self._set(i, 1, f"Đoạn {i + 1}/{len(segs)}: chạy tới s={s_end:.0f} mm")
+                await self._prim(L, "DRIVE_TO", timeout=seg["len"] / (0.5 * v) + 30,
+                                 s_end=s_end, heading_deg=seg["heading_deg"])
+                if last:
+                    break
+                nxt = segs[i + 1]
+                self._set(i, 2, f"Góc {i + 1}: quay {seg['turn_after']:+.0f}° → hướng {nxt['heading_deg']:.0f}°")
+                self.on_mark("L_turn", i)
+                await self._prim(L, "TURN", heading_deg=nxt["heading_deg"])
+            await self._cmd(L, "stop")
+            self.state = "DONE"
+            self._set(self.seg, self.step, "Hoàn thành đường đi")
+        except RunFault as e:
+            self.state, self.error = "FAULT", str(e)
+            self.log.append({"t": round(self.clock(), 2), "msg": f"LỖI: {e}"})
+            try:
+                await self._cmd(L, "pause")
+            except Exception:  # noqa: BLE001
+                pass
             self.on_change()
         finally:
             for fut in [*self._waiters.values(), *self._calib.values()]:

@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__
 from . import calibration as CAL
 from . import params as P
-from .coordinator import Coordinator, preflight
+from .coordinator import Coordinator, preflight, preflight_solo
 from .discovery import local_subnet, scan
 from .links import LinkError, NetLink, SimLink
 from .planner import plan_path
@@ -88,14 +88,14 @@ class Server:
             self._prim_waiters.pop(pid, None)
             return {"ok": False, "err": "TIMEOUT", "result": {}}
 
-    def place_at_start(self, L: RobotSession, F: RobotSession, path: dict) -> None:
+    def place_at_start(self, L: RobotSession, F: RobotSession | None, path: dict) -> None:
         """Robot ảo: đặt vào vị trí xuất phát (kèm sai lệch ngẫu nhiên place_noise như người đặt)."""
         import random
         if self.sim is None:
             return
         pn, yn = self.place_noise["pos_mm"], self.place_noise["yaw_deg"]
         for sess, pose, lateral in ((L, path["start"], 0.0), (F, path["follower"]["start"], 1.0)):
-            if sess.source != "SIM":
+            if sess is None or sess.source != "SIM":
                 continue
             th = math.radians(pose["yaw_deg"])
             dx = random.uniform(-pn, pn)
@@ -519,16 +519,26 @@ async def put_shared(body: dict = Body(...)):
 
 
 # ---------------------------------------------------------------- plan / run
+def _solo(body: dict) -> bool:
+    """mode: "solo" (1 xe = leader chạy một mình theo đường vẽ) | "pair" (leader + follower)."""
+    return body.get("mode") == "solo"
+
+
 def _plan(body: dict) -> dict:
     grid = body.get("grid") or S.grid
     S.grid = {"cell_mm": float(grid["cell_mm"]), "cols": int(grid["cols"]), "rows": int(grid["rows"])}
+    solo = _solo(body)
     L, F = S.reg.by_role("leader"), S.reg.by_role("follower")
     cl, cf = S.reg.cfg_params(L), S.reg.cfg_params(F)
     form, ferr, fwarn = P.formation(cl, cf, S.shared)
-    res = plan_path(body.get("points", []), S.grid, form, S.shared, {"rear": cf["body.axle_to_rear_mm"]})
+    res = plan_path(body.get("points", []), S.grid, form, S.shared, {"rear": cf["body.axle_to_rear_mm"]}, solo=solo)
+    if solo:  # ràng buộc đội hình 2 xe không áp dụng
+        ferr, fwarn = {}, []
     res["errors"] = list(ferr.values()) + res["errors"]
     res["warnings"] = fwarn + res["warnings"]
-    if L is None or F is None:
+    if solo and L is None:
+        res["warnings"].insert(0, "chế độ 1 xe: chưa gán xe nào làm leader — đang dùng kích thước mặc định")
+    elif not solo and (L is None or F is None):
         res["warnings"].insert(0, "chưa gán đủ vai trò leader/follower — đang dùng kích thước mặc định")
     res["ok"] = not res["errors"]
     res["formation"] = form
@@ -547,6 +557,18 @@ def plan(body: dict = Body(...)):
     return _plan(body)
 
 
+def _run_robots(body: dict) -> tuple[RobotSession, RobotSession | None]:
+    """Xe tham gia: chế độ 1 xe → (leader, None); 2 xe → (leader, follower)."""
+    L, F = S.reg.by_role("leader"), S.reg.by_role("follower")
+    if _solo(body):
+        if L is None:
+            raise HTTPException(400, {"errors": ["chế độ 1 xe: gán xe chạy làm leader (tab Thiết bị)"]})
+        return L, None
+    if L is None or F is None:
+        raise HTTPException(400, {"errors": ["cần gán 1 leader và 1 follower (hoặc chọn chế độ 1 xe)"]})
+    return L, F
+
+
 @app.post("/api/run/start")
 async def run_start(body: dict = Body(...)):
     if S.coord.state == "RUNNING":
@@ -554,22 +576,21 @@ async def run_start(body: dict = Body(...)):
     res = _plan(body)
     if not res["ok"]:
         raise HTTPException(400, {"errors": res["errors"]})
-    L, F = S.reg.by_role("leader"), S.reg.by_role("follower")
-    if L is None or F is None:
-        raise HTTPException(400, {"errors": ["cần gán 1 leader và 1 follower"]})
+    L, F = _run_robots(body)
     path = res["path"]
     if S.sim is not None:
         if body.get("place", True):
             S.place_at_start(L, F, path)
         S.sim.running = True
-    for s in (L, F):
+    for s in [x for x in (L, F) if x is not None]:
         await s.link.send({"t": "cmd", "op": "reset"})
         await _req(s, "PUT", "/api/path", path)
     S.last_path = path
     S.coord.clock = S.clock
     S.coord.on_change = lambda: None
     S.coord.start(path, L, F, dict(S.shared))
-    S.note(f"Bắt đầu chạy đường #{path['path_id']} ({len(path['segments'])} đoạn, {len(path['corners_s'])} góc)")
+    S.note(f"Bắt đầu chạy đường #{path['path_id']} ({len(path['segments'])} đoạn, {len(path['corners_s'])} góc)"
+           + (f" · 1 xe ({L.name})" if F is None else ""))
     return {"ok": True, "path": path, "warnings": res["warnings"]}
 
 
@@ -581,17 +602,16 @@ async def run_check(body: dict = Body(...)):
     res = _plan(body)
     if not res["ok"]:
         raise HTTPException(400, {"errors": res["errors"]})
-    L, F = S.reg.by_role("leader"), S.reg.by_role("follower")
-    if L is None or F is None:
-        raise HTTPException(400, {"errors": ["cần gán 1 leader và 1 follower"]})
+    L, F = _run_robots(body)
     if S.sim is not None and body.get("place", True):
         S.place_at_start(L, F, res["path"])
         await asyncio.sleep(0.6 / max(S.sim.scale, 0.1))
-    for s in (L, F):  # cần biết vị trí leader rear (formation) để tính gap
+    for s in [x for x in (L, F) if x is not None]:  # cần biết vị trí leader rear (formation) để tính gap
         await s.link.send({"t": "cmd", "op": "reset"})
         await _req(s, "PUT", "/api/path", res["path"])
     await asyncio.sleep(0.15)
-    checks = await preflight(L, F, res["formation"], S.shared, S.run_prim)
+    checks = (await preflight_solo(L, S.shared) if F is None
+              else await preflight(L, F, res["formation"], S.shared, S.run_prim))
     S.last_path = res["path"]
     ok = all(c["ok"] for c in checks)
     S.coord.checks = checks

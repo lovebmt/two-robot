@@ -37,8 +37,11 @@ def _point_seg_dist(px, py, s) -> float:
 
 
 def plan_path(points: list[list[int]], grid: dict, form: dict, shared: dict,
-              geom_f: dict | None = None) -> dict:
-    """points: các đỉnh lưới [[i, j], ...]. Trả {ok, errors, warnings, path}."""
+              geom_f: dict | None = None, solo: bool = False) -> dict:
+    """points: các đỉnh lưới [[i, j], ...]. Trả {ok, errors, warnings, path}.
+
+    solo=True: chế độ 1 xe — bỏ các ràng buộc của xe sau (khoảng thoát góc, chỗ xuất phát follower).
+    """
     cell = float(grid["cell_mm"])
     cols, rows = int(grid["cols"]), int(grid["rows"])
     W, H = cols * cell, rows * cell
@@ -108,7 +111,7 @@ def plan_path(points: list[list[int]], grid: dict, form: dict, shared: dict,
 
     exit_dist = form["exit_dist"]
     for k in range(1, len(out_segs)):
-        if out_segs[k]["len"] < exit_dist - 1e-6:
+        if not solo and out_segs[k]["len"] < exit_dist - 1e-6:
             errors.append(f"đoạn {k + 1} dài {out_segs[k]['len']:.0f} mm < khoảng thoát góc {exit_dist:.0f} mm "
                           f"(tăng số ô hoặc kích thước ô)")
     if out_segs[0]["len"] < shared["motion.approach_dist"]:
@@ -120,12 +123,12 @@ def plan_path(points: list[list[int]], grid: dict, form: dict, shared: dict,
     g = form["g_target"]
     fx, fy = x0 - g * math.cos(h0), y0 - g * math.sin(h0)
     margin = (geom_f or {}).get("rear", 40) + 10
-    if not (-1e-6 + margin <= fx <= W - margin + 1e-6 and margin - 1e-6 <= fy <= H - margin + 1e-6):
+    if not solo and not (-1e-6 + margin <= fx <= W - margin + 1e-6 and margin - 1e-6 <= fy <= H - margin + 1e-6):
         errors.append(f"follower xuất phát ngoài bản đồ ({fx:.0f}, {fy:.0f}) mm: dời điểm đầu vào trong "
                       f"≥ {g:.0f} mm theo hướng ngược đoạn đầu")
 
     # Vòng quét tại góc chạm đoạn khác?
-    rsw = max(form["r_sweep_leader"], form["r_sweep_follower"])
+    rsw = form["r_sweep_leader"] if solo else max(form["r_sweep_leader"], form["r_sweep_follower"])
     for k in range(len(out_segs) - 1):
         cx, cy = out_segs[k]["b"]
         for j, ln in enumerate(lines):
@@ -139,7 +142,7 @@ def plan_path(points: list[list[int]], grid: dict, form: dict, shared: dict,
         "start": {"x": x0, "y": y0, "yaw_deg": out_segs[0]["heading_deg"]},
         "segments": out_segs, "corners_s": corners_s, "total_len": total,
         "follower": {"start_s": -g, "start": {"x": fx, "y": fy, "yaw_deg": out_segs[0]["heading_deg"]}},
-        "formation": form, "grid": {"cell_mm": cell, "cols": cols, "rows": rows},
+        "formation": form, "solo": solo, "grid": {"cell_mm": cell, "cols": cols, "rows": rows},
     }
     blob = json.dumps({k: v for k, v in path.items() if k != "path_id"}, sort_keys=True).encode()
     path["crc32"] = f"{zlib.crc32(blob):08x}"

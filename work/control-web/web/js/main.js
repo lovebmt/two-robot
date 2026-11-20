@@ -3,8 +3,8 @@ import { api, connectWS, guard, toast } from './api.js';
 import { initCalib } from './calib.js';
 import { initConfig } from './config.js';
 import { initDevices, refreshRobots } from './devices.js';
-import { initMap } from './mapedit.js';
-import { emit, loadProject, on, store } from './store.js';
+import { initMap, validate } from './mapedit.js';
+import { emit, loadProject, on, saveProject, store } from './store.js';
 import { initView, onFrame, startRun } from './view.js';
 
 const TAB_KEY = 'tworobot.tab';
@@ -28,6 +28,19 @@ async function boot() {
   initMap();
   initView();
   initCalib();
+
+  // Chế độ chạy 2 xe / 1 xe: các ô chọn ở tab Bản đồ và tab Chạy đồng bộ với nhau
+  const modeSel = document.querySelectorAll('[data-mode-select]');
+  modeSel.forEach((el) => {
+    el.value = store.mode;
+    el.onchange = () => {
+      store.mode = el.value;
+      modeSel.forEach((o) => { o.value = store.mode; });
+      saveProject();
+      validate();
+      toast(store.mode === 'solo' ? 'Chế độ 1 xe: chỉ xe leader chạy theo đường' : 'Chế độ 2 xe: leader + follower');
+    };
+  });
 
   document.querySelectorAll('.tab').forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
   document.getElementById('estopTop').onclick = () => guard(() => api('POST', '/api/run/estop'), 'E-STOP');

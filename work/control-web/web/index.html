@@ -99,6 +99,10 @@
               <select id="mapPreset"><option value="">Mẫu…</option><option value="L">Chữ L</option><option value="rect">Chữ nhật</option><option value="zigzag">Zig-zag</option><option value="line">Thẳng</option></select>
             </div>
             <div class="row gap wrap">
+              <select id="mapMode" class="mode-select" data-mode-select title="1 xe: chỉ xe leader chạy theo đường vẽ">
+                <option value="pair">2 xe</option>
+                <option value="solo">1 xe</option>
+              </select>
               <button class="btn" id="mapUndo">Undo</button>
               <button class="btn" id="mapClear">Xoá</button>
               <button class="btn" id="mapExport">Export</button>
@@ -107,7 +111,7 @@
             </div>
           </div>
           <div class="canvas-box"><canvas id="mapCanvas"></canvas></div>
-          <p class="muted small">Click các đỉnh lưới để vẽ (tự ép ngang/dọc, chỉ rẽ 90°). Chuột phải hoặc Backspace để xoá điểm cuối. Điểm đầu là vị trí leader; follower tự đặt lùi theo gap.</p>
+          <p class="muted small">Click các đỉnh lưới để vẽ (tự ép ngang/dọc, chỉ rẽ 90°). Chuột phải hoặc Backspace để xoá điểm cuối. Điểm đầu là vị trí leader; follower tự đặt lùi theo gap. Chế độ 1 xe: chỉ leader chạy, dừng rồi quay 90° tại mỗi góc.</p>
         </div>
         <div class="card side">
           <div class="card-h"><h2>Kiểm tra đường</h2></div>
@@ -238,7 +242,11 @@
         <div class="card canvas-card run-main">
           <div class="card-h">
             <div class="row gap wrap">
-              <button class="btn" id="runCheck" title="Kiểm tra vị trí 2 xe trước khi chạy (không chạy)">✓ Kiểm tra</button>
+              <select id="runMode" class="mode-select" data-mode-select title="1 xe: chỉ xe leader chạy theo đường vẽ, dừng-quay ở mỗi góc">
+                <option value="pair">2 xe (leader + follower)</option>
+                <option value="solo">1 xe (chỉ leader)</option>
+              </select>
+              <button class="btn" id="runCheck" title="Kiểm tra trước khi chạy (không chạy)">✓ Kiểm tra</button>
               <button class="btn primary" id="runStart">▶ Start</button>
               <button class="btn" id="runPause">Pause</button>
               <button class="btn" id="runResume">Resume</button>

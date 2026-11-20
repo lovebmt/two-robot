@@ -55,3 +55,8 @@
 - Code: sim sai lệch lắp ToF, TOF_CAL + endpoint/UI Calib ToF, thanh trượt nhiễu gyro / đường kính bánh, mã IMU_NOISY
 - Cập nhật: algorithms.md (§6.1 kèm bảng kết quả), simulation.md
 - Cập nhật ngoài wiki: ops/decisions.md (D27), ops/roadmap.md
+
+## [2026-11-21] query | Chế độ 1 xe chạy theo đường vẽ sẵn
+- Code: planner `solo`, coordinator `_run_solo` + `preflight_solo`, API `mode` cho /api/plan, /api/run/start, /api/run/check; UI chọn 2 xe/1 xe (tab Bản đồ + Chạy); sim batch `--solo`; test planner + sim
+- Sửa kèm: firmware 0.2.6 — LINK_LOST giả (trừ không dấu khi heartbeat mới hơn `now`), log chẩn đoán WiFi/heartbeat/reset; `safety.link_timeout_ms` 500 → 1500
+- Cập nhật ngoài wiki: ops/decisions.md (D30)

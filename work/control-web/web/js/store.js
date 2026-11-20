@@ -8,6 +8,7 @@ export const store = {
   robots: [],        // tóm tắt từ /api/robots hoặc frame
   grid: { cell_mm: 100, cols: 30, rows: 18 },
   points: [],        // đỉnh lưới [[i, j], ...]
+  mode: 'pair',      // 'pair' = 2 xe · 'solo' = 1 xe (chỉ leader chạy theo đường)
   plan: null,        // kết quả /api/plan
   shared: null,
 };
@@ -27,7 +28,7 @@ export function emit(evt, data) {
 
 export function saveProject() {
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify({ grid: store.grid, points: store.points }));
+    localStorage.setItem(LS_KEY, JSON.stringify({ grid: store.grid, points: store.points, mode: store.mode }));
   } catch { /* storage bị chặn: bỏ qua */ }
 }
 
@@ -37,6 +38,7 @@ export function loadProject() {
     if (p && p.grid && Array.isArray(p.points)) {
       store.grid = p.grid;
       store.points = p.points;
+      if (p.mode === 'solo' || p.mode === 'pair') store.mode = p.mode;
     }
   } catch { /* bỏ qua */ }
 }

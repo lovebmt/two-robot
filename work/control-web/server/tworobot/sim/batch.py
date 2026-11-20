@@ -29,8 +29,10 @@ GRID = {"cell_mm": 100, "cols": 32, "rows": 18}
 async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None = None,
                        shared_patch: dict | None = None, robot_patch: dict | None = None,
                        idle_before_s: float = 1.0, max_t: float = 600.0,
-                       start_offset: dict | None = None) -> dict:
-    """start_offset: {'leader'|'follower': {'dx','dy' (mm, theo hệ xe), 'dyaw' (độ)}} — đặt xe lệch so với
+                       start_offset: dict | None = None, solo: bool = False) -> dict:
+    """solo=True: chế độ 1 xe (chỉ leader chạy theo đường, không có follower).
+
+    start_offset: {'leader'|'follower': {'dx','dy' (mm, theo hệ xe), 'dyaw' (độ)}} — đặt xe lệch so với
     vị trí xuất phát (firmware không biết), giống người đặt xe không chuẩn."""
     mismatch = mismatch or {}
     eng = SimEngine(grid["cols"] * grid["cell_mm"], grid["rows"] * grid["cell_mm"], seed=seed, state_dir=None)
@@ -38,7 +40,8 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
     shared = P.shared_defaults()
     shared.update(shared_patch or {})
     sessions = {}
-    for idx, (rid, role) in enumerate((("sim-a", "leader"), ("sim-b", "follower"))):
+    roles = (("sim-a", "leader"),) if solo else (("sim-a", "leader"), ("sim-b", "follower"))
+    for idx, (rid, role) in enumerate(roles):
         r = eng.add_robot(rid, rid, 300 + 600 * idx, 300, 0, mismatch.get(role))
         s = RobotSession(rid, rid, SimLink(eng, r), "SIM")
         reg.add(s)
@@ -48,9 +51,11 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         await reg.set_role(rid, role)
         sessions[role] = s
 
-    L, F = sessions["leader"], sessions["follower"]
+    L, F = sessions["leader"], sessions.get("follower")
     form, ferr, _ = P.formation(reg.cfg_params(L), reg.cfg_params(F), shared)
-    plan = plan_path(points, grid, form, shared, {"rear": reg.cfg_params(F)["body.axle_to_rear_mm"]})
+    if solo:
+        ferr = {}
+    plan = plan_path(points, grid, form, shared, {"rear": reg.cfg_params(F)["body.axle_to_rear_mm"]}, solo=solo)
     if ferr or not plan["ok"]:
         return {"ok": False, "errors": plan["errors"] + list(ferr.values())}
     path = plan["path"]
@@ -62,9 +67,11 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         eng.place(sess.id, pose["x"] + dx * math.cos(th) - dy * math.sin(th),
                   pose["y"] + dx * math.sin(th) + dy * math.cos(th), pose["yaw_deg"] + o.get("dyaw", 0.0))
     place(L, st, "leader")
-    place(F, fs, "follower")
+    if F is not None:
+        place(F, fs, "follower")
     eng.collision_events = 0
-    for s in (L, F):
+    robots = [s for s in (L, F) if s is not None]
+    for s in robots:
         await s.link.request("PUT", "/api/path", path)
     eng.advance(idle_before_s)  # xe vừa bật nguồn, nằm chờ trên sân (chip nóng dần)
 
@@ -74,7 +81,10 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
     yaw_err = {"leader": 0.0, "follower": 0.0}
 
     def on_mark(tag, k):
-        b = eng.robots[(L if tag == "L_turn" else F).id].body
+        sess = L if tag == "L_turn" else F
+        if sess is None:
+            return
+        b = eng.robots[sess.id].body
         marks[tag].append((b.x, b.y))
 
     coord = Coordinator(clock=lambda: eng.t, poll=0.0, on_mark=on_mark)
@@ -85,7 +95,7 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
             e = abs(math.degrees(wrap(msg["est"]["yaw"] - msg["truth"]["yaw"])))
             role = "leader" if sess is L else "follower"
             yaw_err[role] = max(yaw_err[role], e)
-        if sess is F and msg.get("prim") and msg["prim"]["name"] == "FOLLOW":
+        if F is not None and sess is F and msg.get("prim") and msg["prim"]["name"] == "FOLLOW":
             bl, bf = eng.robots[L.id].body, eng.robots[F.id].body
             g = math.hypot(bl.x - bf.x, bl.y - bf.y)
             min_gap[0] = min(min_gap[0], g)
@@ -105,6 +115,9 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         await coord.stop()
 
     corner_err = [math.hypot(a[0] - b[0], a[1] - b[1]) for a, b in zip(marks["L_turn"], marks["F_turn"])]
+    # Sai lệch vị trí leader lúc bắt đầu quay so với đỉnh góc trên đường vẽ
+    leader_corner_err = [math.hypot(m[0] - seg["b"][0], m[1] - seg["b"][1])
+                         for m, seg in zip(marks["L_turn"], path["segments"])]
     end = path["segments"][-1]["b"]
     bl = eng.robots[L.id].body
     calib = [e["msg"] for e in coord.log if "calib IMU" in e["msg"]]
@@ -117,9 +130,10 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         "min_center_gap_mm": round(min_gap[0], 1),
         "corner_err_mm": [round(e, 1) for e in corner_err],
         "yaw_est_err_max_deg": {k: round(v, 2) for k, v in yaw_err.items()},
+        "leader_corner_err_mm": [round(e, 1) for e in leader_corner_err],
         "leader_end_err_mm": round(math.hypot(bl.x - end[0], bl.y - end[1]), 1),
         "gyro_bias_true_dps": {r: round(math.degrees(eng.robots[s.id].body.gyro_bias_true()), 2)
-                               for r, s in (("leader", L), ("follower", F))},
+                               for r, s in (("leader", L), ("follower", F)) if s is not None},
         "calib": calib,
         "log": coord.log,
     }
@@ -131,10 +145,11 @@ def main() -> None:
     ap.add_argument("--seeds", type=int, default=1)
     ap.add_argument("--mismatch", default="{}", help='JSON {"leader": {...}, "follower": {...}}')
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--solo", action="store_true", help="chế độ 1 xe (chỉ leader)")
     a = ap.parse_args()
     mm = json.loads(a.mismatch)
     for seed in range(1, a.seeds + 1):
-        res = asyncio.run(run_scenario(PRESETS[a.path], seed=seed, mismatch=mm))
+        res = asyncio.run(run_scenario(PRESETS[a.path], seed=seed, mismatch=mm, solo=a.solo))
         if not a.verbose:
             res.pop("log", None)
         print(json.dumps({"seed": seed, **res}, ensure_ascii=False, indent=1))

@@ -64,7 +64,7 @@ function changed() {
 
 export async function validate() {
   try {
-    store.plan = await api('POST', '/api/plan', { grid: store.grid, points: store.points });
+    store.plan = await api('POST', '/api/plan', { grid: store.grid, points: store.points, mode: store.mode });
   } catch (e) {
     store.plan = { ok: false, errors: [e.message], warnings: [] };
   }
@@ -88,9 +88,11 @@ function renderPlan() {
     const vc = sh['motion.v_cruise'] || 150;
     rows.push(['Tổng dài', `${(path.total_len / 1000).toFixed(2)} m`], ['Số đoạn', path.segments.length],
       ['Số góc cua', path.corners_s.length],
-      ['Ước tính', `~${Math.round(path.total_len / vc + path.corners_s.length * 16 + 3)} s`]);
+      ['Ước tính', `~${Math.round(path.total_len / vc + path.corners_s.length * (store.mode === 'solo' ? 4 : 16) + 3)} s`]);
   }
-  if (f.g_target) {
+  if (store.mode === 'solo') {
+    rows.push(['Chế độ', '1 xe (chỉ leader)'], ['R quét', `${(f.r_sweep_leader || 0).toFixed(0)} mm`]);
+  } else if (f.g_target) {
     rows.push(['Gap đi thẳng', `${f.g_target.toFixed(0)} mm`], ['Gap chờ tối thiểu', `${f.g_hold_min.toFixed(0)} mm`],
       ['Khoảng thoát góc', `${f.exit_dist.toFixed(0)} mm`], ['Gap an toàn', `${f.gap_min_safe.toFixed(0)} mm`],
       ['R quét (L/F)', `${f.r_sweep_leader.toFixed(0)} / ${f.r_sweep_follower.toFixed(0)} mm`]);
@@ -109,14 +111,18 @@ function draw() {
   const c = store.grid.cell_mm;
   const p = store.plan;
   if (p?.path) {
-    drawPath(ctx, t, p.path, { sweep: Math.max(p.formation.r_sweep_leader, p.formation.r_sweep_follower),
+    const solo = !!p.path.solo;
+    drawPath(ctx, t, p.path, { sweep: solo ? p.formation.r_sweep_leader
+      : Math.max(p.formation.r_sweep_leader, p.formation.r_sweep_follower),
       color: p.ok ? cssVar('--path') : cssVar('--danger') });
     const g = p.geom;
     const st = p.path.start, fs = p.path.follower.start;
     drawRobot(ctx, t, { x: st.x, y: st.y, yaw: st.yaw_deg * Math.PI / 180 }, g.leader,
-      { stroke: cssVar('--leader'), fill: cssVar('--surface'), alpha: 0.9, label: 'Đầu' });
-    drawRobot(ctx, t, { x: fs.x, y: fs.y, yaw: fs.yaw_deg * Math.PI / 180 }, g.follower,
-      { stroke: cssVar('--follower'), fill: cssVar('--surface'), alpha: 0.9, label: 'Đuôi' });
+      { stroke: cssVar('--leader'), fill: cssVar('--surface'), alpha: 0.9, label: solo ? 'Xe' : 'Đầu' });
+    if (!solo) {
+      drawRobot(ctx, t, { x: fs.x, y: fs.y, yaw: fs.yaw_deg * Math.PI / 180 }, g.follower,
+        { stroke: cssVar('--follower'), fill: cssVar('--surface'), alpha: 0.9, label: 'Đuôi' });
+    }
   } else if (store.points.length) {
     ctx.strokeStyle = cssVar('--path');
     ctx.lineWidth = 3;

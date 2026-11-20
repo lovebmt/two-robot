@@ -62,3 +62,6 @@ Có thêm nút "Xuất mô hình motor sang sim" để đưa `K`, `τ`, LUT củ
 | Follower start (lùi `gap` sau P0) nằm trong bản đồ | lỗi |
 | Đường nằm trong bản đồ, cách biên ≥ nửa chiều rộng xe | cảnh báo |
 | Vòng `R_sw` tại góc không chạm đoạn khác | cảnh báo |
+
+## Chế độ 1 xe (D30)
+Ô chọn **2 xe / 1 xe** ở tab Bản đồ và thanh nút tab Chạy (đồng bộ, lưu cùng bản vẽ). **1 xe**: chỉ xe gán vai trò *leader* chạy; mỗi góc xe dừng hẳn → quay 90° → đi tiếp. Kiểm tra trước khi chạy chỉ xét kết nối, pin, IMU, phía trước trống. Không có ràng buộc khoảng thoát góc / chỗ đặt follower nên vẽ được sát mép bản đồ và đoạn ngắn hơn. Vị trí dựa encoder + gyro nên sai số cộng dồn — hiệu chuẩn bước 2 (Đi thẳng) và 3 (Quay) trước.

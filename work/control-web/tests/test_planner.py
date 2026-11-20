@@ -54,3 +54,15 @@ def test_follower_start_outside_map():
     form, sh = _form()
     r = plan_path([[1, 3], [10, 3]], GRID, form, sh)
     assert not r["ok"] and any("follower" in e for e in r["errors"])
+
+
+def test_solo_skips_follower_constraints():
+    """Chế độ 1 xe: không cần chỗ cho follower phía sau, không ràng buộc khoảng thoát góc."""
+    form, sh = _form()
+    r = plan_path([[1, 3], [10, 3]], GRID, form, sh, solo=True)  # sát mép: 2 xe thì follower ra ngoài bản đồ
+    assert r["ok"], r["errors"]
+    assert r["path"]["solo"] is True
+    r = plan_path([[5, 3], [12, 3], [12, 4]], GRID, form, sh, solo=True)  # đoạn sau góc ngắn hơn khoảng thoát
+    assert r["ok"], r["errors"]
+    # Các luật chung vẫn giữ
+    assert not plan_path([[5, 3], [15, 3], [15, 10], [5, 10], [5, 3]], GRID, form, sh, solo=True)["ok"]

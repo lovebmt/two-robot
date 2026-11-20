@@ -39,3 +39,13 @@ def test_tof_block_triggers_safe_stop():
     assert not r["ok"]
     assert "LEADER_LOST" in (r["error"] or "") or "TOO" in (r["error"] or "")
     assert r["collisions"] == 0
+
+
+@pytest.mark.parametrize("path", ["L", "zigzag"])
+def test_solo_run_follows_drawn_path(path):
+    """Chế độ 1 xe: leader chạy hết đường vẽ, dừng-quay tại góc gần đỉnh."""
+    r = asyncio.run(batch.run_scenario(batch.PRESETS[path], seed=2, mismatch=MISMATCH, solo=True))
+    assert r["ok"], r.get("error")
+    assert r["collisions"] == 0
+    assert all(e < 30 for e in r["leader_corner_err_mm"])
+    assert r["leader_end_err_mm"] < 60

@@ -99,8 +99,9 @@ function renderPanels(f) {
   const badge = $('coordState');
   badge.textContent = c.state || 'IDLE';
   badge.className = `badge ${c.state}`;
-  $('coordSeg').textContent = c.phase === 'CALIB_IMU' ? 'Đang calib IMU: giữ 2 xe đứng yên…'
-    : c.phase === 'CHECK' ? 'Đang kiểm tra vị trí 2 xe…'
+  const solo = c.mode === 'solo';
+  $('coordSeg').textContent = c.phase === 'CALIB_IMU' ? `Đang calib IMU: giữ ${solo ? 'xe' : '2 xe'} đứng yên…`
+    : c.phase === 'CHECK' ? (solo ? 'Đang kiểm tra xe…' : 'Đang kiểm tra vị trí 2 xe…')
     : c.n_segments ? `Đoạn ${c.seg + 1}/${c.n_segments} · ${c.n_corners} góc cua` : 'Chưa chạy';
   const steps = c.steps || [];
   $('stepper').innerHTML = steps.map((s, k) => {
@@ -278,10 +279,10 @@ async function loadLogs() {
 
 export async function startRun() {
   if (store.points.length < 2) { toast('Vẽ đường ở tab Bản đồ trước', 'err'); return false; }
-  const key = JSON.stringify([store.grid, store.points]);
+  const key = JSON.stringify([store.grid, store.points, store.mode]);
   const place = checkedKey !== key;
   checkedKey = null;
-  const r = await guard(() => api('POST', '/api/run/start', { grid: store.grid, points: store.points, place }));
+  const r = await guard(() => api('POST', '/api/run/start', { grid: store.grid, points: store.points, mode: store.mode, place }));
   if (r) {
     trails.clear();
     Object.values(charts).forEach((c) => c.clear());
@@ -308,12 +309,12 @@ export function initView() {
   $('runStart').onclick = () => startRun();
   $('runCheck').onclick = async () => {
     if (store.points.length < 2) { toast('Vẽ đường ở tab Bản đồ trước', 'err'); return; }
-    toast('Đang kiểm tra vị trí 2 xe…');
-    const r = await guard(() => api('POST', '/api/run/check', { grid: store.grid, points: store.points }));
+    toast(store.mode === 'solo' ? 'Đang kiểm tra xe…' : 'Đang kiểm tra vị trí 2 xe…');
+    const r = await guard(() => api('POST', '/api/run/check', { grid: store.grid, points: store.points, mode: store.mode }));
     if (!r) return;
     $('checkList').innerHTML = r.checks.map((x) => `<li class="${x.level}"><b>${x.name}</b> — ${x.detail}</li>`).join('');
     lastChecksKey = JSON.stringify(r.checks);
-    checkedKey = r.ok ? JSON.stringify([store.grid, store.points]) : null;
+    checkedKey = r.ok ? JSON.stringify([store.grid, store.points, store.mode]) : null;
     toast(r.ok ? 'Kiểm tra ĐẠT — bấm Start để chạy' : 'Kiểm tra KHÔNG đạt — xem danh sách', r.ok ? 'ok' : 'err');
   };
   for (const id of ['placeMm', 'placeDeg']) {
