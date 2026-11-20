@@ -8,7 +8,7 @@ Mỗi xe một cột. Nếu 2 xe giống nhau thì chỉ cần ghi xe A.
 ## 1. Linh kiện
 | Mục | Xe A | Xe B |
 |---|---|---|
-| Board ESP32 (model, số chân) | ESP32 DevKit thường, ? chân | |
+| Board ESP32 (model, số chân) | ESP32-D0WD-V3 (DevKit, USB CP2102), id **198a2c**, MAC 20:50:0d:19:8a:2c | |
 | Motor: model / điện áp định mức / rpm | GA25-370 / 12 V / ? rpm | |
 | Hộp số: tỉ số | ? | |
 | Encoder: PPR (xung/vòng trục motor, 1 kênh) | 11 (cần xác nhận) | |
@@ -25,18 +25,21 @@ Mỗi xe một cột. Nếu 2 xe giống nhau thì chỉ cần ghi xe A.
 ## 2. Kích thước (mm)
 | Mục | Xe A | Xe B |
 |---|---|---|
-| Thân: dài × rộng × cao | | |
-| Đường kính bánh | | |
-| Khoảng cách 2 bánh (tâm vệt) | | |
+| Thân: dài × rộng × cao | ? × (tạm 167 = 141 + 26, mép ngoài 2 bánh) × ? | |
+| Đường kính bánh | **69** (đo 2026-11-20) | |
+| Khoảng cách 2 bánh (tâm vệt) | **141** (đo 2026-11-20) | |
+| Bề rộng bánh | **26** | |
 | Tâm trục bánh tới mặt trước | | |
 | Tâm trục bánh tới mặt sau | | |
 | Tâm trục tới mắt cảm biến (dọc) | | |
-| Khoảng cách 2 mắt cảm biến (ngang), khuyến nghị 80–100 mm | | |
+| Khoảng cách 2 mắt cảm biến (ngang), khuyến nghị 80–100 mm | **124** (đo 2026-11-20) | |
 | 2 mắt gá chung 1 thanh cứng? Mặt kính cùng mặt phẳng? | | |
 | Chiều cao mắt cảm biến so với sàn | | |
 | Vị trí MPU6050 (so với tâm trục), chiều trục Z | | |
 | Vị trí caster (so với trục) | | |
 | Tấm phản xạ đuôi: rộng × cao, chiều cao tâm | | |
+
+Cấu hình đầy đủ đang nạp trên xe A: [robots/robot-198a2c.config.json](robots/robot-198a2c.config.json) (sao lưu từ flash robot).
 
 ## 3. GPIO map (đã chốt 2026-11-20 theo dây thật, có sửa 2 chỗ). Nguồn chuẩn: `work/firmware/src/board/pins.h`
 | Chức năng | Người dùng nối | Chốt | Lý do sửa |
