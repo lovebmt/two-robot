@@ -207,7 +207,7 @@ class VirtualFirmware:
         self.prim = None
         self.kf.active = False if p.name == "FOLLOW" else self.kf.active
         if self.state == "RUNNING":
-            self.state = "IDLE" if p.standalone else "ARMED"
+            self.state = "IDLE" if getattr(p, "from_idle", False) else "ARMED"
         self._event({"t": "evt", "e": "prim_done", "id": p.id, "prim": p.name, "ok": p.ok,
                    "err": p.err, "result": p.result, "ts": self.hal.now_ms()})
 
@@ -416,10 +416,11 @@ class VirtualFirmware:
             cls = PRIMS.get(msg.get("prim"))
             if cls is None:
                 return self._ack(msg, False, "unknown_prim")
-            if cls.standalone:  # bài hiệu chuẩn: chạy từ IDLE, cần gyro đã calib
-                if self.state != "IDLE":
-                    return self._ack(msg, False, f"state:{self.state}")
-                if not self.imu_ok:
+            from_idle = self.state == "IDLE"
+            if from_idle:  # hiệu chuẩn / kiểm tra: chạy từ IDLE, xong quay về IDLE
+                if not cls.standalone:
+                    return self._ack(msg, False, "state:IDLE")
+                if cls.needs_imu and not self.imu_ok:
                     return self._ack(msg, False, "imu_uncal")
             elif self.state not in RUN_STATES:
                 return self._ack(msg, False, f"state:{self.state}")
@@ -429,6 +430,7 @@ class VirtualFirmware:
                            "err": "preempted", "result": {}, "ts": now})
             args = {k: v for k, v in msg.items() if k not in ("t", "op", "id", "prim", "seq")}
             p = cls(int(msg.get("id", 0)), args)
+            p.from_idle = from_idle
             self.prim = p
             self.state = "RUNNING"
             p.start(self)

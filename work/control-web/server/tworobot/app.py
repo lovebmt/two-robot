@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
 import logging
 import os
 import time
@@ -20,8 +21,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import __version__
+from . import calibration as CAL
 from . import params as P
-from .coordinator import Coordinator
+from .coordinator import Coordinator, preflight
 from .discovery import local_subnet, scan
 from .links import LinkError, NetLink, SimLink
 from .planner import plan_path
@@ -59,6 +61,49 @@ class Server:
         self._t0 = time.monotonic()
         self._prim_waiters: dict[int, asyncio.Future] = {}
         self._prim_ids = 900000
+        self.place_noise = {"pos_mm": 0.0, "yaw_deg": 0.0}  # sim: người đặt xe không chuẩn
+        self.cal_results: dict[str, dict] = {}              # kết quả hiệu chuẩn gần nhất theo robot+loại
+
+    async def run_prim(self, sess: RobotSession, prim: str, timeout: float = 60.0, **args) -> dict:
+        """Chạy 1 primitive trên robot (ngoài coordinator), trả bản tin prim_done."""
+        self._prim_ids += 1
+        pid = self._prim_ids
+        fut = asyncio.get_running_loop().create_future()
+        self._prim_waiters[pid] = fut
+        seq = pid
+        ack = asyncio.get_running_loop().create_future()
+        self.coord._acks[seq] = ack
+        try:
+            await sess.link.send({"t": "cmd", "op": "prim", "seq": seq, "id": pid, "prim": prim, **args})
+        except LinkError as e:
+            self._prim_waiters.pop(pid, None)
+            raise HTTPException(502, str(e)) from None
+        if ack.done() and ack.result().get("t") == "nack":
+            self._prim_waiters.pop(pid, None)
+            return {"ok": False, "err": ack.result().get("err"), "result": {}}
+        self.coord._acks.pop(seq, None)
+        try:
+            return await asyncio.wait_for(fut, timeout / max(self.sim.scale if self.sim else 1.0, 0.25) + 5)
+        except asyncio.TimeoutError:
+            self._prim_waiters.pop(pid, None)
+            return {"ok": False, "err": "TIMEOUT", "result": {}}
+
+    def place_at_start(self, L: RobotSession, F: RobotSession, path: dict) -> None:
+        """Robot ảo: đặt vào vị trí xuất phát (kèm sai lệch ngẫu nhiên place_noise như người đặt)."""
+        import random
+        if self.sim is None:
+            return
+        pn, yn = self.place_noise["pos_mm"], self.place_noise["yaw_deg"]
+        for sess, pose, lateral in ((L, path["start"], 0.0), (F, path["follower"]["start"], 1.0)):
+            if sess.source != "SIM":
+                continue
+            th = math.radians(pose["yaw_deg"])
+            dx = random.uniform(-pn, pn)
+            dy = random.uniform(-pn, pn) * lateral
+            self.sim.place(sess.id, pose["x"] + dx * math.cos(th) - dy * math.sin(th),
+                           pose["y"] + dx * math.sin(th) + dy * math.cos(th),
+                           pose["yaw_deg"] + random.uniform(-yn, yn))
+        self.sim.collision_events = 0
 
     # ------------------------------------------------------------ time
     def clock(self) -> float:
@@ -98,7 +143,7 @@ class Server:
         if self.sim is None:
             return None
         return {"t": round(self.sim.t, 3), "running": self.sim.running, "scale": self.sim.scale,
-                "seed": self.sim.seed, "collisions": self.sim.collision_events,
+                "seed": self.sim.seed, "collisions": self.sim.collision_events, "place_noise": self.place_noise,
                 "mismatch": {rid: r.mismatch for rid, r in self.sim.robots.items()},
                 "zones": [z.__dict__ for z in self.sim.world.zones]}
 
@@ -514,12 +559,8 @@ async def run_start(body: dict = Body(...)):
         raise HTTPException(400, {"errors": ["cần gán 1 leader và 1 follower"]})
     path = res["path"]
     if S.sim is not None:
-        st, fs = path["start"], path["follower"]["start"]
-        if L.source == "SIM":
-            S.sim.place(L.id, st["x"], st["y"], st["yaw_deg"])
-        if F.source == "SIM":
-            S.sim.place(F.id, fs["x"], fs["y"], fs["yaw_deg"])
-        S.sim.collision_events = 0
+        if body.get("place", True):
+            S.place_at_start(L, F, path)
         S.sim.running = True
     for s in (L, F):
         await s.link.send({"t": "cmd", "op": "reset"})
@@ -530,6 +571,115 @@ async def run_start(body: dict = Body(...)):
     S.coord.start(path, L, F, dict(S.shared))
     S.note(f"Bắt đầu chạy đường #{path['path_id']} ({len(path['segments'])} đoạn, {len(path['corners_s'])} góc)")
     return {"ok": True, "path": path, "warnings": res["warnings"]}
+
+
+@app.post("/api/run/check")
+async def run_check(body: dict = Body(...)):
+    """Chạy thử bước 'Kiểm tra trước khi chạy' (không chạy đường). Robot ảo: đặt vào vị trí xuất phát trước."""
+    if S.coord.state == "RUNNING":
+        raise HTTPException(409, "đang chạy")
+    res = _plan(body)
+    if not res["ok"]:
+        raise HTTPException(400, {"errors": res["errors"]})
+    L, F = S.reg.by_role("leader"), S.reg.by_role("follower")
+    if L is None or F is None:
+        raise HTTPException(400, {"errors": ["cần gán 1 leader và 1 follower"]})
+    if S.sim is not None and body.get("place", True):
+        S.place_at_start(L, F, res["path"])
+        await asyncio.sleep(0.6 / max(S.sim.scale, 0.1))
+    for s in (L, F):  # cần biết vị trí leader rear (formation) để tính gap
+        await s.link.send({"t": "cmd", "op": "reset"})
+        await _req(s, "PUT", "/api/path", res["path"])
+    await asyncio.sleep(0.15)
+    checks = await preflight(L, F, res["formation"], S.shared, S.run_prim)
+    S.last_path = res["path"]
+    ok = all(c["ok"] for c in checks)
+    S.coord.checks = checks
+    S.note("Kiểm tra trước khi chạy: " + ("ĐẠT" if ok else "KHÔNG ĐẠT"), "info" if ok else "warn")
+    return {"ok": ok, "checks": checks}
+
+
+# ---------------------------------------------------------------- calibration wizards
+CAL_PRIM = {"drive": "CAL_DRIVE", "turn": "CAL_TURN", "gap": "SNAPSHOT"}
+
+
+def _truth(s: RobotSession) -> dict | None:
+    return (s.last_tel or {}).get("truth")
+
+
+@app.post("/api/robots/{rid}/cal/{kind}")
+async def cal_run(rid: str, kind: str, body: dict = Body(default={})):
+    """Bước 1 hiệu chuẩn: robot thực hiện (đi thẳng / quay / đo khoảng cách) và báo số đo của nó.
+    Robot ảo: trả thêm 'sim_measured' — số đo thật trong mô phỏng (thay cho thước của người dùng)."""
+    if kind not in CAL_PRIM:
+        raise HTTPException(404, "loại hiệu chuẩn: drive | turn | gap")
+    s = _sess(rid)
+    if S.coord.state == "RUNNING":
+        raise HTTPException(409, "đang chạy đường")
+    await s.link.send({"t": "cmd", "op": "reset"})
+    args: dict = {}
+    if kind == "drive":
+        args = {"mm": float(body.get("mm", 1000))}
+    elif kind == "turn":
+        args = {"deg": float(body.get("deg", 360))}
+    elif kind == "gap":
+        args = {"n": int(body.get("n", 30))}
+        if s.source == "SIM" and S.sim is not None and body.get("place", True):
+            # Robot ảo: đặt xe này sau robot kia đúng known_mm (mặt mắt ToF → mặt đuôi), thẳng hàng.
+            other = next((o for o in S.reg.sessions.values() if o.source == "SIM" and o.id != rid), None)
+            if other is None:
+                raise HTTPException(400, "cần robot ảo thứ 2 làm 'xe trước'")
+            me, ot = S.sim.robots[rid].body, S.sim.robots[other.id].body
+            gap_c = float(body.get("known_mm", 100)) + me.p.tof_x + ot.p.rear
+            S.sim.place(other.id, ot.x, ot.y, math.degrees(ot.th))
+            S.sim.place(rid, ot.x - gap_c * math.cos(ot.th), ot.y - gap_c * math.sin(ot.th), math.degrees(ot.th))
+            await asyncio.sleep(0.6 / max(S.sim.scale, 0.1))
+    t0 = _truth(s)
+    msg = await S.run_prim(s, CAL_PRIM[kind], timeout=120, **args)
+    if not msg.get("ok"):
+        raise HTTPException(400, f"{s.name}: {CAL_PRIM[kind]} lỗi {msg.get('err')}")
+    await asyncio.sleep(0.3)
+    t1 = _truth(s)
+    sim_measured = None
+    if t0 and t1:
+        if kind == "drive":
+            sim_measured = round(math.hypot(t1["x"] - t0["x"], t1["y"] - t0["y"]), 1)
+        elif kind == "turn" and "yaw_acc" in t1:
+            sim_measured = round(math.degrees(t1["yaw_acc"] - t0["yaw_acc"]), 2)
+        elif kind == "gap" and S.sim is not None:
+            other = next((o for o in S.reg.sessions.values() if o.id != rid and o.source == "SIM"), None)
+            if other:
+                me, ot = S.sim.robots[rid].body, S.sim.robots[other.id].body
+                sim_measured = round(math.hypot(ot.x - me.x, ot.y - me.y) - me.p.tof_x - ot.p.rear, 1)
+    S.cal_results[f"{rid}:{kind}"] = msg["result"]
+    return {"ok": True, "kind": kind, "result": msg["result"], "sim_measured": sim_measured}
+
+
+@app.post("/api/robots/{rid}/cal/{kind}/apply")
+async def cal_apply(rid: str, kind: str, body: dict = Body(...)):
+    """Bước 2: người dùng nhập số đo thực tế → tính hệ số mới → ghi config + lưu flash."""
+    s = _sess(rid)
+    res = S.cal_results.get(f"{rid}:{kind}")
+    if res is None:
+        raise HTTPException(400, "chưa chạy bước 1 cho robot này")
+    cfg = (await _req(s, "GET", "/api/config"))["params"]
+    try:
+        if kind == "drive":
+            patch, info = CAL.drive(cfg, res, float(body["measured"]))
+        elif kind == "turn":
+            patch, info = CAL.turn(cfg, res, float(body["measured"]))
+        elif kind == "gap":
+            patch, info = CAL.gap(cfg, res, float(body["measured"]), bool(body.get("keep_diff", True)))
+        else:
+            raise HTTPException(404, "loại hiệu chuẩn: drive | turn | gap")
+    except (CAL.CalError, KeyError, ValueError) as e:
+        raise HTTPException(400, str(e)) from None
+    if body.get("dry_run"):
+        return {"ok": True, "patch": patch, "info": info, "saved": False}
+    r = await _req(s, "PUT", "/api/config", {"patch": patch, "persist": True})
+    s.config = await _req(s, "GET", "/api/config")
+    S.note(f"{s.name}: hiệu chuẩn {kind} → {patch} (đã lưu flash)")
+    return {"ok": True, "patch": patch, "info": info, "saved": True, "cfg_rev": r.get("cfg_rev")}
 
 
 @app.post("/api/run/{action}")
@@ -583,6 +733,10 @@ async def sim_control(body: dict = Body(...)):
         S.sim.running = bool(body["running"])
     if "scale" in body:
         S.sim.scale = max(0.1, min(8.0, float(body["scale"])))
+    if "place_noise_mm" in body:
+        S.place_noise["pos_mm"] = max(0.0, min(100.0, float(body["place_noise_mm"])))
+    if "place_noise_deg" in body:
+        S.place_noise["yaw_deg"] = max(0.0, min(20.0, float(body["place_noise_deg"])))
     if body.get("step"):
         S.sim.advance(float(body["step"]))
     return {"ok": True, "sim": S.sim_status()}

@@ -19,7 +19,8 @@ BRAKE = (0.0, 0.0, True)
 
 class Prim:
     name = "?"
-    standalone = False  # True: chạy được khi xe IDLE (bài hiệu chuẩn), không cần path/ARM
+    standalone = False  # True: chạy được cả khi xe IDLE (hiệu chuẩn, kiểm tra), không cần path/ARM
+    needs_imu = True    # khi chạy từ IDLE: cần gyro đã calib
 
     def __init__(self, pid: int, args: dict):
         self.id = pid
@@ -202,28 +203,41 @@ class Follow(Prim):
 
 
 class Snapshot(Prim):
-    """Đứng yên, lấy trung bình N mẫu ToF → ρ, Δψ (mốc neo ở góc cua)."""
+    """Đứng yên, lấy trung bình N mẫu ToF → ρ, Δψ (mốc neo ở góc cua; kiểm tra trước khi chạy;
+    calib khoảng cách). Trả cả số đo trung bình từng mắt (đã bù offset) và offset đang dùng."""
     name = "SNAPSHOT"
+    standalone = True
+    needs_imu = False
 
     def start(self, fw):
         cfg = fw.params.active
         self.n = int(self.args.get("n") or cfg["corner.snapshot_n"])
-        self.samples: list[tuple[float, float]] = []
+        self.samples: list[tuple[float, float, float, float]] = []
         self.t0 = fw.hal.now_ms()
+        self.seen_l = self.seen_r = 0
 
     def on_range(self, fw, m):
+        self.seen_l += m.dl is not None
+        self.seen_r += m.dr is not None
         if m.valid and m.dpsi is not None:
-            self.samples.append((m.rho, m.dpsi))
+            self.samples.append((m.rho, m.dpsi, m.dl, m.dr))
 
     def update(self, fw, dt):
         if len(self.samples) >= self.n:
-            rhos = [r for r, _ in self.samples]
-            mean = sum(rhos) / len(rhos)
-            std = math.sqrt(sum((r - mean) ** 2 for r in rhos) / len(rhos))
-            dpsi = sum(d for _, d in self.samples) / len(self.samples)
-            self.finish(rho=mean, std=std, dpsi_deg=math.degrees(dpsi), s=fw.odo.s, n=len(rhos))
+            k = len(self.samples)
+            rhos = [x[0] for x in self.samples]
+            mean = sum(rhos) / k
+            std = math.sqrt(sum((r - mean) ** 2 for r in rhos) / k)
+            cfg = fw.params.active
+            self.finish(rho=mean, std=std, dpsi_deg=math.degrees(sum(x[1] for x in self.samples) / k),
+                        dl_mm=sum(x[2] for x in self.samples) / k, dr_mm=sum(x[3] for x in self.samples) / k,
+                        offset_l_mm=cfg["range.offset_l_mm"], offset_r_mm=cfg["range.offset_r_mm"],
+                        s=fw.odo.s, n=k)
         elif fw.hal.now_ms() - self.t0 > 3000:
-            self.finish(ok=False, err="NO_TARGET", n=len(self.samples))
+            # Phân biệt: không thấy gì / chỉ 1 mắt thấy (lệch ngang, mép tấm) / 2 mắt chênh quá lớn
+            err = ("NO_TARGET" if not (self.seen_l or self.seen_r)
+                   else "ONE_EYE_ONLY" if not (self.seen_l and self.seen_r) else "EYES_DISAGREE")
+            self.finish(ok=False, err=err, n=len(self.samples), seen_l=self.seen_l, seen_r=self.seen_r)
         return BRAKE
 
 
@@ -489,6 +503,64 @@ class TofCal(Prim):
         self.finish(**r)
 
 
+class CalDrive(Prim):
+    """Hiệu chuẩn đi thẳng: chạy thẳng `mm` (giữ hướng gyro) rồi báo quãng encoder đo được.
+    Người dùng đo quãng thật → wheel.diameter_mm mới = cũ × thật / encoder."""
+    name = "CAL_DRIVE"
+    standalone = True
+
+    def start(self, fw):
+        self.s0 = fw.odo.s
+        self.arc0 = (fw.odo.arc_l, fw.odo.arc_r)
+        self.psi0 = fw.heading.psi
+        cfg = fw.params.active
+        v = float(self.args.get("v_max") or min(cfg["motion.v_cruise"], 150.0))
+        self.drive = DriveTo(-1, {"s_end": self.s0 + float(self.args.get("mm", 1000.0)),
+                                  "heading_deg": math.degrees(self.psi0), "v_max": v})
+        self.drive.start(fw)
+
+    def update(self, fw, dt):
+        out = self.drive.update(fw, dt)
+        if self.drive.done:
+            self.finish(cmd_mm=float(self.args.get("mm", 1000.0)), enc_mm=fw.odo.s - self.s0,
+                        arc_l_mm=fw.odo.arc_l - self.arc0[0], arc_r_mm=fw.odo.arc_r - self.arc0[1],
+                        yaw_change_deg=math.degrees(wrap(fw.heading.psi - self.psi0)))
+        return out
+
+
+class CalTurn(Prim):
+    """Hiệu chuẩn quay: quay tại chỗ `deg` (cộng dồn, quay được 360°/720°) theo gyro.
+    Người dùng đo góc thật → imu.gyro_scale_z và wheel.track_eff_mm mới."""
+    name = "CAL_TURN"
+    standalone = True
+
+    def start(self, fw):
+        self.target = math.radians(float(self.args.get("deg", 360.0)))
+        self.acc = 0.0
+        self.arc0 = (fw.odo.arc_l, fw.odo.arc_r)
+        self.w_prev = 0.0
+        self.settle = 0.0
+
+    def update(self, fw, dt):
+        cfg = fw.params.active
+        self.acc += fw.heading.w * dt  # góc cộng dồn (không wrap) theo bộ ước lượng
+        e = self.target - self.acc
+        tol = math.radians(cfg["motion.turn_tol_deg"])
+        if abs(e) < tol:
+            self.settle += dt
+            if self.settle > 0.3:
+                self.finish(cmd_deg=math.degrees(self.target), est_deg=math.degrees(self.acc),
+                            arc_l_mm=fw.odo.arc_l - self.arc0[0], arc_r_mm=fw.odo.arc_r - self.arc0[1])
+            return BRAKE
+        self.settle = 0.0
+        wmax = math.radians(cfg["motion.turn_rate_dps"])
+        alpha = math.radians(cfg["motion.turn_acc_dps2"])
+        w = max(min(wmax, 0.8 * math.sqrt(2 * alpha * abs(e))), math.radians(6.0))
+        w = min(w, abs(self.w_prev) + alpha * dt)
+        self.w_prev = w
+        return 0.0, sign(e) * w, False
+
+
 PRIMS: dict[str, type[Prim]] = {
-    c.name: c for c in (DriveTo, Turn, Hold, Follow, Snapshot, Align, Reacquire, TofCal)
+    c.name: c for c in (DriveTo, Turn, Hold, Follow, Snapshot, Align, Reacquire, TofCal, CalDrive, CalTurn)
 }

@@ -6,7 +6,7 @@ from __future__ import annotations
 import asyncio
 import itertools
 import time
-from typing import Callable
+from typing import Awaitable, Callable
 
 from .registry import RobotSession
 
@@ -26,6 +26,58 @@ STEP_NAMES = [
 
 class RunFault(Exception):
     pass
+
+
+SNAP_HINT = {
+    "NO_TARGET": "xe sau không thấy gì: xe trước quá xa, bị che, hoặc tấm đuôi không cùng độ cao mắt ToF",
+    "ONE_EYE_ONLY": "chỉ 1 mắt thấy đuôi xe trước → xe sau lệch ngang: đặt lại thẳng hàng",
+    "EYES_DISAGREE": "2 mắt đo chênh nhau quá nhiều → xe sau lệch ngang/lệch góc lớn so với xe trước, hoặc chưa Calib ToF",
+}
+
+
+async def preflight(L: RobotSession, F: RobotSession, form: dict, sh: dict,
+                    run_prim: Callable[..., Awaitable[dict]]) -> list[dict]:
+    """Kiểm tra trước khi chạy: 2 xe sẵn sàng, xe sau thấy xe trước đúng vị trí, phía trước trống.
+
+    run_prim(sess, prim, **args) → bản tin prim_done (có ok/err/result). Trả danh sách mục kiểm tra.
+    """
+    checks: list[dict] = []
+
+    def add(name: str, ok: bool, detail: str, warn: bool = False) -> None:
+        checks.append({"name": name, "ok": ok, "detail": detail, "level": "ok" if ok and not warn else "warn" if ok else "err"})
+
+    for s in (L, F):
+        tel = s.last_tel or {}
+        st = tel.get("state")
+        add(f"{s.name}: kết nối, trạng thái", st not in (None, "FAULT", "ESTOP", "CALIB"),
+            f"{st}" + (f" · lỗi {tel.get('fault')}" if tel.get("fault") else ""))
+        add(f"{s.name}: pin", "BAT_LOW" not in tel.get("flags", []), f"{tel.get('vbat', 0):.1f} V")
+        imu = tel.get("imu") or {}
+        add(f"{s.name}: IMU đã calib", bool(imu.get("ok")),
+            f"bias {imu.get('bias_dps', 0):+.2f}°/s" if imu.get("ok") else "chưa calib")
+
+    msg = await run_prim(F, "SNAPSHOT")
+    if not msg.get("ok"):
+        add("Xe sau thấy đuôi xe trước bằng 2 mắt", False, SNAP_HINT.get(msg.get("err"), str(msg.get("err"))))
+    else:
+        r = msg["result"]
+        add("Xe sau thấy đuôi xe trước bằng 2 mắt", True, f"trái {r['dl_mm']:.0f} mm · phải {r['dr_mm']:.0f} mm")
+        g, gt, tol = r["rho"], form["g_target"], sh["start.gap_tol_mm"]
+        move = "đẩy xe sau lên" if g > gt else "lùi xe sau ra"
+        add("Khoảng cách 2 xe", abs(g - gt) <= tol,
+            f"{g:.0f} mm (cần {gt:.0f} ± {tol:.0f})" + ("" if abs(g - gt) <= tol else f" → {move} {abs(g - gt):.0f} mm"))
+        d = r["dpsi_deg"]
+        ok = abs(d) <= sh["start.max_dpsi_deg"]
+        add("Xe sau thẳng hàng với xe trước", ok,
+            f"lệch {d:+.1f}°" + ("" if ok else f" (> {sh['start.max_dpsi_deg']:.0f}°): xoay xe sau lại")
+            + (" → sẽ tự căn (ALIGN)" if ok and abs(d) > sh["start.align_dpsi_deg"] else ""),
+            warn=ok and abs(d) > sh["start.align_dpsi_deg"])
+    tof = (L.last_tel or {}).get("tof") or {}
+    near = [v["mm"] for v in tof.values() if v.get("st") == 0]
+    dmin = min(near) if near else None
+    add("Phía trước xe đầu trống", dmin is None or dmin >= sh["start.front_clear_mm"],
+        "không thấy vật cản" if dmin is None else f"vật gần nhất {dmin:.0f} mm (cần ≥ {sh['start.front_clear_mm']:.0f})")
+    return checks
 
 
 class Coordinator:
@@ -50,6 +102,7 @@ class Coordinator:
         self._acks: dict[int, asyncio.Future] = {}
         self._calib: dict[str, asyncio.Future] = {}
         self.phase = ""
+        self.checks: list[dict] = []
         self._fault: str | None = None
         self.paused = False
 
@@ -57,7 +110,7 @@ class Coordinator:
     def status(self) -> dict:
         n_corners = len(self.path["corners_s"]) if self.path else 0
         return {"state": "PAUSED" if self.paused and self.state == "RUNNING" else self.state,
-                "error": self.error, "seg": self.seg, "step": self.step, "phase": self.phase,
+                "error": self.error, "seg": self.seg, "step": self.step, "phase": self.phase, "checks": self.checks,
                 "n_segments": len(self.path["segments"]) if self.path else 0,
                 "n_corners": n_corners, "steps": STEP_NAMES,
                 "path_id": self.path["path_id"] if self.path else None,
@@ -165,6 +218,30 @@ class Coordinator:
             raise RunFault(f"{what}: {res.get('err')}")
         return res.get("result", {})
 
+    async def _wait_until(self, pred: Callable[[], bool], timeout: float) -> bool:
+        elapsed, last = 0.0, self.clock()
+        while not pred():
+            await asyncio.sleep(self.poll)
+            now = self.clock()
+            elapsed += now - last
+            last = now
+            if elapsed > timeout:
+                return False
+        return True
+
+    async def _prim_raw(self, sess: RobotSession, prim: str, timeout: float = 20.0, **args) -> dict:
+        """Chạy primitive, trả nguyên bản tin prim_done (không ném lỗi khi ok=False)."""
+        fut = await self._start_prim(sess, prim, **args)
+        elapsed, last = 0.0, self.clock()
+        while not fut.done():
+            await asyncio.sleep(self.poll)
+            now = self.clock()
+            elapsed += 0.0 if self.paused else now - last
+            last = now
+            if elapsed > timeout:
+                raise RunFault(f"timeout: {sess.name} {prim}")
+        return fut.result()
+
     async def _prim(self, sess: RobotSession, prim: str, timeout: float | None = None, **args) -> dict:
         fut = await self._start_prim(sess, prim, **args)
         return await self._wait(fut, timeout or self._timeout, f"{sess.name} {prim}")
@@ -248,9 +325,25 @@ class Coordinator:
                 self.phase = "CALIB_IMU"
                 self._set(0, 0, "Calib IMU: giữ 2 xe đứng yên…")
                 await self._calib_imu(need)
+            self.checks = []
+            if sh.get("start.check_enable", True):
+                self.phase = "CHECK"
+                self._set(0, 0, "Kiểm tra trước khi chạy…")
+                # Telemetry 25 Hz có thể còn là bản trước khi calib xong → chờ bản mới.
+                await self._wait_until(lambda: all((s.last_tel or {}).get("state") not in (None, "CALIB")
+                                                   for s in (L, F)), 2.0)
+                self.checks = await preflight(L, F, form, sh, self._prim_raw)
+                bad = [c for c in self.checks if not c["ok"]]
+                if bad:
+                    raise RunFault("Kiểm tra trước khi chạy KHÔNG đạt: "
+                                   + "; ".join(f"{c['name']}: {c['detail']}" for c in bad))
+                self.log.append({"t": round(self.clock(), 2), "msg": "Kiểm tra trước khi chạy: đạt"})
             self.phase = "RUN"
             for s in (L, F):
                 await self._cmd_ack(s, "arm", path_id=p["path_id"])
+            if any(c["name"].startswith("Xe sau thẳng hàng") and c["level"] == "warn" for c in self.checks):
+                await self._prim(F, "ALIGN")
+                self.log.append({"t": round(self.clock(), 2), "msg": "Xe sau đã tự căn thẳng với xe trước"})
             for i, seg in enumerate(segs):
                 last = i == len(segs) - 1
                 s_end = p["total_len"] if last else p["corners_s"][i]

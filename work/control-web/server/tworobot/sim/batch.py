@@ -28,7 +28,10 @@ GRID = {"cell_mm": 100, "cols": 32, "rows": 18}
 
 async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None = None,
                        shared_patch: dict | None = None, robot_patch: dict | None = None,
-                       idle_before_s: float = 1.0, max_t: float = 600.0) -> dict:
+                       idle_before_s: float = 1.0, max_t: float = 600.0,
+                       start_offset: dict | None = None) -> dict:
+    """start_offset: {'leader'|'follower': {'dx','dy' (mm, theo hệ xe), 'dyaw' (độ)}} — đặt xe lệch so với
+    vị trí xuất phát (firmware không biết), giống người đặt xe không chuẩn."""
     mismatch = mismatch or {}
     eng = SimEngine(grid["cols"] * grid["cell_mm"], grid["rows"] * grid["cell_mm"], seed=seed, state_dir=None)
     reg = Registry()
@@ -52,8 +55,14 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         return {"ok": False, "errors": plan["errors"] + list(ferr.values())}
     path = plan["path"]
     st, fs = path["start"], path["follower"]["start"]
-    eng.place(L.id, st["x"], st["y"], st["yaw_deg"])
-    eng.place(F.id, fs["x"], fs["y"], fs["yaw_deg"])
+    def place(sess, pose, role):
+        o = (start_offset or {}).get(role, {})
+        th = math.radians(pose["yaw_deg"])
+        dx, dy = o.get("dx", 0.0), o.get("dy", 0.0)
+        eng.place(sess.id, pose["x"] + dx * math.cos(th) - dy * math.sin(th),
+                  pose["y"] + dx * math.sin(th) + dy * math.cos(th), pose["yaw_deg"] + o.get("dyaw", 0.0))
+    place(L, st, "leader")
+    place(F, fs, "follower")
     eng.collision_events = 0
     for s in (L, F):
         await s.link.request("PUT", "/api/path", path)

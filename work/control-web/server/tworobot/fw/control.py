@@ -245,6 +245,8 @@ class Odometry:
         self.x = 0.0
         self.y = 0.0
         self.s = 0.0  # tiến độ dọc đường (mm), chỉ cộng quãng tiến/lùi
+        self.arc_l = 0.0  # quãng cộng dồn từng bánh theo encoder (mm, có dấu) — cho hiệu chuẩn
+        self.arc_r = 0.0
         self._psi_prev: float | None = None
 
     def reset(self, x: float, y: float, s: float) -> None:
@@ -253,6 +255,8 @@ class Odometry:
 
     def update(self, dl: float, dr: float, psi: float) -> None:
         ds = 0.5 * (dl + dr)
+        self.arc_l += dl
+        self.arc_r += dr
         p0 = psi if self._psi_prev is None else self._psi_prev
         mid = p0 + 0.5 * wrap(psi - p0)
         self.x += ds * math.cos(mid)

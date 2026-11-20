@@ -123,6 +123,7 @@ class Body:
 
     def place(self, x: float, y: float, th: float) -> None:
         self.x, self.y, self.th = x, y, th
+        self.th_acc = 0.0  # góc quay cộng dồn (không wrap) — "thước đo góc" cho hiệu chuẩn trong sim
         self.u = {"l": 0.0, "r": 0.0}  # tốc độ mặt bánh (mm/s)
         self.v = 0.0
         self.w = 0.0
@@ -156,6 +157,7 @@ class Body:
         self.x += v * math.cos(mid) * dt
         self.y += v * math.sin(mid) * dt
         self.th = wrap(self.th + w * dt)
+        self.th_acc += w * dt
         self.v, self.w = v, w
         self.enc_dist["l"] += ul * dt
         self.enc_dist["r"] += ur * dt

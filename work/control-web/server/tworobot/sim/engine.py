@@ -114,7 +114,7 @@ class SimEngine:
     def truth(self, rid: str) -> dict:
         b = self.robots[rid].body
         return {"x": b.x, "y": b.y, "yaw": b.th, "v": b.v, "w": b.w,
-                "collide": rid in self.collision_now, "gyro_bias": b.gyro_bias_true()}
+                "collide": rid in self.collision_now, "gyro_bias": b.gyro_bias_true(), "yaw_acc": b.th_acc}
 
     def step(self) -> None:
         dt = PHYS_DT
