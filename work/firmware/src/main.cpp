@@ -51,6 +51,7 @@ void stateSnapshot(std::string& tel, std::deque<tr::App::Ev>& ev, uint32_t& eseq
   xSemaphoreGive(snapMutex);
 }
 
+static const char* resetReasonStr();
 static void controlTask(void*) {
   TickType_t last = xTaskGetTickCount();
   uint32_t lastSeq = 0, maxUs = 0, lastLog = 0, n = 0;
@@ -97,12 +98,30 @@ static void controlTask(void*) {
     if (us > maxUs) maxUs = us;
     if (millis() - lastLog > 10000) {  // nhật ký nhẹ mỗi 10 s
       lastLog = millis();
-      con.printf("[%lus] state=%s role=%s ip=%s tick_max=%luus (khoá %lu, tof %lu, tick %lu, snap %lu, khoá snap %lu) heap=%u hw=0x%x\n",
+      con.printf("[%lus] state=%s role=%s ip=%s tick_max=%luus (khoá %lu, tof %lu, tick %lu, snap %lu, khoá snap %lu) heap=%u hw=0x%x"
+                 " | RSSI %d dBm, lặng max %lu ms, WiFi rớt %lu, reset %s\n",
                  millis() / 1000, app->state.c_str(), app->role.c_str(), net::ipString().c_str(), (unsigned long)maxUs,
                  (unsigned long)mxLock, (unsigned long)mxRange, (unsigned long)mxTick, (unsigned long)mxSnap,
-                 (unsigned long)mxSnapLock, ESP.getFreeHeap(), (unsigned)hal.hwFault());
+                 (unsigned long)mxSnapLock, ESP.getFreeHeap(), (unsigned)hal.hwFault(), WiFi.RSSI(),
+                 (unsigned long)net::takeGapMax(), (unsigned long)net::disconnects(), resetReasonStr());
       maxUs = mxLock = mxRange = mxTick = mxSnap = mxSnapLock = 0;
     }
+  }
+}
+
+// Lý do khởi động lần gần nhất — BROWNOUT = sụt áp nguồn 3.3 V (thường do motor kéo dòng)
+static const char* resetReasonStr() {
+  switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return "POWERON";
+    case ESP_RST_SW: return "SW";
+    case ESP_RST_PANIC: return "PANIC";
+    case ESP_RST_INT_WDT: return "INT_WDT";
+    case ESP_RST_TASK_WDT: return "TASK_WDT";
+    case ESP_RST_WDT: return "WDT";
+    case ESP_RST_BROWNOUT: return "BROWNOUT(sụt áp!)";
+    case ESP_RST_DEEPSLEEP: return "DEEPSLEEP";
+    case ESP_RST_EXT: return "EXT";
+    default: return "?";
   }
 }
 
@@ -113,7 +132,7 @@ void setup() {
   for (uint8_t p : motorPins) { pinMode(p, OUTPUT); digitalWrite(p, LOW); }
   Serial.begin(115200);
   delay(200);
-  Serial.printf("\n=== two-robot fw %s ===\n", tr::FW_VERSION);
+  Serial.printf("\n=== two-robot fw %s · reset %s ===\n", tr::FW_VERSION, resetReasonStr());
   hal.begin();  // motor tắt trước tiên
 
   char id[7];

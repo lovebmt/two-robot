@@ -5,6 +5,8 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "console.h"
+
 #if __has_include("secrets.h")
 #include "secrets.h"  // tuỳ chọn: #define WIFI_SSID "..." / #define WIFI_PASS "..." (không commit)
 #endif
@@ -18,6 +20,36 @@ static Preferences* g_prefs = nullptr;
 static bool g_ap = false;
 
 bool isAp() { return g_ap; }
+
+// ---- Chẩn đoán đường truyền (LINK_LOST): khoảng lặng giữa 2 request + sự kiện WiFi rớt
+static volatile uint32_t g_lastReq = 0, g_gapMax = 0, g_disc = 0, g_lastDiscReason = 0;
+
+static void noteRequest() {
+  const uint32_t now = millis();
+  if (g_lastReq) {
+    const uint32_t gap = now - g_lastReq;
+    if (gap > g_gapMax) g_gapMax = gap;
+    if (gap > 400)
+      con.printf("[%lus] ⚠ %lu ms không có request từ PC · RSSI %d dBm · WiFi rớt %lu lần\n", now / 1000,
+                 (unsigned long)gap, WiFi.RSSI(), (unsigned long)g_disc);
+  }
+  g_lastReq = now;
+}
+
+uint32_t takeGapMax() { const uint32_t g = g_gapMax; g_gapMax = 0; return g; }
+uint32_t disconnects() { return g_disc; }
+uint32_t lastDisconnectReason() { return g_lastDiscReason; }
+
+static void onWifiEvent(WiFiEvent_t ev, WiFiEventInfo_t info) {
+  if (ev == ARDUINO_EVENT_WIFI_STA_DISCONNECTED) {
+    ++g_disc;
+    g_lastDiscReason = info.wifi_sta_disconnected.reason;
+    con.printf("[%lus] ⚠ WiFi RỚT (lý do %u) — lần %lu\n", millis() / 1000,
+               (unsigned)info.wifi_sta_disconnected.reason, (unsigned long)g_disc);
+  } else if (ev == ARDUINO_EVENT_WIFI_STA_GOT_IP && g_disc) {
+    con.printf("[%lus] WiFi nối lại: %s\n", millis() / 1000, WiFi.localIP().toString().c_str());
+  }
+}
 String ipString() { return g_ap ? WiFi.softAPIP().toString() : WiFi.localIP().toString(); }
 
 bool begin(Preferences& prefs, const String& id) {
@@ -28,6 +60,7 @@ bool begin(Preferences& prefs, const String& id) {
 #endif
   const String host = "tworobot-" + id;
   if (!ssid.isEmpty()) {
+    WiFi.onEvent(onWifiEvent);
     WiFi.mode(WIFI_STA);
     WiFi.setHostname(host.c_str());
     WiFi.setSleep(false);  // bắt buộc: power-save làm trễ 100–300 ms
@@ -110,6 +143,7 @@ static void handleState() {
 }
 
 static void handleApi() {
+  noteRequest();
   const String uri = server.uri();
   if (uri == "/api/state" && server.method() == HTTP_GET) {
     handleState();
