@@ -147,7 +147,65 @@ async function dirTest(kind) {
   }
 }
 
+// 0b: hiệu chuẩn encoder quay tay — mốc tick → người dùng quay N vòng tới → tính → lưu
+let encSide = 'l';
+let encTimer = null;
+let encStartTicks = null;
+
+function encTicks() {
+  const r = (store.frame?.robots || []).find((x) => x.id === target);
+  return r?.enc ? r.enc[encSide] : null;
+}
+
+async function encStart() {
+  if (!target) { toast('Chưa có robot', 'err'); return; }
+  const r = await guard(() => api('POST', `/api/robots/${target}/cal_enc/start`, { side: encSide }));
+  if (!r) return;
+  encStartTicks = r.start_ticks;
+  $('encOk').disabled = false;
+  $('calOut-enc').innerHTML = '';
+  clearInterval(encTimer);
+  encTimer = setInterval(() => {
+    const t = encTicks();
+    $('encLive').innerHTML = t === null ? '<span class="muted">chưa có tick từ robot</span>'
+      : `Bánh ${encSide === 'l' ? 'TRÁI' : 'PHẢI'}: <b>${t - encStartTicks >= 0 ? '+' : ''}${t - encStartTicks}</b> tick — quay tay đúng ${$('encRevs').value} vòng về phía trước rồi bấm OK`;
+  }, 150);
+}
+
+async function encOk() {
+  clearInterval(encTimer);
+  const r = await guard(() => api('POST', `/api/robots/${target}/cal_enc/finish`, { side: encSide, revs: Number($('encRevs').value) || 2 }));
+  if (!r) return;
+  const i = r.info;
+  const sideName = encSide === 'l' ? 'trái' : 'phải';
+  $('calOut-enc').innerHTML = kv([
+    ['Tick đếm được', `${i.delta_ticks} trong ${i.revs} vòng`],
+    ['Tick / vòng bánh', `<b>${f(i.ticks_per_rev, 1)}</b>`],
+    ['Tỉ số hộp số (PPR ' + i.ppr + ')', `${f(i.gear_ratio, 2)} (gần chuẩn GA25: 1:${i.nearest_standard}) · đang dùng ${f(i.gear_ratio_old, 2)}`],
+    ['Tỉ số sẽ lưu', `<b>${f(i.gear_ratio_used, 2)}</b>${i.gear_ratio_used !== i.gear_ratio ? ' (trung bình 2 bánh)' : ''}`],
+    ['mm / tick', f(i.mm_per_tick_new, 4)],
+    ['Chiều encoder ' + sideName, i.direction_ok ? '<span class="ok-text">✓ đúng (quay tới → tick tăng)</span>'
+      : `<b class="err">ngược</b> → sẽ ${i.invert_new ? 'BẬT' : 'TẮT'} <code>enc.invert_${encSide}</code>`],
+  ]) + '<button class="btn primary" id="encSave">Lưu vào robot</button>';
+  $('encSave').onclick = async () => {
+    const s = await guard(() => api('POST', `/api/robots/${target}/cal_enc/save`, { side: encSide }), `Đã lưu encoder ${sideName} vào flash`);
+    if (s) $('calOut-enc').insertAdjacentHTML('beforeend', ' <span class="ok-text">Đã lưu</span>');
+  };
+  $('encOk').disabled = true;
+}
+
 export function initCalib() {
+  $('encStart').onclick = encStart;
+  $('encOk').onclick = encOk;
+  $('encSide').querySelectorAll('button').forEach((b) => {
+    b.onclick = () => {
+      encSide = b.dataset.side;
+      $('encSide').querySelectorAll('button').forEach((x) => x.classList.toggle('active', x === b));
+      clearInterval(encTimer);
+      $('encLive').innerHTML = '';
+      $('encOk').disabled = true;
+    };
+  });
   document.querySelectorAll('[data-dir]').forEach((b) => { b.onclick = () => dirTest(b.dataset.dir); });
   document.querySelectorAll('[data-cal]').forEach((b) => { b.onclick = () => run(b.dataset.cal); });
   on('robots', () => renderTargets());

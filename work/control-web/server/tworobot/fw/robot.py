@@ -290,6 +290,8 @@ class VirtualFirmware:
             "dpsi": m.dpsi if (m and m.dpsi is not None) else None,
             "prim": {"id": self.prim.id, "name": self.prim.name} if self.prim else None,
             "flags": sorted(flags), "vbat": self.vbat, "gyro_bias": self.heading.bias,
+            "enc": {"l": self._last_ticks[0] if self._last_ticks else 0,
+                    "r": self._last_ticks[1] if self._last_ticks else 0},
             "imu": {"ok": self.imu_ok, "bias_dps": math.degrees(self.heading.bias),
                     "temp_c": self.heading.temp,
                     "k_dps_c": math.degrees(self.heading.k(cfg)),

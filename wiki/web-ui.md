@@ -36,7 +36,7 @@ Frontend Vite + TS + Canvas, giao tiếp với server qua REST và WS. Mỗi l�
 - Chế độ **Jog**: joystick hoặc phím WASD cho xe đang chọn.
 
 ### Hiệu chuẩn (tab riêng)
-Chọn robot rồi làm theo thứ tự: **1. IMU**, **2. Đi thẳng** (nhập quãng lệnh → Chạy → nhập quãng đo thật → Tính & lưu), **3. Quay** (360° → nhập góc thật), **4. ToF quét tường**, **5. Khoảng cách ToF** (đặt xe sau cách đuôi xe trước X mm → Đo → Tính & lưu).
+Chọn robot rồi làm theo thứ tự: **0b. Encoder quay tay** (đánh dấu bánh → Bắt đầu → quay tay đúng 2 vòng tới → OK → Lưu: tính tick/vòng, tỉ số hộp số, chiều encoder; không cần nạp firmware), **0. Kiểm tra chiều**, **1. IMU**, **2. Đi thẳng** (nhập quãng lệnh → Chạy → nhập quãng đo thật → Tính & lưu), **3. Quay** (360° → nhập góc thật), **4. ToF quét tường**, **5. Khoảng cách ToF** (đặt xe sau cách đuôi xe trước X mm → Đo → Tính & lưu).
 Robot ảo: ô "số đo thật" được điền sẵn từ mô phỏng. Mỗi bước kiểm tra giá trị hợp lý (vd. tỉ lệ 0.8–1.2) trước khi lưu flash.
 
 ### Calibrate (mô tả cũ)

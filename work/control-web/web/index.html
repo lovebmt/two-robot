@@ -122,7 +122,7 @@
     <section id="tab-calib" class="page">
       <div class="card">
         <div class="card-h"><div class="seg" id="calTargets"></div>
-          <span class="muted small">Làm theo thứ tự: Kiểm tra chiều → IMU → Đi thẳng → Quay → ToF quét tường → Khoảng cách ToF. Mỗi bước tự lưu flash khi bấm "Tính &amp; lưu".</span></div>
+          <span class="muted small">Làm theo thứ tự: Encoder quay tay → Kiểm tra chiều → IMU → Đi thẳng → Quay → ToF quét tường → Khoảng cách ToF. Mỗi bước tự lưu flash khi bấm "Tính &amp; lưu".</span></div>
       </div>
       <div class="cal-grid">
         <div class="card">
@@ -138,6 +138,25 @@
             <button class="btn primary" data-dir="left">Quay trái 1 s</button>
           </div>
           <div class="cal-out" id="calOut-dir"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>0b. Encoder từng bánh (quay tay)</h2></div>
+          <ol class="small howto">
+            <li>Kê gầm xe. <b>Đánh dấu 1 vạch trên bánh</b> (băng keo) và 1 vạch mốc trên thân xe ngay cạnh, cho 2 vạch thẳng nhau.</li>
+            <li>Chọn bánh → bấm <b>Bắt đầu</b>.</li>
+            <li><b>Dùng tay quay bánh về phía TRƯỚC</b> (chiều xe chạy tới) <b>đúng 2 vòng</b>, tới khi vạch trên bánh trùng lại vạch mốc.</li>
+            <li>Bấm <b>OK</b> → xem tick/vòng, tỉ số hộp số, chiều encoder → bấm <b>Lưu</b>. Làm lần lượt cả 2 bánh.</li>
+          </ol>
+          <div class="row gap wrap">
+            <div class="seg" id="encSide"><button data-side="l" class="active">Bánh trái</button><button data-side="r">Bánh phải</button></div>
+            <label>Số vòng <input type="number" id="encRevs" class="num" value="2" min="1" max="20"></label>
+          </div>
+          <div class="row gap wrap">
+            <button class="btn primary" id="encStart">Bắt đầu</button>
+            <button class="btn" id="encOk" disabled>OK (đã quay xong)</button>
+          </div>
+          <div id="encLive" class="mono"></div>
+          <div class="cal-out" id="calOut-enc"></div>
         </div>
         <div class="card">
           <div class="card-h"><h2>1. IMU (gyro)</h2></div>

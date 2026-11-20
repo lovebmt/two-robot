@@ -62,6 +62,41 @@ def turn(cfg: dict, res: dict, measured_deg: float) -> tuple[dict, dict]:
     return patch, info
 
 
+GA25_RATIOS = [4.4, 9.6, 10, 18.8, 20.4, 21.3, 30, 34, 45, 46.8, 56, 75, 78, 103, 131, 150, 171, 227, 378, 499]
+
+
+def encoder(cfg: dict, side: str, delta_ticks: int, revs: float, other: dict | None = None) -> tuple[dict, dict]:
+    """Quay tay bánh `side` đúng `revs` vòng về phía TRƯỚC → tick/vòng, chiều encoder, tỉ số hộp số.
+
+    tick/vòng = |Δtick| / revs = PPR × 4 × tỉ số  → tỉ số = tick/vòng / (PPR × 4).
+    Δtick âm khi quay tới → đảo enc.invert_<side>. Nếu đã đo cả 2 bánh (`other`), lấy trung bình tỉ số.
+    """
+    if revs <= 0:
+        raise CalError("số vòng phải > 0")
+    if abs(delta_ticks) < 50:
+        raise CalError(f"chỉ đếm được {delta_ticks} tick — encoder bánh này không có tín hiệu (kiểm tra VCC 3.3 V, GND, dây A/B)")
+    tpr = abs(delta_ticks) / revs
+    ppr = cfg["enc.ppr_motor"]
+    ratio = tpr / (ppr * 4)
+    ratios = [ratio] + ([other["gear_ratio"]] if other else [])
+    ratio_used = round(sum(ratios) / len(ratios), 3)
+    if not 1 <= ratio_used <= 1000:
+        raise CalError(f"tỉ số tính ra {ratio_used} ngoài [1, 1000] — kiểm tra số vòng đã quay / PPR")
+    key = f"enc.invert_{side}"
+    flip = delta_ticks < 0
+    patch = {"enc.gear_ratio": ratio_used}
+    if flip:
+        patch[key] = not cfg[key]
+    nearest = min(GA25_RATIOS, key=lambda r: abs(r - ratio))
+    return patch, {
+        "side": side, "delta_ticks": delta_ticks, "revs": revs, "ticks_per_rev": round(tpr, 1),
+        "gear_ratio": round(ratio, 3), "gear_ratio_used": ratio_used, "ppr": ppr,
+        "gear_ratio_old": cfg["enc.gear_ratio"], "nearest_standard": nearest,
+        "direction_ok": not flip, "invert_new": patch.get(key, cfg[key]),
+        "mm_per_tick_new": 3.141592653589793 * cfg["wheel.diameter_mm"] / (ppr * 4 * ratio_used),
+    }
+
+
 def gap(cfg: dict, snap: dict, known_mm: float, keep_diff: bool) -> tuple[dict, dict]:
     """Calib khoảng cách: xe sau đứng yên, mặt mắt ToF cách mặt đuôi xe trước đúng `known_mm`.
 

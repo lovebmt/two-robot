@@ -607,6 +607,50 @@ def _truth(s: RobotSession) -> dict | None:
     return (s.last_tel or {}).get("truth")
 
 
+# ---- Encoder quay tay: bắt đầu (ghi mốc tick) → người dùng quay đúng N vòng tới → kết thúc (tính) → lưu
+ENC_CAL: dict[str, dict] = {}
+
+
+def _enc_now(s: RobotSession, side: str) -> int:
+    enc = (s.last_tel or {}).get("enc")
+    if not enc:
+        raise HTTPException(400, "robot chưa gửi tick encoder (cần firmware ≥ 0.2.1)")
+    return int(enc[side])
+
+
+@app.post("/api/robots/{rid}/cal_enc/{action}")
+async def cal_enc(rid: str, action: str, body: dict = Body(default={})):
+    s = _sess(rid)
+    side = body.get("side")
+    if side not in ("l", "r"):
+        raise HTTPException(400, "side phải là l | r")
+    key = f"{rid}:{side}"
+    if action == "start":
+        ENC_CAL[key] = {"t0": _enc_now(s, side)}
+        return {"ok": True, "start_ticks": ENC_CAL[key]["t0"]}
+    if action == "finish":
+        if key not in ENC_CAL:
+            raise HTTPException(400, "chưa bấm Bắt đầu cho bánh này")
+        delta = _enc_now(s, side) - ENC_CAL[key]["t0"]
+        cfg = (await _req(s, "GET", "/api/config"))["params"]
+        other = ENC_CAL.get(f"{rid}:{'r' if side == 'l' else 'l'}", {}).get("info")
+        try:
+            patch, info = CAL.encoder(cfg, side, delta, float(body.get("revs", 2)), other)
+        except CAL.CalError as e:
+            raise HTTPException(400, str(e)) from None
+        ENC_CAL[key].update(info=info, patch=patch)
+        return {"ok": True, "patch": patch, "info": info}
+    if action == "save":
+        st = ENC_CAL.get(key, {})
+        if "patch" not in st:
+            raise HTTPException(400, "chưa có kết quả để lưu")
+        r = await _req(s, "PUT", "/api/config", {"patch": st["patch"], "persist": True})
+        s.config = await _req(s, "GET", "/api/config")
+        S.note(f"{s.name}: hiệu chuẩn encoder {side} → {st['patch']} (đã lưu flash)")
+        return {"ok": True, "patch": st["patch"], "cfg_rev": r.get("cfg_rev")}
+    raise HTTPException(404, "action: start | finish | save")
+
+
 @app.post("/api/robots/{rid}/cal/{kind}")
 async def cal_run(rid: str, kind: str, body: dict = Body(default={})):
     """Bước 1 hiệu chuẩn: robot thực hiện (đi thẳng / quay / đo khoảng cách) và báo số đo của nó.

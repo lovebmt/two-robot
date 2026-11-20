@@ -8,7 +8,7 @@
 
 namespace tr {
 
-const char* FW_VERSION = "0.2.0-esp32";
+const char* FW_VERSION = "0.2.1-esp32";
 
 App::App(Hal& h, const std::string& id_, const std::string& name_) : hal(h), params(h), id(id_), name(name_) {}
 
@@ -258,6 +258,8 @@ void App::telemetry(JsonObject t) {
   if (hw & HW_TOF_R) fl.add("HW_TOF_R");
   t["vbat"] = vbat_;
   t["gyro_bias"] = heading.bias;
+  t["enc"]["l"] = last_tl_;  // tổng tick (đã áp enc.invert) — dùng cho hiệu chuẩn encoder quay tay
+  t["enc"]["r"] = last_tr_;
   JsonObject imu = t["imu"].to<JsonObject>();
   imu["ok"] = imu_ok_;
   imu["bias_dps"] = rad2deg(heading.bias);

@@ -7,6 +7,9 @@
  "tel": [
   "cfg_rev",
   "dpsi",
+  "enc",
+  "enc.l",
+  "enc.r",
   "est",
   "est.s",
   "est.v",

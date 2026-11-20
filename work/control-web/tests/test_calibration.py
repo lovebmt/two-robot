@@ -81,3 +81,14 @@ def test_preflight_gate(offset, expect_ok, expect_text):
     if expect_text:
         assert "Kiểm tra trước khi chạy" in r["error"] and expect_text in r["error"]
     assert r["collisions"] == 0
+
+
+def test_encoder_hand_rotation_calibration():
+    cfg = P.defaults()  # PPR 11, tỉ số 34 → 1496 tick/vòng
+    patch, info = CAL.encoder(cfg, "l", 2 * 11 * 4 * 46.8, 2)       # quay tới 2 vòng, motor thật 1:46.8
+    assert abs(patch["enc.gear_ratio"] - 46.8) < 0.01 and info["direction_ok"] and "enc.invert_l" not in patch
+    assert info["nearest_standard"] == 46.8
+    patch, info = CAL.encoder(cfg, "r", -2 * 11 * 4 * 47.0, 2, other={"gear_ratio": 46.8})  # đếm âm → đảo chiều
+    assert patch["enc.invert_r"] is True and abs(patch["enc.gear_ratio"] - 46.9) < 0.01
+    with pytest.raises(CAL.CalError):
+        CAL.encoder(cfg, "r", 3, 2)  # encoder không có tín hiệu
