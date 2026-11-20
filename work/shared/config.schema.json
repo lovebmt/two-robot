@@ -1,0 +1,94 @@
+{
+  "schema_ver": 1,
+  "groups": [
+    {"id": "body",   "label": "Thân xe (hình hộp)"},
+    {"id": "wheel",  "label": "Bánh xe"},
+    {"id": "enc",    "label": "Encoder"},
+    {"id": "motor",  "label": "Motor / L298N"},
+    {"id": "power",  "label": "Nguồn"},
+    {"id": "range",  "label": "Cảm biến ToF200C"},
+    {"id": "imu",    "label": "IMU MPU6050"},
+    {"id": "pid",    "label": "Bộ điều khiển"},
+    {"id": "follow", "label": "Bám xe + bộ lọc"},
+    {"id": "motion", "label": "Chuyển động (chung 2 xe)"},
+    {"id": "gap",    "label": "Đội hình (chung 2 xe)"},
+    {"id": "corner", "label": "Góc cua (chung 2 xe)"},
+    {"id": "safety", "label": "An toàn"}
+  ],
+  "params": [
+    {"key": "body.length_mm",        "type": "float", "unit": "mm", "min": 50,  "max": 500,  "default": 160, "group": "body", "scope": "robot", "apply": "idle", "desc": "Chiều dài thân"},
+    {"key": "body.width_mm",         "type": "float", "unit": "mm", "min": 50,  "max": 400,  "default": 120, "group": "body", "scope": "robot", "apply": "idle", "desc": "Chiều rộng thân"},
+    {"key": "body.axle_to_front_mm", "type": "float", "unit": "mm", "min": 10,  "max": 400,  "default": 120, "group": "body", "scope": "robot", "apply": "idle", "desc": "Tâm trục bánh tới mặt trước"},
+    {"key": "body.axle_to_rear_mm",  "type": "float", "unit": "mm", "min": 5,   "max": 300,  "default": 40,  "group": "body", "scope": "robot", "apply": "idle", "desc": "Tâm trục bánh tới mặt sau / tấm phản xạ"},
+    {"key": "body.plate_width_mm",   "type": "float", "unit": "mm", "min": 30,  "max": 400,  "default": 120, "group": "body", "scope": "robot", "apply": "idle", "desc": "Bề rộng tấm phản xạ đuôi"},
+
+    {"key": "wheel.diameter_mm",     "type": "float", "unit": "mm", "min": 20,  "max": 200,  "default": 65,  "group": "wheel", "scope": "robot", "apply": "idle", "desc": "Đường kính bánh dẫn động"},
+    {"key": "wheel.track_mm",        "type": "float", "unit": "mm", "min": 50,  "max": 400,  "default": 130, "group": "wheel", "scope": "robot", "apply": "idle", "desc": "Khoảng cách 2 bánh (đo thước)"},
+    {"key": "wheel.track_eff_mm",    "type": "float", "unit": "mm", "min": 50,  "max": 400,  "default": 130, "group": "wheel", "scope": "robot", "apply": "idle", "desc": "Track hiệu dụng (sau hiệu chuẩn quay)"},
+    {"key": "wheel.diam_eps",        "type": "float", "unit": "",   "min": -0.1,"max": 0.1,  "default": 0.0, "group": "wheel", "scope": "robot", "apply": "idle", "desc": "Bù đường kính trái/phải: D_l=D(1+e), D_r=D(1-e)"},
+
+    {"key": "enc.ppr_motor",         "type": "int",   "unit": "xung/vòng", "min": 1, "max": 2048, "default": 11, "group": "enc", "scope": "robot", "apply": "idle", "desc": "Xung/vòng trục motor (1 kênh)"},
+    {"key": "enc.gear_ratio",        "type": "float", "unit": "",   "min": 1,   "max": 1000, "default": 34,  "group": "enc", "scope": "robot", "apply": "idle", "desc": "Tỉ số hộp số GA25-370"},
+
+    {"key": "motor.ks_l_v",          "type": "float", "unit": "V",       "min": 0, "max": 6,    "default": 1.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Vùng chết bánh trái (điện áp)"},
+    {"key": "motor.ks_r_v",          "type": "float", "unit": "V",       "min": 0, "max": 6,    "default": 1.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Vùng chết bánh phải (điện áp)"},
+    {"key": "motor.kv_l",            "type": "float", "unit": "V/(mm/s)","min": 0.001, "max": 0.1, "default": 0.0126, "group": "motor", "scope": "robot", "apply": "live", "desc": "Điện áp trên mỗi mm/s, bánh trái"},
+    {"key": "motor.kv_r",            "type": "float", "unit": "V/(mm/s)","min": 0.001, "max": 0.1, "default": 0.0126, "group": "motor", "scope": "robot", "apply": "live", "desc": "Điện áp trên mỗi mm/s, bánh phải"},
+    {"key": "motor.v_min_reliable",  "type": "float", "unit": "mm/s",    "min": 0, "max": 200,  "default": 15,     "group": "motor", "scope": "robot", "apply": "live", "desc": "Tốc độ bánh tối thiểu điều khiển được"},
+    {"key": "motor.adapt_rate",      "type": "float", "unit": "1/s",     "min": 0, "max": 1,    "default": 0.05,   "group": "motor", "scope": "robot", "apply": "live", "desc": "Tốc độ học offset FF (L4), 0 = tắt"},
+    {"key": "motor.adapt_limit",     "type": "float", "unit": "",        "min": 0, "max": 0.5,  "default": 0.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Giới hạn offset học được (tỉ lệ)"},
+
+    {"key": "power.l298n_vdrop_v",   "type": "float", "unit": "V", "min": 0, "max": 4, "default": 2.0, "group": "power", "scope": "robot", "apply": "live", "desc": "Sụt áp L298N"},
+    {"key": "power.bat_min_v",       "type": "float", "unit": "V", "min": 6, "max": 13, "default": 10.5, "group": "power", "scope": "robot", "apply": "live", "desc": "Ngưỡng pin yếu (3S)"},
+
+    {"key": "range.x_mm",            "type": "float", "unit": "mm", "min": 0,   "max": 400,  "default": 120, "group": "range", "scope": "robot", "apply": "idle", "desc": "Tâm trục tới mắt cảm biến (dọc)"},
+    {"key": "range.baseline_mm",     "type": "float", "unit": "mm", "min": 10,  "max": 300,  "default": 60,  "group": "range", "scope": "robot", "apply": "idle", "desc": "Khoảng cách 2 mắt ToF (ngang)"},
+    {"key": "range.offset_l_mm",     "type": "float", "unit": "mm", "min": -50, "max": 50,   "default": 0,   "group": "range", "scope": "robot", "apply": "live", "desc": "Offset hiệu chuẩn ToF trái"},
+    {"key": "range.offset_r_mm",     "type": "float", "unit": "mm", "min": -50, "max": 50,   "default": 0,   "group": "range", "scope": "robot", "apply": "live", "desc": "Offset hiệu chuẩn ToF phải"},
+    {"key": "range.min_valid_mm",    "type": "float", "unit": "mm", "min": 0,   "max": 200,  "default": 30,  "group": "range", "scope": "robot", "apply": "live", "desc": "Khoảng đo hợp lệ tối thiểu"},
+    {"key": "range.max_valid_mm",    "type": "float", "unit": "mm", "min": 100, "max": 2000, "default": 1200,"group": "range", "scope": "robot", "apply": "live", "desc": "Khoảng đo hợp lệ tối đa"},
+    {"key": "range.max_diff_mm",     "type": "float", "unit": "mm", "min": 5,   "max": 200,  "default": 40,  "group": "range", "scope": "robot", "apply": "live", "desc": "|d_l - d_r| tối đa còn tin"},
+    {"key": "range.sigma_mm",        "type": "float", "unit": "mm", "min": 0.5, "max": 50,   "default": 6,   "group": "range", "scope": "robot", "apply": "live", "desc": "Độ lệch chuẩn nhiễu ToF (cho KF)"},
+
+    {"key": "imu.gyro_scale_z",      "type": "float", "unit": "",  "min": 0.8, "max": 1.2, "default": 1.0,  "group": "imu", "scope": "robot", "apply": "live", "desc": "Hệ số scale gyro Z"},
+    {"key": "imu.beta_straight",     "type": "float", "unit": "",  "min": 0,   "max": 1,   "default": 0.05, "group": "imu", "scope": "robot", "apply": "live", "desc": "Trọng số encoder trong fusion hướng khi đi thẳng"},
+
+    {"key": "pid.wheel_kp",          "type": "float", "unit": "V/(mm/s)", "min": 0, "max": 1,  "default": 0.01,  "group": "pid", "scope": "robot", "apply": "live", "desc": "PI tốc độ bánh: Kp"},
+    {"key": "pid.wheel_ki",          "type": "float", "unit": "V/mm",     "min": 0, "max": 5,  "default": 0.15,  "group": "pid", "scope": "robot", "apply": "live", "desc": "PI tốc độ bánh: Ki"},
+    {"key": "pid.heading_kp",        "type": "float", "unit": "1/s",      "min": 0, "max": 20, "default": 4.0,   "group": "pid", "scope": "robot", "apply": "live", "desc": "Giữ hướng: Kp"},
+    {"key": "pid.heading_ki",        "type": "float", "unit": "1/s²",     "min": 0, "max": 20, "default": 0.5,   "group": "pid", "scope": "robot", "apply": "live", "desc": "Giữ hướng: Ki"},
+    {"key": "pid.pos_kp",            "type": "float", "unit": "1/s",      "min": 0, "max": 20, "default": 2.5,   "group": "pid", "scope": "robot", "apply": "live", "desc": "Dừng tại điểm: Kp"},
+
+    {"key": "follow.kp_g",           "type": "float", "unit": "1/s",  "min": 0, "max": 10, "default": 1.2, "group": "follow", "scope": "robot", "apply": "live", "desc": "Bám gap: Kp"},
+    {"key": "follow.ki_g",           "type": "float", "unit": "1/s²", "min": 0, "max": 5,  "default": 0.1, "group": "follow", "scope": "robot", "apply": "live", "desc": "Bám gap: Ki"},
+    {"key": "follow.k_psi",          "type": "float", "unit": "1/s",  "min": 0, "max": 10, "default": 2.0, "group": "follow", "scope": "robot", "apply": "live", "desc": "Căn song song theo Δψ"},
+    {"key": "follow.k_edge",         "type": "float", "unit": "rad/s","min": 0, "max": 2,  "default": 0.15,"group": "follow", "scope": "robot", "apply": "live", "desc": "Lái khi 1 chùm mất mép tấm"},
+    {"key": "follow.kf_q_a",         "type": "float", "unit": "mm/s²","min": 1, "max": 5000, "default": 300, "group": "follow", "scope": "robot", "apply": "live", "desc": "KF: nhiễu gia tốc leader"},
+    {"key": "follow.kf_gate_chi2",   "type": "float", "unit": "",     "min": 1, "max": 100,  "default": 9,   "group": "follow", "scope": "robot", "apply": "live", "desc": "KF: ngưỡng gating"},
+    {"key": "follow.lost_timeout_ms","type": "int",   "unit": "ms",   "min": 50, "max": 5000, "default": 500, "group": "follow", "scope": "robot", "apply": "live", "desc": "Mất leader quá thời gian này → dừng"},
+    {"key": "follow.v_headroom",     "type": "float", "unit": "",     "min": 1, "max": 2,     "default": 1.4, "group": "follow", "scope": "robot", "apply": "live", "desc": "Follower được chạy tới v_cruise × hệ số này để đuổi"},
+
+    {"key": "motion.v_cruise",       "type": "float", "unit": "mm/s",  "min": 10, "max": 800,  "default": 150, "group": "motion", "scope": "shared", "apply": "live", "desc": "Tốc độ đoạn thẳng"},
+    {"key": "motion.a_max",          "type": "float", "unit": "mm/s²", "min": 10, "max": 3000, "default": 250, "group": "motion", "scope": "shared", "apply": "live", "desc": "Gia tốc tối đa"},
+    {"key": "motion.v_corner",       "type": "float", "unit": "mm/s",  "min": 5,  "max": 300,  "default": 40,  "group": "motion", "scope": "shared", "apply": "live", "desc": "Tốc độ khi tiếp cận điểm dừng"},
+    {"key": "motion.approach_dist",  "type": "float", "unit": "mm",    "min": 0,  "max": 1000, "default": 120, "group": "motion", "scope": "shared", "apply": "live", "desc": "Bắt đầu chạy chậm trước điểm dừng"},
+    {"key": "motion.stop_tol_mm",    "type": "float", "unit": "mm",    "min": 0.5,"max": 20,   "default": 2,   "group": "motion", "scope": "shared", "apply": "live", "desc": "Sai số dừng tại điểm"},
+    {"key": "motion.turn_rate_dps",  "type": "float", "unit": "°/s",   "min": 5,  "max": 360,  "default": 90,  "group": "motion", "scope": "shared", "apply": "live", "desc": "Tốc độ quay tại chỗ tối đa"},
+    {"key": "motion.turn_acc_dps2",  "type": "float", "unit": "°/s²",  "min": 10, "max": 2000, "default": 240, "group": "motion", "scope": "shared", "apply": "live", "desc": "Gia tốc góc khi quay"},
+    {"key": "motion.turn_tol_deg",   "type": "float", "unit": "°",     "min": 0.1,"max": 10,   "default": 0.8, "group": "motion", "scope": "shared", "apply": "live", "desc": "Sai số chấp nhận khi quay"},
+
+    {"key": "gap.target_mm",         "type": "float", "unit": "mm", "min": 100, "max": 2000, "default": 320, "group": "gap", "scope": "shared", "apply": "live", "desc": "Gap tâm–tâm mong muốn trên đoạn thẳng"},
+    {"key": "gap.hold_mm",           "type": "float", "unit": "mm", "min": 0,   "max": 2000, "default": 0,   "group": "gap", "scope": "shared", "apply": "idle", "desc": "Gap chờ khi leader quay (0 = tự tính)"},
+
+    {"key": "corner.exit_dist_mm",   "type": "float", "unit": "mm", "min": 0,   "max": 2000, "default": 0,   "group": "corner", "scope": "shared", "apply": "idle", "desc": "Leader tiến thêm sau khi quay (0 = tự tính)"},
+    {"key": "corner.margin_mm",      "type": "float", "unit": "mm", "min": 0,   "max": 200,  "default": 30,  "group": "corner", "scope": "shared", "apply": "idle", "desc": "Biên an toàn"},
+    {"key": "corner.snapshot_n",     "type": "int",   "unit": "mẫu","min": 3,   "max": 100,  "default": 12,  "group": "corner", "scope": "shared", "apply": "live", "desc": "Số mẫu ToF khi SNAPSHOT"},
+    {"key": "corner.align_tol_deg",  "type": "float", "unit": "°",  "min": 0.2, "max": 10,   "default": 1.5, "group": "corner", "scope": "shared", "apply": "live", "desc": "Ngưỡng căn song song"},
+    {"key": "corner.reacquire_tol_mm","type": "float","unit": "mm", "min": 5,   "max": 300,  "default": 60,  "group": "corner", "scope": "shared", "apply": "live", "desc": "Sai lệch cho phép khi bắt lại leader"},
+    {"key": "corner.scan_deg",       "type": "float", "unit": "°",  "min": 0,   "max": 45,   "default": 12,  "group": "corner", "scope": "shared", "apply": "live", "desc": "Góc quét khi không thấy leader"},
+    {"key": "corner.step_timeout_s", "type": "float", "unit": "s",  "min": 1,   "max": 120,  "default": 20,  "group": "corner", "scope": "shared", "apply": "live", "desc": "Timeout mỗi bước"},
+
+    {"key": "safety.allow_tune_while_running", "type": "bool", "unit": "", "default": true, "group": "safety", "scope": "robot", "apply": "live", "desc": "Cho chỉnh tham số live khi đang chạy"},
+    {"key": "safety.link_timeout_ms","type": "int", "unit": "ms", "min": 100, "max": 5000, "default": 500, "group": "safety", "scope": "robot", "apply": "live", "desc": "Mất heartbeat PC → phanh"}
+  ]
+}

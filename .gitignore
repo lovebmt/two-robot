@@ -26,3 +26,9 @@ work/sim/out/
 secrets.h
 .env
 *.local.json
+
+# Control web runtime
+work/control-web/.simstate/
+work/control-web/logs/
+*.egg-info/
+.pytest_cache/
