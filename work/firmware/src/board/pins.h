@@ -10,13 +10,15 @@
 
 namespace pins {
 
-// L298N (chọn từ chân output an toàn, không strapping, không lúc boot phát xung)
+// L298N — chốt 2026-11-20: giữ IN3/IN4/ENB người dùng đã nối (4/16/17), chuyển 3 dây khỏi chân STRAPPING
+// (15/2/0 làm motor trái tự quay lùi lúc cấp nguồn) sang 25/26/18: không strapping, không phát xung lúc boot.
+// Tuỳ chọn: 10 kΩ từ ENA, ENB xuống GND để EN chắc chắn = 0 trong lúc bootloader (chân đang thả nổi).
 constexpr uint8_t MOTOR_L_EN = 25;   // ENA (PWM) — tháo jumper ENA
 constexpr uint8_t MOTOR_L_IN1 = 26;  // IN1
-constexpr uint8_t MOTOR_L_IN2 = 16;  // IN2
+constexpr uint8_t MOTOR_L_IN2 = 18;  // IN2
 constexpr uint8_t MOTOR_R_EN = 17;   // ENB (PWM) — tháo jumper ENB
-constexpr uint8_t MOTOR_R_IN1 = 18;  // IN3
-constexpr uint8_t MOTOR_R_IN2 = 19;  // IN4
+constexpr uint8_t MOTOR_R_IN1 = 4;   // IN3
+constexpr uint8_t MOTOR_R_IN2 = 16;  // IN4
 
 // Encoder GA25-370 (đếm PCNT x4). Thứ tự A/B sai → bật enc.invert_* trên web.
 constexpr uint8_t ENC_L_A = 13;
@@ -44,13 +46,19 @@ constexpr uint8_t PWM_BITS = 10;
 
 // ---- kiểm tra lúc biên dịch ----
 constexpr uint8_t OUTPUTS[] = {MOTOR_L_EN, MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_EN, MOTOR_R_IN1, MOTOR_R_IN2,
-                               TOF_L_XSHUT, TOF_R_XSHUT, LED, I2C_SDA, I2C_SCL};
+                               TOF_L_XSHUT, TOF_R_XSHUT, I2C_SDA, I2C_SCL, LED};
 constexpr uint8_t ALL[] = {MOTOR_L_EN, MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_EN, MOTOR_R_IN1, MOTOR_R_IN2, ENC_L_A,
                            ENC_L_B, ENC_R_A, ENC_R_B, I2C_SDA, I2C_SCL, TOF_L_XSHUT, TOF_R_XSHUT, VBAT_ADC, LED};
+// Motor không được nằm trên chân strapping (0, 2, 5, 12, 15): mức lúc boot có thể làm motor tự quay
+constexpr uint8_t MOTOR[] = {MOTOR_L_EN, MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_EN, MOTOR_R_IN1, MOTOR_R_IN2};
+constexpr bool motorNotStrapping(int i = 0) {
+  return i >= (int)sizeof(MOTOR) ? true
+         : (MOTOR[i] != 0 && MOTOR[i] != 2 && MOTOR[i] != 5 && MOTOR[i] != 12 && MOTOR[i] != 15 && motorNotStrapping(i + 1));
+}
 constexpr bool noneInputOnly(int i = 0) {
   return i >= (int)sizeof(OUTPUTS) ? true : (OUTPUTS[i] < 34 && noneInputOnly(i + 1));
 }
-constexpr bool noneForbidden(int i = 0) {  // 6–11 flash, 12 strapping (flash voltage), 0/1/3 boot/UART
+constexpr bool noneForbidden(int i = 0) {  // 6–11 flash, 12 strapping (điện áp flash), 0 BOOT, 1/3 UART
   return i >= (int)sizeof(ALL)
              ? true
              : (!(ALL[i] >= 6 && ALL[i] <= 12) && ALL[i] != 0 && ALL[i] != 1 && ALL[i] != 3 && noneForbidden(i + 1));
@@ -62,6 +70,7 @@ constexpr bool unique(int i = 0, int j = 1) {
 }
 static_assert(noneInputOnly(), "Chân output/I2C không được là 34–39 (input-only)");
 static_assert(noneForbidden(), "Không dùng 6–12 (flash + strapping MTDI), 0, 1, 3");
+static_assert(motorNotStrapping(), "Chân motor không được là chân strapping 0/2/5/12/15");
 static_assert(unique(), "Một chân bị gán 2 chức năng");
 static_assert(VBAT_ADC >= 32 && VBAT_ADC <= 39, "Đo pin phải dùng ADC1 (32–39)");
 

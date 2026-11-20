@@ -64,6 +64,10 @@ static void controlTask(void*) {
 }
 
 void setup() {
+  // ĐẦU TIÊN: khoá motor (EN = 0, IN = 0) trước mọi việc khác.
+  const uint8_t motorPins[] = {pins::MOTOR_L_EN, pins::MOTOR_R_EN, pins::MOTOR_L_IN1, pins::MOTOR_L_IN2,
+                               pins::MOTOR_R_IN1, pins::MOTOR_R_IN2};
+  for (uint8_t p : motorPins) { pinMode(p, OUTPUT); digitalWrite(p, LOW); }
   Serial.begin(115200);
   delay(200);
   Serial.printf("\n=== two-robot fw %s ===\n", tr::FW_VERSION);

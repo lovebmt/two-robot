@@ -148,7 +148,7 @@ void Esp32Hal::begin() {
   ledcAttachPin(pins::MOTOR_R_EN, pins::PWM_CH_R);
   ledcWrite(pins::PWM_CH_L, 0);
   ledcWrite(pins::PWM_CH_R, 0);
-  pinMode(pins::LED, OUTPUT);
+  if (pins::LED != 255) pinMode(pins::LED, OUTPUT);
 
   setupPcnt(PCNT_UNIT_0, pins::ENC_L_A, pins::ENC_L_B);
   setupPcnt(PCNT_UNIT_1, pins::ENC_R_A, pins::ENC_R_B);
@@ -216,7 +216,9 @@ void Esp32Hal::setPwmFreq(int hz) {
   ledcChangeFrequency(pins::PWM_CH_R, hz, pins::PWM_BITS);
 }
 
-void Esp32Hal::setLed(bool on) { digitalWrite(pins::LED, on ? HIGH : LOW); }
+void Esp32Hal::setLed(bool on) {
+  if (pins::LED != 255) digitalWrite(pins::LED, on ? HIGH : LOW);
+}
 
 uint32_t Esp32Hal::hwFault() {
   uint32_t f = 0;

@@ -16,7 +16,7 @@ lib/core/src/        C++17 thuần, KHÔNG phụ thuộc Arduino → test đư�
   hal.h              interface phần cứng
 src/
   board/pins.h       GPIO CỐ ĐỊNH (⚠ kiểm tra theo dây thật)
-  hal_esp32.*        L298N (LEDC), encoder (PCNT x4), MPU6050 (I2C1), 2× VL53L0X (I2C0 + XSHUT), LittleFS, NVS
+  hal_esp32.*        L298N (LEDC), encoder (PCNT x4), MPU6050 + 2× VL53L0X chung 1 bus I2C (XSHUT), LittleFS, NVS
   net.*              WiFi STA / AP cài WiFi, WebServer cổng 80
   main.cpp           task: control 100 Hz (core 1), range ~30 Hz (core 1), http (core 0)
 test/test_core/      test native: params, KF, ToF, App; ĐỐI CHIẾU với Python (test/vectors/*.json)
@@ -42,16 +42,17 @@ pio test -e native                        # 12 test lõi trên máy tính
 | ToF trái XSHUT | 33 | firmware đổi sang 0x30 lúc boot |
 | Encoder phải A / B | 14 / 27 | |
 | Encoder trái A / B | 13 / **35** | **không dùng GPIO12** (xem cảnh báo dưới). 35 không có pull-up nội |
-| L298N ENA / IN1 / IN2 (motor trái) | 25 / 26 / 16 | **tháo jumper ENA** |
-| L298N ENB / IN3 / IN4 (motor phải) | 17 / 18 / 19 | **tháo jumper ENB** |
+| L298N ENA / IN1 / IN2 (motor trái) | 25 / 26 / 18 | **tháo jumper ENA** |
+| L298N ENB / IN3 / IN4 (motor phải) | 17 / 4 / 16 | **tháo jumper ENB** |
 | Đo pin (qua cầu chia) | 34 | đặt `power.vbat_divider` (vd. 30k/10k → 4.0); 0 = không đo |
 | LED | 2 | LED onboard |
-| Còn trống | 4, 5, 15, 23 | 5, 15 là chân strapping, chỉ dùng làm output |
+| Còn trống | 5, 15, 19, 23 | 5, 15 là chân strapping, chỉ dùng làm output, không dùng cho motor |
 
 ⚠ **Không dùng:**
 - **GPIO12** (strapping MTDI): bị kéo HIGH lúc reset thì flash nhận 1.8 V, ESP32 không boot và không nạp được. Triệu chứng đã gặp: `boot:0x33` + `invalid header: 0xffffffff`.
 - **GPIO34–39 cho I2C hoặc output**: các chân này chỉ là input.
 - 6–11 (flash), 0/1/3 (boot/UART).
+- **Chân strapping 0, 2, 15 cho motor**: lúc cấp nguồn GPIO15/0 ở mức HIGH làm motor tự quay khoảng 0.3 s trước khi firmware chạy.
 
 Encoder: cấp **VCC 3.3 V** để tín hiệu ra 3.3 V. Cấp 5 V thì tín hiệu 5 V có thể hỏng ESP32.
 GND chung giữa L298N, ESP32, encoder, cảm biến. ESP32 nên cấp bằng buck 5 V riêng. Motor 12 V dùng pin 3S.
