@@ -97,7 +97,58 @@ async function run(kind) {
   }
 }
 
+// Bước 0: jog 1 s (gửi lặp mỗi 150 ms vì lệnh jog tự hết hạn sau 300 ms), so trước/sau từ telemetry.
+async function dirTest(kind) {
+  if (!target) { toast('Chưa có robot', 'err'); return; }
+  const out = $('calOut-dir');
+  const tel = () => (store.frame?.robots || []).find((r) => r.id === target);
+  const r0 = tel();
+  if (!r0?.est) { toast('Chưa có telemetry của robot này', 'err'); return; }
+  const s0 = r0.est.s, y0 = r0.est.yaw;
+  const v = kind === 'fwd' ? 80 : 0, w = kind === 'fwd' ? 0 : 1.2;
+  let maxL = 0, maxR = 0;
+  out.innerHTML = '<span class="muted">Đang chạy 1 s…</span>';
+  for (let i = 0; i < 7; i++) {
+    const ok = await guard(() => api('POST', `/api/robots/${target}/jog`, { v, w }));
+    if (!ok) return;
+    await new Promise((res) => setTimeout(res, 150));
+    const t = tel();
+    if (t?.wheels) {
+      if (Math.abs(t.wheels.l.v) > Math.abs(maxL)) maxL = t.wheels.l.v;
+      if (Math.abs(t.wheels.r.v) > Math.abs(maxR)) maxR = t.wheels.r.v;
+    }
+  }
+  await new Promise((res) => setTimeout(res, 500));
+  const r1 = tel();
+  const ds = r1.est.s - s0;
+  let dy = (r1.est.yaw - y0) * 180 / Math.PI;
+  dy = ((dy + 540) % 360) - 180;
+  const mark = (ok) => (ok ? '<span class="ok-text">✓</span>' : '<b class="err">✗</b>');
+  if ((r1.fault || '').startsWith('WHEEL_DIR')) {
+    const side = r1.fault.endsWith('L') ? 'trái' : 'phải';
+    out.innerHTML = `<p class="err">Firmware đã PHANH: bánh ${side} quay NGƯỢC chiều lệnh (${r1.fault}). `
+      + `Motor hoặc encoder bánh ${side} đấu ngược. Nhìn bánh khi bấm lại: bánh quay lùi → bật <code>motor.invert_${side === 'trái' ? 'l' : 'r'}</code>; `
+      + `bánh quay tiến → bật <code>enc.invert_${side === 'trái' ? 'l' : 'r'}</code>. Đã tự Reset lỗi.</p>`;
+    await guard(() => api('POST', `/api/robots/${target}/reset`));
+    return;
+  }
+  if (kind === 'fwd') {
+    out.innerHTML = kv([
+      ['Encoder trái (tốc độ đo)', `${f(maxL)} mm/s ${mark(maxL > 5)}`],
+      ['Encoder phải (tốc độ đo)', `${f(maxR)} mm/s ${mark(maxR > 5)}`],
+      ['Quãng s thay đổi', `${f(ds)} mm`]])
+      + (maxL > 5 && maxR > 5 ? '<p class="ok-text small">Encoder đúng chiều. Nhớ kiểm tra bằng mắt: 2 bánh đều quay TIẾN.</p>'
+        : `<p class="err small">Encoder ${maxL <= 5 ? 'trái' : ''} ${maxR <= 5 ? 'phải' : ''} không đo được chiều tiến: nếu bánh đó quay tiến → bật <code>enc.invert</code>; nếu quay lùi → bật <code>motor.invert</code>; nếu không quay/không đếm → kiểm tra dây motor/encoder, kéo lên 3.3 V.</p>`);
+  } else {
+    out.innerHTML = kv([['Góc thay đổi (gyro)', `${f(dy, 1)}° ${mark(dy > 3)}`]])
+      + (dy > 3 ? '<p class="ok-text small">Gyro đúng chiều (quay trái → góc tăng).</p>'
+        : dy < -3 ? '<p class="err small">Góc GIẢM khi quay trái → bật <code>imu.invert_z</code> (MPU gắn úp) rồi Save. Nếu xe thực tế quay PHẢI → kiểm tra lại invert motor.</p>'
+          : '<p class="err small">Góc gần như không đổi: xe chưa quay (bánh trượt/kê gầm) hoặc IMU lỗi (cờ HW_IMU).</p>');
+  }
+}
+
 export function initCalib() {
+  document.querySelectorAll('[data-dir]').forEach((b) => { b.onclick = () => dirTest(b.dataset.dir); });
   document.querySelectorAll('[data-cal]').forEach((b) => { b.onclick = () => run(b.dataset.cal); });
   on('robots', () => renderTargets());
   on('tab', (t) => { if (t === 'calib') renderTargets(); });

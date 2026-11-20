@@ -122,9 +122,23 @@
     <section id="tab-calib" class="page">
       <div class="card">
         <div class="card-h"><div class="seg" id="calTargets"></div>
-          <span class="muted small">Làm theo thứ tự: IMU → Đi thẳng → Quay → ToF quét tường → Khoảng cách ToF. Mỗi bước tự lưu flash khi bấm "Tính &amp; lưu".</span></div>
+          <span class="muted small">Làm theo thứ tự: Kiểm tra chiều → IMU → Đi thẳng → Quay → ToF quét tường → Khoảng cách ToF. Mỗi bước tự lưu flash khi bấm "Tính &amp; lưu".</span></div>
       </div>
       <div class="cal-grid">
+        <div class="card">
+          <div class="card-h"><h2>0. Kiểm tra chiều (xe thật, làm đầu tiên)</h2></div>
+          <ol class="small howto">
+            <li><b>Kê gầm xe lên</b> để 2 bánh quay tự do, không chạm sàn.</li>
+            <li>Bấm "Tiến 1 s": nhìn 2 bánh. Bánh nào <b>quay lùi</b> → bật <code>motor.invert_l/r</code> của bánh đó (tab Cấu hình) → Save.</li>
+            <li>Bánh quay tiến mà kết quả báo encoder <b>âm</b> → bật <code>enc.invert_l/r</code>.</li>
+            <li>Đặt xe xuống sàn, bấm "Quay trái 1 s": góc phải <b>tăng</b>; nếu giảm → bật <code>imu.invert_z</code>.</li>
+          </ol>
+          <div class="row gap wrap">
+            <button class="btn primary" data-dir="fwd">Tiến 1 s</button>
+            <button class="btn primary" data-dir="left">Quay trái 1 s</button>
+          </div>
+          <div class="cal-out" id="calOut-dir"></div>
+        </div>
         <div class="card">
           <div class="card-h"><h2>1. IMU (gyro)</h2></div>
           <p class="small muted">Để xe nằm yên trên sàn. Xe đo bias gyro trong 2 s.</p>

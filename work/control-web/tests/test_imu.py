@@ -64,6 +64,16 @@ def test_warmup_drift_needs_zupt():
     assert abs(math.degrees(r.fw.heading.psi)) < 0.5
 
 
+def test_miswired_encoder_triggers_wheel_dir_fault():
+    """Encoder đấu ngược (cấu hình sai) → PI phản hồi dương → firmware phải phanh và báo WHEEL_DIR_L."""
+    eng, r, events = _robot({"enc.invert_l": True})
+    eng.advance(0.1)
+    for _ in range(10):
+        r.fw.handle_ws({"t": "cmd", "op": "jog", "v": 80, "w": 0})
+        eng.advance(0.1)
+    assert r.fw.state == "FAULT" and r.fw.fault == "WHEEL_DIR_L"
+
+
 def test_temperature_coefficient_learned_while_idle():
     eng, r, _ = _robot()
     eng.advance(120.0)  # vừa bật nguồn, chip nóng dần

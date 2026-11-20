@@ -66,6 +66,7 @@ class VirtualFirmware:
         self.imu_info: dict = {}
         self._calib_prev_state = "IDLE"
         self._enc_still_t = 0.0
+        self._dir_t = {"l": 0.0, "r": 0.0}  # thời gian bánh quay ngược chiều lệnh khi duty lớn
         # Hộp thư sự kiện cho giao tiếp HTTP: PC lấy về qua GET /api/state?since=<eseq>
         self.outbox: deque[dict] = deque(maxlen=64)
         self._eseq = 0
@@ -85,7 +86,9 @@ class VirtualFirmware:
         cfg, der = self.params.active, self.params.derived
         now = self.hal.now_ms()
 
-        tl, tr = self.hal.read_encoder("l"), self.hal.read_encoder("r")
+        # Cờ đảo chiều (lắp dây ngược) áp dụng ở ranh giới HAL — giống firmware C++.
+        tl = self.hal.read_encoder("l") * (-1 if cfg["enc.invert_l"] else 1)
+        tr = self.hal.read_encoder("r") * (-1 if cfg["enc.invert_r"] else 1)
         if self._last_ticks is None:
             self._last_ticks = (tl, tr)
         moved = (tl, tr) != self._last_ticks
@@ -94,7 +97,7 @@ class VirtualFirmware:
         self._last_ticks = (tl, tr)
         self.drive.measure(dl, dr, dt)
 
-        gz = self.hal.read_gyro_z()
+        gz = self.hal.read_gyro_z() * (-1.0 if cfg["imu.invert_z"] else 1.0)
         enc_still = self.drive.braking and not moved
         self._enc_still_t = self._enc_still_t + dt if enc_still else 0.0
         calibrating = self.imu_cal is not None
@@ -133,8 +136,16 @@ class VirtualFirmware:
                 self.state = "IDLE"
         self.v_cmd, self.w_cmd = (0.0, 0.0) if brake else (v, w)
         duty_l, duty_r, b = self.drive.command(v, w, brake, cfg, self.vbat, dt)
-        self.hal.set_motor("l", duty_l, b)
-        self.hal.set_motor("r", duty_r, b)
+        self.hal.set_motor("l", -duty_l if cfg["motor.invert_l"] else duty_l, b)
+        self.hal.set_motor("r", -duty_r if cfg["motor.invert_r"] else duty_r, b)
+        # An toàn: duty lớn mà bánh quay NGƯỢC chiều lệnh → motor hoặc encoder đấu ngược → PI thành
+        # phản hồi dương, bánh vọt hết tốc. Phanh ngay và báo (gợi ý bật motor.invert / enc.invert).
+        for side, wc, vm in (("l", self.drive.wl, self.drive.v_meas_l), ("r", self.drive.wr, self.drive.v_meas_r)):
+            bad = abs(wc.duty) > 0.6 and wc.v_ref * vm < 0 and abs(vm) > 60
+            self._dir_t[side] = self._dir_t[side] + dt if bad else 0.0
+            if self._dir_t[side] > 0.3:
+                self._dir_t[side] = 0.0
+                self.raise_fault(f"WHEEL_DIR_{side.upper()}")
 
         self._tel_acc += dt
         if self._tel_acc >= self.TEL_PERIOD - 1e-9:
