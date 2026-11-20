@@ -61,6 +61,9 @@ class SimEngine:
         if "CFG_DEFAULT" in fw.params.flags:
             fw.params.save()  # robot ảo "xuất xưởng" với cấu hình mặc định đã lưu flash
         r = SimRobot(rid, body, fw, hal, dict(mismatch or {}))
+        # MPU6050 thật: mỗi con một bias lúc bật nguồn, hướng trôi nóng máy khác nhau.
+        r.mismatch.setdefault("gyro_bias_dps", round(self.rng.uniform(-2.5, 2.5), 2))
+        r.mismatch.setdefault("gyro_warm_dps", round(self.rng.choice((-1, 1)) * self.rng.uniform(0.3, 0.8), 2))
         body.p = physical_from_cfg(fw.params.active, r.mismatch)
         self.world.bodies[rid] = body
         self.robots[rid] = r
@@ -100,6 +103,9 @@ class SimEngine:
             r.body.th += math.radians(float(kw.get("dth_deg", 3.0)))
         elif kind == "caster":
             r.body.caster_stuck_until = self.t + dur
+        elif kind == "bump":  # chạm tay/va nhẹ: gyro thấy xung quay, bánh không lăn
+            r.body.bump_until = self.t + float(kw.get("dur", 0.3))
+            r.body.bump_rate = math.radians(float(kw.get("rate_dps", 20.0)))
         else:
             raise ValueError(f"fault không hỗ trợ: {kind}")
 
@@ -107,7 +113,7 @@ class SimEngine:
     def truth(self, rid: str) -> dict:
         b = self.robots[rid].body
         return {"x": b.x, "y": b.y, "yaw": b.th, "v": b.v, "w": b.w,
-                "collide": rid in self.collision_now}
+                "collide": rid in self.collision_now, "gyro_bias": b.gyro_bias_true()}
 
     def step(self) -> None:
         dt = PHYS_DT

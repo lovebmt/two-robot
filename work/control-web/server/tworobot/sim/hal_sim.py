@@ -31,7 +31,10 @@ class SimHal:
         return self.body.ticks(side)
 
     def read_gyro_z(self) -> float:
-        return self.body.gyro(self.rng)
+        return self.body.gyro(self.rng, self.engine.t)
+
+    def read_imu_temp(self) -> float:
+        return self.body.imu_temp(self.rng)
 
     def read_vbat(self) -> float:
         return self.body.p.vbat

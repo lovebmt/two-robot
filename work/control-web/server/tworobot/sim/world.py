@@ -19,8 +19,14 @@ DEFAULT_MISMATCH = {
     "diam_err_l": 0.0,      # sai số đường kính thật so với config (tỉ lệ)
     "diam_err_r": 0.0,
     "track_err_mm": 0.0,
-    "gyro_bias_dps": 0.4,
-    "gyro_scale_err": 0.0,
+    # Mô hình gyro MPU6050 (trục Z):
+    "gyro_bias_dps": 1.5,     # bias lúc bật nguồn (mỗi lần bật khác nhau; engine bốc ngẫu nhiên nếu không đặt)
+    "gyro_rw_dps": 0.01,      # bias trôi ngẫu nhiên (random walk), °/s/√s
+    "gyro_warm_dps": 0.6,     # trôi do nóng máy: bias đổi thêm lượng này khi chip nóng hết temp_rise_c
+    "gyro_warm_tau_s": 90.0,  # hằng số thời gian nóng máy
+    "temp_rise_c": 8.0,       # chip nóng lên bao nhiêu °C sau khi bật nguồn
+    "gyro_vib": 0.002,        # nhiễu rung motor, °/s trên mỗi mm/s tốc độ bánh
+    "gyro_scale_err": 0.01,
     "slip_turn": 0.03,      # tỉ lệ trượt khi quay tại chỗ
     "tof_sigma": 3.0,       # mm
     "vbat": 12.0,
@@ -46,6 +52,11 @@ class Physical:
     gyro_bias: float
     gyro_scale_err: float
     gyro_noise: float
+    gyro_rw: float
+    gyro_warm: float
+    gyro_warm_tau: float
+    gyro_vib: float
+    temp_rise: float
     tof_x: float
     tof_b: float
     tof_sigma: float
@@ -70,7 +81,9 @@ def physical_from_cfg(cfg: dict, mismatch: dict | None = None) -> Physical:
         fric_l=cfg["motor.ks_l_v"] * m["fric_scale"], fric_r=cfg["motor.ks_r_v"] * m["fric_scale"],
         tau=0.08,
         gyro_bias=math.radians(m["gyro_bias_dps"]), gyro_scale_err=m["gyro_scale_err"],
-        gyro_noise=math.radians(0.08),
+        gyro_noise=math.radians(0.05),
+        gyro_rw=math.radians(m["gyro_rw_dps"]), gyro_warm=math.radians(m["gyro_warm_dps"]),
+        gyro_warm_tau=m["gyro_warm_tau_s"], gyro_vib=math.radians(m["gyro_vib"]), temp_rise=m["temp_rise_c"],
         tof_x=cfg["range.x_mm"], tof_b=cfg["range.baseline_mm"], tof_sigma=m["tof_sigma"],
         tof_fov_deg=25.0, slip_turn=m["slip_turn"], vdrop=cfg["power.l298n_vdrop_v"], vbat=m["vbat"],
     )
@@ -88,6 +101,10 @@ class Body:
         self.enc_dist = {"l": 0.0, "r": 0.0}
         self.tof_block: dict[str, float] = {}  # side → hết hạn (s)
         self.caster_stuck_until = 0.0
+        self.t_on = 0.0          # thời gian từ lúc bật nguồn (cho trôi nóng máy)
+        self.bias_rw = 0.0       # phần bias trôi ngẫu nhiên
+        self.bump_until = 0.0    # chạm/va nhẹ: gyro thấy xung quay dù bánh không lăn
+        self.bump_rate = 0.0
 
     def place(self, x: float, y: float, th: float) -> None:
         self.x, self.y, self.th = x, y, th
@@ -97,6 +114,8 @@ class Body:
 
     def step(self, dt: float, fric_factor: float, t: float, rng: random.Random) -> None:
         p = self.p
+        self.t_on += dt
+        self.bias_rw += rng.gauss(0.0, p.gyro_rw * math.sqrt(dt))
         for s in ("l", "r"):
             if self.brake[s]:
                 target, tau = 0.0, 0.03
@@ -130,9 +149,33 @@ class Body:
         d = self.p.wheel_d_l if side == "l" else self.p.wheel_d_r
         return math.floor(self.enc_dist[side] / (math.pi * d) * self.p.ticks_per_rev)
 
-    def gyro(self, rng: random.Random) -> float:
+    GYRO_LSB = math.radians(1 / 131.0)  # MPU6050 ±250 °/s: 131 LSB/(°/s)
+
+    T_AMBIENT = 25.0
+
+    def temp_true(self) -> float:
+        """Nhiệt độ chip MPU: nóng dần sau khi bật nguồn."""
         p = self.p
-        return self.w * (1 + p.gyro_scale_err) + p.gyro_bias + rng.gauss(0.0, p.gyro_noise)
+        return self.T_AMBIENT + p.temp_rise * (1 - math.exp(-self.t_on / p.gyro_warm_tau))
+
+    def gyro_bias_true(self) -> float:
+        """bias = bias bật nguồn + hệ số nhiệt·ΔT + random walk."""
+        p = self.p
+        k_temp = p.gyro_warm / p.temp_rise if p.temp_rise else 0.0
+        return p.gyro_bias + k_temp * (self.temp_true() - self.T_AMBIENT) + self.bias_rw
+
+    def imu_temp(self, rng: random.Random) -> float:
+        return round((self.temp_true() + rng.gauss(0.0, 0.02)) * 340) / 340  # 340 LSB/°C
+
+    def gyro(self, rng: random.Random, t: float = 0.0) -> float:
+        """ω_đo = (1+e_s)·ω + bias(t) + nhiễu trắng + nhiễu rung motor, lượng tử 1/131 °/s."""
+        p = self.p
+        vib = p.gyro_vib * 0.5 * (abs(self.u["l"]) + abs(self.u["r"]))
+        val = (self.w * (1 + p.gyro_scale_err) + self.gyro_bias_true()
+               + rng.gauss(0.0, p.gyro_noise) + (rng.gauss(0.0, vib) if vib > 0 else 0.0))
+        if t < self.bump_until:
+            val += self.bump_rate
+        return round(val / self.GYRO_LSB) * self.GYRO_LSB
 
     def to_world(self, bx: float, by: float) -> tuple[float, float]:
         c, s = math.cos(self.th), math.sin(self.th)

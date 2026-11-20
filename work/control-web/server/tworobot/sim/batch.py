@@ -11,6 +11,7 @@ import math
 
 from .. import params as P
 from ..coordinator import Coordinator
+from ..fw.mathutil import wrap
 from ..links import SimLink
 from ..planner import plan_path
 from ..registry import Registry, RobotSession
@@ -26,7 +27,8 @@ GRID = {"cell_mm": 100, "cols": 32, "rows": 18}
 
 
 async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None = None,
-                       shared_patch: dict | None = None, max_t: float = 600.0) -> dict:
+                       shared_patch: dict | None = None, robot_patch: dict | None = None,
+                       idle_before_s: float = 1.0, max_t: float = 600.0) -> dict:
     mismatch = mismatch or {}
     eng = SimEngine(grid["cols"] * grid["cell_mm"], grid["rows"] * grid["cell_mm"], seed=seed, state_dir=None)
     reg = Registry()
@@ -37,7 +39,7 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         r = eng.add_robot(rid, rid, 300 + 600 * idx, 300, 0, mismatch.get(role))
         s = RobotSession(rid, rid, SimLink(eng, r), "SIM")
         reg.add(s)
-        await s.link.request("PUT", "/api/config", {"patch": shared})
+        await s.link.request("PUT", "/api/config", {"patch": {**shared, **(robot_patch or {})}})
         eng.advance(0.02)  # swap tham số ở chu kỳ control kế tiếp
         await reg.refresh(s)
         await reg.set_role(rid, role)
@@ -55,11 +57,12 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
     eng.collision_events = 0
     for s in (L, F):
         await s.link.request("PUT", "/api/path", path)
-    eng.advance(1.0)  # đứng yên 1 s: ZUPT học bias gyro
+    eng.advance(idle_before_s)  # xe vừa bật nguồn, nằm chờ trên sân (chip nóng dần)
 
     marks: dict[str, list] = {"L_turn": [], "F_turn": []}
     gap_err: list[float] = []
     min_gap = [1e9]
+    yaw_err = {"leader": 0.0, "follower": 0.0}
 
     def on_mark(tag, k):
         b = eng.robots[(L if tag == "L_turn" else F).id].body
@@ -69,6 +72,10 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
     reg.on_event = coord.on_event
 
     def on_tel(sess, msg):
+        if coord.phase == "RUN" and msg.get("truth"):
+            e = abs(math.degrees(wrap(msg["est"]["yaw"] - msg["truth"]["yaw"])))
+            role = "leader" if sess is L else "follower"
+            yaw_err[role] = max(yaw_err[role], e)
         if sess is F and msg.get("prim") and msg["prim"]["name"] == "FOLLOW":
             bl, bf = eng.robots[L.id].body, eng.robots[F.id].body
             g = math.hypot(bl.x - bf.x, bl.y - bf.y)
@@ -89,6 +96,9 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         await coord.stop()
 
     corner_err = [math.hypot(a[0] - b[0], a[1] - b[1]) for a, b in zip(marks["L_turn"], marks["F_turn"])]
+    end = path["segments"][-1]["b"]
+    bl = eng.robots[L.id].body
+    calib = [e["msg"] for e in coord.log if "calib IMU" in e["msg"]]
     rms = math.sqrt(sum(e * e for e in gap_err) / len(gap_err)) if gap_err else None
     return {
         "ok": coord.state == "DONE", "state": coord.state, "error": coord.error,
@@ -97,6 +107,11 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         "gap_samples": len(gap_err),
         "min_center_gap_mm": round(min_gap[0], 1),
         "corner_err_mm": [round(e, 1) for e in corner_err],
+        "yaw_est_err_max_deg": {k: round(v, 2) for k, v in yaw_err.items()},
+        "leader_end_err_mm": round(math.hypot(bl.x - end[0], bl.y - end[1]), 1),
+        "gyro_bias_true_dps": {r: round(math.degrees(eng.robots[s.id].body.gyro_bias_true()), 2)
+                               for r, s in (("leader", L), ("follower", F))},
+        "calib": calib,
         "log": coord.log,
     }
 
