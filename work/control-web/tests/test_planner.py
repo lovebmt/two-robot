@@ -40,6 +40,16 @@ def test_reject_self_intersection():
     assert not r["ok"] and any("tự cắt" in e for e in r["errors"])
 
 
+def test_reject_closed_path():
+    form, sh = _form()
+    # Quay về đúng điểm đầu
+    r = plan_path([[5, 3], [15, 3], [15, 10], [5, 10], [5, 3]], GRID, form, sh)
+    assert not r["ok"] and any("khép kín" in e for e in r["errors"])
+    # Điểm cuối chạm vào giữa đoạn đầu
+    r = plan_path([[5, 3], [15, 3], [15, 10], [10, 10], [10, 3]], GRID, form, sh)
+    assert not r["ok"] and any("khép kín" in e for e in r["errors"])
+
+
 def test_follower_start_outside_map():
     form, sh = _form()
     r = plan_path([[1, 3], [10, 3]], GRID, form, sh)
