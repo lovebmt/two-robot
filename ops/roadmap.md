@@ -1,76 +1,73 @@
 # Roadmap
 
-Nguyên tắc: **làm lõi thuật toán và sim trước, phần cứng sau**. Mỗi mốc có tiêu chí xong rõ ràng. Mỗi task là 1 hoặc vài commit nhỏ.
-Có thể làm song song: M2/M3 (phần mềm) chạy song song với M4a (lắp và đo phần cứng).
+Nguyên tắc: **sim trước, xe thật sau**. View được dựng trên sim, nên khi xe thật cắm vào thì hiển thị được ngay mà không phải làm lại.
+Thứ tự: M1 khung → M2 lõi + sim batch → M3 server + view trên sim → (song song M4a phần cứng) → M4 firmware 1 xe → M5 → M6.
 
 ## M0 — Kế hoạch và repo ✅ (2026-11-20)
-- [x] Brief, yêu cầu, kiến trúc, thuật toán, thông số, giao thức, UI
-- [x] Chốt Q1, Q3, Q4, Q5, Q7, Q8, Q11, Q19
-- [ ] Chốt Q15–Q18, Q21, Q22 và bảng GPIO (trước M4)
+- [x] Yêu cầu, kiến trúc, thuật toán, giao thức, UI, tham số
+- [x] Motor mạnh yếu và ma sát ([motor-control](../wiki/motor-control.md)), sim và view ([simulation](../wiki/simulation.md)), cấu hình động ([config-management](../wiki/config-management.md))
+- [ ] Chốt Q15 (tỉ số hộp số), Q16, Q21, Q22 trước M4. Kích thước không chặn vì nhập trên web
 
-## M1 — Khung dự án
-- [ ] `work/firmware`: PlatformIO, env `esp32dev` và `native`, `lib/core` rỗng, Unity test chạy được
-- [ ] `work/control-web/server`: FastAPI skeleton, cấu trúc module (discovery, robots, relay, coordinator, planner, validator, timesync, logger)
-- [ ] `work/control-web/web`: Vite + TS skeleton, khung 6 màn hình
-- [ ] `work/sim`: CLI native dùng `lib/core`
-- [ ] `work/shared/schemas`: JSON Schema cho config, path, message. Struct nhị phân UDP mô tả 1 nơi, sinh ra code C và Python
-- [ ] Script: `make test` chạy `pio test -e native`, `pytest`, `npm run build`
+## M1 — Khung dự án và schema
+- [ ] `work/firmware`: PlatformIO env `esp32dev` và `native`, cấu trúc `lib/{core,app,proto,hal_api}`, Unity test
+- [ ] `work/sim`: CMake dùng lại `lib/*`, thêm `hal_sim/`, `world/`, deps (ArduinoJson, cpp-httplib, IXWebSocket)
+- [ ] `work/shared`: `config.schema.json`, `telemetry.schema.json`, mô tả struct UDP. **Codegen** ra C++ / Python / TS
+- [ ] `work/control-web/server` (FastAPI) và `work/control-web/web` (Vite + TS), có skeleton
+- [ ] `make test` (pio native, ctest, pytest, npm build)
 
-**Xong khi:** `make test` xanh.
+**Xong khi:** `make test` xanh. Codegen sinh được `Config` cho cả 3 ngôn ngữ.
 
-## M2 — Lõi thuật toán (C++ thuần) và sim
-- [ ] Kinematics, profile hình thang, dừng tại điểm
-- [ ] Fusion hướng gyro + encoder, giữ hướng khi đi thẳng, quay 90° vòng kín theo gyro
-- [ ] Mô hình đo 2 ToF (`ρ`, `Δψ`, mép tấm), KF gap, gating
-- [ ] Luật FOLLOW, các primitive: DRIVE_TO, TURN, FOLLOW, SNAPSHOT, REACQUIRE, ALIGN, HOLD
-- [ ] Sim vật lý 2 xe: motor + vùng chết, trượt, nhiễu encoder, gyro bias, ToF (FOV/nhiễu/mép tấm)
-- [ ] "Robot ảo": sim nói đúng giao thức (UDP/WS/HTTP) để server test được mà không cần xe thật
+## M2 — Lõi thuật toán và sim batch (chưa cần UI)
+- [ ] `lib/core`: kinematics, profile, dừng tại điểm, **motor control L1–L7** (LUT FF, PI, bão hoà, thích nghi, kick tốc độ thấp)
+- [ ] fusion gyro + encoder, quay vòng kín theo gyro, mô hình 2 ToF, KF gap, luật FOLLOW
+- [ ] `lib/app`: primitive (DRIVE_TO, TURN, FOLLOW, SNAPSHOT, REACQUIRE, ALIGN, HOLD), safety, config load/validate
+- [ ] `world`: motor DC lệch từng bánh, L298N và pin, ma sát theo vùng, trượt, caster, encoder, gyro, ToF ray-cast, va chạm
+- [ ] Scheduler deterministic (bước 1 ms, task đúng tần số), seed
+- [ ] `sim run` batch: kịch bản YAML, metric, pass/fail. Ở mốc này coordinator góc cua viết tạm bằng script trong sim
 
-**Xong khi:** unit test xanh. FOLLOW trên đoạn thẳng trong sim đạt N1/N2.
+**Xong khi:** FOLLOW trên đoạn thẳng và 1 góc cua đạt N1–N3 trong batch, kể cả biến thể N9 (lệch motor ±20 %, ma sát ±30 %).
 
-## M3 — Web Control
-- [ ] Discovery (beacon, mDNS, scan). Màn Devices, Identify, gán vai trò
-- [ ] Config, hình xem trước xe, giá trị suy ra, push/pull/diff
-- [ ] Grid editor có ràng buộc 90°, planner, validator
-- [ ] Relay UDP, time sync, heartbeat, E-STOP
-- [ ] **Corner coordinator** (máy trạng thái 10 bước, timeout, retry/abort)
-- [ ] Màn Simulate và Run (corner stepper, đồ thị, log)
+## M3 — Server và view, chạy trên robot ảo
+- [ ] `lib/proto` cùng transport sim (HTTP, WS, UDP trên localhost, beacon). `sim serve` interactive, có kênh truth
+- [ ] Server: discovery, robots, relay, timesync, heartbeat, E-STOP, **coordinator góc cua** (thay script tạm ở M2), logger JSONL
+- [ ] Config: API đầy đủ, form tự sinh, Apply/Save/Diff. "Flash" ảo của robot ảo là file
+- [ ] Map editor ràng buộc 90°, planner, validator
+- [ ] **View chung**: canvas các lớp, corner stepper, đồ thị, điều khiển sim, nút gây lỗi, replay
+- [ ] Batch nhiều seed gọi được từ UI
 
-**Xong khi:** 2 robot ảo chạy trọn kịch bản chữ L, chữ nhật, zig-zag, không va chạm. Có thêm kịch bản mất relay và mất gói 10 %.
+**Xong khi:** quy trình đầy đủ trên 2 robot ảo (dò → gán vai trò → config → vẽ → chạy → replay) qua kịch bản chữ L, chữ nhật, zig-zag, kèm mất gói 10 % và lệch motor.
 
-## M4a — Phần cứng: lắp, đo, bàn giao (song song M2/M3)
-- [ ] Điền [hardware-intake](../work/hardware/hardware-intake.md) và chốt GPIO
-- [ ] Đi dây: buck 5 V, GND chung, tháo jumper ENA/ENB, kiểm tra mức điện áp encoder
-- [ ] Gắn tấm phản xạ đuôi. Gắn MPU6050 có đệm chống rung
+## M4a — Phần cứng (song song M2/M3)
+- [ ] Đi dây: 3S, buck 5 V, GND chung, tháo jumper ENA/ENB, kiểm tra mức điện áp encoder. Gắn tấm phản xạ, gắn MPU6050 có đệm
+- [ ] Ghi số đo vào [intake](../work/hardware/hardware-intake.md)
 
-## M4 — Firmware HAL và mạng (1 xe)
-- [ ] MotorL298N + EncoderPCNT, PI bánh, bài quét vùng chết
-- [ ] 2× ToF200C (XSHUT đổi địa chỉ, continuous), MPU6050 (bias, 200 Hz)
-- [ ] WiFi + AP portal, beacon, mDNS, HTTP, WS, UDP, time sync, NVS config
-- [ ] Safety: heartbeat, E-STOP, watchdog, pin yếu, stall
-- [ ] Các bài hiệu chuẩn (F14) gọi được từ web
+## M4 — Firmware HAL ESP32 (1 xe)
+- [ ] `hal_esp32`: LEDC, PCNT (có timestamp cạnh xung), 2× VL53L0X (XSHUT), MPU6050 (bus 2), ADC pin, LittleFS
+- [ ] WiFi + AP portal, transport thật cho `lib/proto`. Safe mode GPIO
+- [ ] Wizard hiệu chuẩn: chiều motor, quét PWM, step response, đi thẳng, quay, ToF. **Xuất mô hình motor sang sim**
+- [ ] Xe thật hiện lên **view chung** (badge REAL)
 
-**Xong khi:** 1 xe chạy thẳng 1 m sai ≤ 1 cm và quay 90° sai ≤ 1.5°, điều khiển từ web.
+**Xong khi:** đi thẳng 1 m sai ≤ 1 cm, quay 90° sai ≤ 1.5°. Sim chạy với mô hình motor của xe thật cho kết quả gần xe thật.
 
 ## M5 — 1 xe theo đường
-- [ ] Leader chạy chữ L và chữ nhật bằng primitive từ coordinator. Telemetry khớp sim
+- [ ] Leader chạy chữ L và chữ nhật bằng coordinator. So log thật với sim cùng kịch bản (replay cạnh nhau)
 
-## M6 — 2 xe bám nhau
-- [ ] Relay và FOLLOW trên đoạn thẳng thật, tinh chỉnh KF và hệ số
-- [ ] Góc cua 10 bước trên xe thật
-- [ ] Kịch bản lỗi: rút router, che ToF, đẩy leader lệch, pin yếu
+## M6 — 2 xe thật bám nhau
+- [ ] FOLLOW trên đoạn thẳng, tinh chỉnh live bằng slider rồi Save flash
+- [ ] Góc cua 10 bước. Kịch bản lỗi: rút router, che ToF, đẩy xe, pin yếu
 
 **Xong khi:** đạt [tiêu chí nghiệm thu](../wiki/requirements.md#4-tiêu-chí-nghiệm-thu-v1).
 
-## M7 — Tối ưu (tuỳ chọn)
-Chạy song song các bước ở góc cua, tăng tốc, đường khép kín nhiều vòng, sim WASM trong browser, OTA firmware.
+## M7 — Mở rộng (tuỳ chọn)
+Chế độ MIXED (leader thật + follower ảo), chạy song song các bước ở góc cua, đường khép kín, OTA firmware.
 
 ## Rủi ro chính
 | Rủi ro | Giảm thiểu |
 |---|---|
-| ToF200C FOV 25° thấy cả sàn hoặc vật bên cạnh | Tấm phản xạ rộng và đủ cao, gắn mắt ToF cao hơn sàn, gating, thử góc toe-in |
-| L298N sụt áp và vùng chết lớn làm chạy chậm không mượt | Feedforward + bù vùng chết, pin đủ áp, điều khiển vị trí khi dừng |
-| Rung motor làm nhiễu gyro | Đệm mút, DLPF 42 Hz, ZUPT |
-| Trượt bánh khi quay | Quay vòng kín theo gyro, gia tốc thấp, ToF ALIGN cho follower |
-| WiFi trễ hoặc mất gói (qua PC) | Vòng nhanh nằm trên xe, UDP cho stream, WS có ACK cho lệnh, timeout an toàn |
-| Router bật client isolation | Router riêng, tài liệu hướng dẫn cài đặt |
+| Sim khác xe thật (sim-to-real gap) | Mô hình motor lấy từ step response của xe thật, ToF mô phỏng bằng nhiều tia, so replay sim với thật ở M5 |
+| ToF200C FOV 25° thấy cả sàn hoặc vật bên cạnh | Tấm phản xạ rộng và cao, gating, thử góc toe-in (thử trước trong sim) |
+| Motor lệch nhau, L298N phi tuyến, pin tụt | LUT riêng từng bánh, bù theo V_bat, PI, thích nghi, bão hoà ưu tiên ω |
+| Tốc độ thấp bị giật (ma sát tĩnh) | Đo chu kỳ xung, điều khiển vị trí + kick, chọn tần số PWM |
+| Rung motor làm nhiễu gyro | Đệm mút, DLPF, ZUPT |
+| WiFi trễ hoặc mất gói | Vòng nhanh nằm trên xe, UDP stream, WS có ACK, timeout an toàn |
+| Cấu hình GPIO sai làm xe treo khi boot | Firmware validate, safe mode sau 3 lần crash |

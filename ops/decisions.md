@@ -5,7 +5,7 @@
 - **D1 — 2026-11-20 — Web Control chạy trên PC, xe chỉ có API.** Lý do: UI lưới, sim, log quá nặng cho ESP32, và browser cần server để dò LAN. **Chốt** (Q1).
 - **D2 — 2026-11-20 — Firmware dùng PlatformIO + Arduino-ESP32 + FreeRTOS. Lõi thuật toán viết C++ thuần trong `lib/core`.** Lý do: nhanh có kết quả, test được trên native. *Đề xuất*.
 - **D3 — 2026-11-20 — Bám xe theo độ dài cung `s` trên đường chung. ToF hiệu chỉnh gap qua Kalman filter.** Lý do: 2 cảm biến song song không đo được lệch ngang, nên dùng đường biết trước làm khung. *Đề xuất*.
-- **D4 — 2026-11-20 — Sim dùng chung `lib/core`, build native trước, WASM sau.** *Đề xuất*.
+- ~~D4 — Sim dùng chung `lib/core`, build native trước, WASM sau~~ → **Thay bằng D15**.
 - ~~D5 — Link ESP-NOW~~ → **Huỷ** 2026-11-20, thay bằng D8.
 - **D6 — 2026-11-20 — Server PC dùng Python FastAPI, frontend dùng Vite + TS + Canvas.** *Đề xuất* (Q13).
 - **D7 — 2026-11-20 — Chỉ có góc 90° và quay tại chỗ theo stop-and-go.** **Chốt** (Q7/Q8).
@@ -14,4 +14,9 @@
 - **D10 — 2026-11-20 — Neo khoảng cách tới góc cua bằng ToF snapshot khi cả 2 xe đứng yên, căn song song (ALIGN) bằng ToF sau khi follower quay.** Lý do: follower quay đúng chỗ leader quay, không phụ thuộc drift odometry. **Chốt**.
 - **D11 — 2026-11-20 — L298N: PWM ~2 kHz, feedforward + bù vùng chết, phanh nhanh khi dừng, buck 5 V riêng cho ESP32.** *Đề xuất*.
 - **D12 — 2026-11-20 — Hướng = fusion gyro MPU6050 (chính) + encoder. Quay 90° vòng kín theo gyro với góc mục tiêu tuyệt đối. ZUPT bias mỗi lần dừng.** Lý do: phần cứng có MPU6050 (đợt 2). **Chốt**.
-- **D13 — 2026-11-20 — 2× ToF200C trên I²C bus 0, đổi địa chỉ bằng XSHUT. MPU6050 trên I²C bus 1.** *Đề xuất*, chờ GPIO thực tế.
+- **D13 — 2026-11-20 — 2× ToF200C (VL53L0X) trên I²C bus 0, đổi địa chỉ bằng XSHUT. MPU6050 trên I²C bus 1.** *Đề xuất*, chờ GPIO thực tế.
+- **D14 — 2026-11-20 — Motor control phân tầng L0–L7: LUT FF riêng từng bánh/chiều bù theo V_bat, PI từng bánh, vòng hướng gyro, bão hoà ưu tiên ω, thích nghi, kick tốc độ thấp, headroom giữa 2 xe.** Lý do: motor mạnh yếu và ma sát khác nhau (đợt 3). **Chốt**.
+- **D15 — 2026-11-20 — Sim là robot ảo chạy chính code firmware (thay HAL) và nói đúng giao thức. Server và UI không phân biệt sim với thật.** Lý do: một view duy nhất cho sim, xe thật và replay; test được toàn hệ thống không cần phần cứng. **Chốt**. Thay thế D4 (bỏ hướng WASM).
+- **D16 — 2026-11-20 — Sim viết bằng C++/CMake, deterministic, bước 1 ms. Dùng ArduinoJson, cpp-httplib, IXWebSocket.** *Đề xuất*.
+- **D17 — 2026-11-20 — Một schema cấu hình duy nhất, codegen ra C++/Python/TS. Lưu LittleFS JSON (ghi atomic, có .bak), NVS cho danh tính và WiFi. Ba chế độ áp dụng live/idle/reboot. GPIO cũng cấu hình được, có safe mode.** Lý do: nhập kích thước động trên web (đợt 3). **Chốt**.
+- **D18 — 2026-11-20 — Motor GA25-370 12 V, pin 3S.** **Chốt** (tỉ số hộp số chờ).

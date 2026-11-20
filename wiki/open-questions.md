@@ -5,7 +5,10 @@
 |---|---|---|
 | Q1 | Web trên PC hay ESP32 | **PC** |
 | Q3 | Liên lạc giữa 2 xe | **Qua PC**, không có ESP-NOW |
-| Q4 | Loại cảm biến khoảng cách | **ToF200C** ×2 (nhân VL53L0X, I²C) |
+| Q4 | Loại cảm biến khoảng cách | **ToF200C** ×2, **VL53L0X** (I²C), xác nhận ở đợt 3 |
+| Q15a | Điện áp motor | **GA25-370 12 V**, nên dùng pin 3S |
+| Q23 | Kích thước và tham số nhập ở đâu | **Nhập động trên web, lưu flash ESP32** ([config-management](config-management.md)) |
+| Q24 | Có mô phỏng không | **Có**: sim 2 xe đầy đủ, view chung cho sim, xe thật và replay ([simulation](simulation.md)) |
 | Q5 | IMU | **Có MPU6050** (đợt 2 sửa lại đợt 1) |
 | Q7 | Loại góc cua | **Chỉ 90°**, không vẽ được góc khác |
 | Q8 | Cách cua | Quay tại chỗ, stop-and-go |
@@ -15,9 +18,9 @@
 ## Còn mở (cần trước M4, phần cứng)
 | # | Câu hỏi | Giả định đang dùng |
 |---|---|---|
-| Q15 | GA25-370: **bản 6 V hay 12 V, tỉ số hộp số / rpm**? Encoder cấp 3.3 hay 5 V? | 11 PPR; tỉ số chưa biết |
-| Q16 | Pin và nguồn (2S hay 3S? buck riêng cho ESP32?) | 3S nếu motor 12 V, 2S nếu 6 V. Buck 5 V riêng |
-| Q17 | Kích thước thật: thân xe, bánh, track, vị trí cảm biến và IMU | Điền [intake](../work/hardware/hardware-intake.md) |
+| Q15 | GA25-370 12 V: **tỉ số hộp số / rpm**? Encoder cấp 3.3 hay 5 V? | 11 PPR. Tỉ số cũng nhập được trên web nên không chặn |
+| Q16 | Pin 3S Li-ion? Có buck 5 V riêng cho ESP32 không? | 3S + buck 5 V |
+| Q17 | Kích thước thật | **Không chặn**: nhập trên web khi có xe ([config-management](config-management.md)) |
 | Q18 | Có làm được tấm phản xạ phẳng ở đuôi xe không? | Có |
 | Q21 | Module ToF200C có chân XSHUT và INT không (sơ đồ chân thực tế)? | Có XSHUT. INT tuỳ chọn |
 | Q22 | Board DevKit 30 hay 38 chân? | 30 chân |

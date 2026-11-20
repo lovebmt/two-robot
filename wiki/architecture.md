@@ -40,7 +40,8 @@ Thông số cụ thể và GPIO sẽ được điền vào [hardware-intake.md](
 
 ### 2.2 Motor GA25-370 và encoder
 - GA25-370 có encoder Hall 2 kênh, thường **11 PPR trên trục motor**. Số tick mỗi vòng bánh = `11 × 4 × gear`. Ví dụ hộp số 1:34 cho ~1496 tick/vòng, rất đủ độ phân giải.
-- Có bản 6 V và bản 12 V với nhiều tỉ số truyền. **Cần xác nhận điện áp, tỉ số và rpm** (Q15). Bản 12 V cộng sụt áp L298N thì cần pin **3S (11.1–12.6 V)**. Bản 6 V dùng 2S.
+- **Bản 12 V** (đã chốt). Dùng pin **3S Li-ion (10.8–12.6 V)**. Sau khi sụt áp qua L298N, motor chỉ nhận ~9–10.5 V, nên tốc độ tối đa còn khoảng 75–85 % định mức. Feedforward tính theo `V_bat` đo được ([motor-control L0](motor-control.md#2-giải-pháp-phân-tầng-từ-trong-ra-ngoài)). Tỉ số hộp số và rpm vẫn cần xác nhận (Q15).
+- Motor mạnh yếu khác nhau và ma sát khác nhau: xử lý theo [motor-control.md](motor-control.md).
 - Đếm bằng **PCNT phần cứng** (x4 quadrature, có glitch filter). Không dùng ngắt GPIO.
 - Encoder thường cấp 3.3–5 V. **Cấp 3.3 V** thì không cần dịch mức (cần đo xác nhận đầu ra). Nếu đầu ra là 5 V thì phải chia áp về 3.3 V.
 
@@ -67,8 +68,20 @@ Thông số cụ thể và GPIO sẽ được điền vào [hardware-intake.md](
 - Tổng mỗi xe: 6 (L298N) + 4 (encoder) + 2 (I²C ToF) + 2 (XSHUT) + 0–2 (INT ToF) + 2 (I²C IMU) + 1 (ADC pin) + 1–2 (LED/buzzer) ≈ **18–21 chân**. ESP32 DevKit 30 chân vẫn đủ nếu tránh strapping.
 
 ## 3. Firmware (ESP32)
-- PlatformIO, Arduino-ESP32 v3.x, FreeRTOS. **`lib/core/` là C++17 thuần** (không Arduino), có env `native` để unit test và chạy sim.
-- `src/hal/`: `MotorL298N`, `EncoderPCNT`, `RangeSensor` (ToF200C/VL53L0X), `ImuMpu6050`, `Battery`, `Nvs`. `src/net/`: WiFi + portal, beacon, HTTP, WS, UDP, time sync.
+- PlatformIO, Arduino-ESP32 v3.x, FreeRTOS. Tách lớp để **cùng code chạy trên ESP32 và trong sim** ([simulation §2.1](simulation.md#21-tách-hal-trong-firmware)):
+
+```
+work/firmware/
+  lib/core/     C++17 thuần: kinematics, motor ctrl (FF LUT, PI, bão hoà), fusion, KF, follow
+  lib/app/      primitive, máy trạng thái, safety, config (codegen từ schema), scheduler
+  lib/proto/    encode/decode message, dispatcher lệnh (không phụ thuộc transport)
+  lib/hal_api/  interface IMotor/IEncoder/IImu/IRange/IClock/IBattery/IStorage/ITransport
+  src/hal_esp32/  LEDC, PCNT, Wire (2 bus), VL53L0X, MPU6050, LittleFS, AsyncTCP/UDP
+  src/main.cpp    tạo HAL ESP32 và FreeRTOS task, gọi lib/app
+work/sim/
+  hal_sim/  world/  main.cpp      (CMake, dùng lại lib/*)
+```
+- Cấu hình động trên web và lưu flash (LittleFS): xem [config-management.md](config-management.md).
 
 | Task | Tần số | Core | Việc |
 |---|---|---|---|
@@ -95,7 +108,7 @@ Thông số cụ thể và GPIO sẽ được điền vào [hardware-intake.md](
 ## 4. Control Web (PC)
 - **Server:** Python 3.11+, FastAPI, asyncio. Gồm các module: `discovery`, `robots` (session/WS/UDP), `relay`, `coordinator`, `planner`, `validator`, `timesync`, `logger`, `sim_bridge`.
 - **Frontend:** Vite + TypeScript + Canvas 2D. Màn hình chi tiết ở [web-ui.md](web-ui.md).
-- **Sim:** CLI native từ `lib/core` cùng mô hình 2 xe. Sim có thể chạy như "robot ảo" nói cùng giao thức, nhờ đó server và UI được test mà không cần phần cứng.
+- **Sim:** process C++ chạy 2 robot ảo (chính code firmware, thay HAL) cộng mô hình vật lý. Nói cùng giao thức nên server và UI không phân biệt sim với thật. Có cùng một view cho SIM, REAL và REPLAY. Chi tiết ở [simulation.md](simulation.md).
 
 ## 5. Mạng
 - Router 2.4 GHz, **tắt AP/client isolation** (nếu bật, PC không thấy xe và broadcast bị chặn). Nên dùng router riêng cho sân test.

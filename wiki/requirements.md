@@ -1,6 +1,6 @@
 # Yêu cầu
 
-Nguồn: [brief gốc](../raw/2026-11-20-brief.md), [trả lời đợt 1](../raw/2026-11-20-answers-1.md), [đợt 2](../raw/2026-11-20-answers-2.md).
+Nguồn: [brief gốc](../raw/2026-11-20-brief.md), [trả lời đợt 1](../raw/2026-11-20-answers-1.md), [đợt 2](../raw/2026-11-20-answers-2.md), [đợt 3](../raw/2026-11-20-answers-3.md).
 Những điểm còn mở được đánh dấu **[GĐ]** và liệt kê ở [open-questions.md](open-questions.md).
 
 ## 0. Ràng buộc đã chốt
@@ -10,7 +10,9 @@ Những điểm còn mở được đánh dấu **[GĐ]** và liệt kê ở [op
 | C2 | Mọi giao tiếp giữa 2 xe **đi qua PC**, không có link trực tiếp (không ESP-NOW) |
 | C3 | Cảm biến mỗi xe: **2× ToF200C** (laser ToF, nhân VL53L0X) ở đầu xe và **1× IMU MPU6050** |
 | C4 | Đường chỉ gồm đoạn ngang/dọc theo lưới, **góc cua đúng 90°**. Không có góc khác và không quay đầu 180° |
-| C5 | Phần cứng có sẵn: **ESP32 DevKit thường (WROOM)**, driver **L298N**, 2 động cơ **GA25-370 có encoder Hall** mỗi xe. GPIO sẽ được cung cấp sau ([hardware-intake](../work/hardware/hardware-intake.md)) |
+| C5 | Phần cứng có sẵn: **ESP32 DevKit thường (WROOM)**, driver **L298N**, 2 động cơ **GA25-370 12 V có encoder Hall** mỗi xe. GPIO sẽ được cung cấp sau ([hardware-intake](../work/hardware/hardware-intake.md)) |
+| C6 | Thuật toán phải chạy được **hoàn toàn trên PC (mô phỏng 2 xe)** trước khi chạy trên xe. **Cùng một view** dùng cho sim, xe thật realtime và replay |
+| C7 | Mọi kích thước và tham số (kể cả GPIO) **nhập động trên web, gửi xuống ESP32, lưu flash**. Không cần nạp lại firmware |
 
 ## 1. Phạm vi
 | Thành phần | Mô tả |
@@ -54,7 +56,18 @@ Ngoài phạm vi v1: tránh vật cản lạ (chỉ dừng khẩn cấp), địn
 - **F19** Leader đi theo đường. Trên đoạn thẳng, leader giữ thẳng bằng đồng bộ encoder 2 bánh, có profile tăng/giảm tốc, chậm dần và dừng đúng điểm cua.
 - **F20** Follower bám leader trên đoạn thẳng **tự chủ trên xe**. Gap và góc lệch lấy từ 2 cảm biến, đường biết trước và encoder. Không phụ thuộc vào độ trễ WiFi.
 - **F21** Góc cua chạy theo quy trình **stop-and-go do PC điều phối** ([algorithms.md §5](algorithms.md#5-quy-trình-qua-góc-cua-pc-điều-phối)): leader dừng và quay, tiến ra. Follower đo lại khoảng cách rồi tiến tới điểm cua, quay, bắt lại leader và căn thẳng hàng. Sau đó cả 2 đi tiếp.
+- **F23** Xử lý motor mạnh yếu và ma sát khác nhau: hiệu chuẩn riêng từng bánh, vòng tốc độ riêng từng bánh, vòng hướng theo gyro, xử lý bão hoà, thích nghi ([motor-control.md](motor-control.md)).
 - **F22** An toàn tại xe: cảm biến thấy vật quá gần (`gap_min_safe` với follower, `obstacle_stop` với leader) thì phanh ngay, không chờ PC. Follower mất leader trên đoạn thẳng quá `lost_timeout_ms` thì dừng và báo PC.
+
+### 2.6 Mô phỏng và view ([simulation.md](simulation.md))
+- **F24** Sim chạy 2 robot ảo trên PC, dùng **chính code firmware** (thay HAL) và nói **đúng giao thức** của xe thật.
+- **F25** View realtime chung cho các nguồn SIM, REAL, REPLAY. Ở sim có thêm lớp truth để so ước lượng với thật.
+- **F26** Có điều khiển sim (tốc độ, pause, step, seed), thanh trượt tham số vật lý, và nút gây lỗi.
+- **F27** Chế độ batch chạy kịch bản YAML, xuất metric, có tiêu chí pass/fail, dùng làm hồi quy.
+
+### 2.7 Cấu hình động ([config-management.md](config-management.md))
+- **F28** Form cấu hình trên web sinh tự động từ một schema chung. Có Apply (RAM), Save (flash), Revert, Diff, Export/Import, Factory reset.
+- **F29** Chỉnh nhanh hệ số bằng slider khi đang chạy (chỉ ghi RAM). Firmware luôn validate lại. Có safe mode khi cấu hình GPIO sai.
 
 ## 3. Yêu cầu phi chức năng
 | Mã | Yêu cầu | Mục tiêu v1 |
@@ -67,6 +80,8 @@ Ngoài phạm vi v1: tránh vật cản lạ (chỉ dừng khẩn cấp), địn
 | N6 | Độ trễ relay xe→PC→xe | trung bình < 50 ms, p99 < 200 ms. Không dùng cho vòng điều khiển nhanh |
 | N7 | An toàn | E-STOP từ web và dừng khi mất link < 300 ms. Watchdog firmware |
 | N8 | Testability | Lõi thuật toán (C++) chạy trên PC: unit test và sim |
+| N9 | Bền vững với sai lệch | Đạt N1–N3 trong sim khi lệch motor ±20 %, ma sát ±30 %, pin 12.6 V xuống 10.8 V |
+| N10 | Sim | Deterministic theo seed. Batch nhanh hơn realtime ≥ 20× |
 
 **Lưu ý về sai số hướng tuyệt đối:** gyro MPU6050 (sau khi trừ bias) trôi khoảng vài độ mỗi phút, nên hướng leader vẫn trôi chậm trên đường dài.
 Hình dạng đường thực tế có thể lệch nhẹ so với bản vẽ. Follower không bị cộng dồn lỗi này vì nó căn theo leader bằng ToF.

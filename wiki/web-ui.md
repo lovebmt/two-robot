@@ -10,7 +10,7 @@ Frontend Vite + TS + Canvas, giao tiếp với server qua REST và WS. Mỗi l�
 - Nút kết nối và ngắt kết nối. Có cảnh báo khi fw 2 xe khác nhau.
 
 ### Config
-- Hai tab, mỗi xe một tab, có nút "Copy sang xe kia". Form theo nhóm trong [parameters.md](parameters.md).
+- Hai tab, mỗi xe một tab, có nút "Copy sang xe kia". **Form sinh tự động từ schema** ([config-management.md](config-management.md)), theo nhóm trong [parameters.md](parameters.md). Có nút Apply / Save / Revert / Diff / Export / Import / Factory reset. Ô chưa lưu có viền vàng, ô khác với xe có viền tím. Nhóm `hw.*` có nút Reboot.
 - **Hình xem trước xe (vẽ từ tham số):** thân hộp, 2 bánh, caster, 2 mắt cảm biến và chùm của chúng, tấm phản xạ, vòng quét `R_sw`. Hình cập nhật khi đổi số.
 - Hiển thị các giá trị suy ra: `mm_per_tick`, `R_sw`, `g_hold_min`, `exit_dist_min`, `seg_min`.
 - Nút **Push to robot** (PUT `/api/config`) và **Pull**. Có so sánh khác biệt giữa bản trên PC và bản trên xe.
@@ -23,10 +23,12 @@ Frontend Vite + TS + Canvas, giao tiếp với server qua REST và WS. Mỗi l�
 - Panel thông tin: tổng chiều dài, số góc, thời gian ước tính, kết quả validator.
 
 ### Simulate
-- Chạy sim server-side và phát lại. Có Play/Pause, kéo timeline, tốc độ ×0.5–×8.
-- Hiển thị 2 xe, vết đi, gap theo thời gian, bước góc cua hiện tại. Có tuỳ chọn bật nhiễu và trượt bánh.
+- Khởi động hoặc dừng sim process, chọn kịch bản YAML và seed. Robot ảo xuất hiện ở màn Devices như xe thật.
+- Thanh trượt vật lý (lệch motor, μ, nhiễu, trễ mạng), vẽ vùng ma sát lên lưới, nút gây lỗi.
+- Chạy batch nhiều seed và xem bảng metric pass/fail.
 
-### Run
+### Run (view chung cho SIM / REAL / REPLAY, xem [simulation §5](simulation.md#5-view-một-giao-diện-cho-cả-3-nguồn))
+- Badge nguồn `SIM` / `REAL` / `REPLAY`. Ở sim có thêm lớp truth và điều khiển thời gian (pause, step, ×0.25–×4). Ở replay có timeline kéo được.
 - Nút lớn: **Load path**, **Arm**, **Start**, **Pause/Resume**, **Stop**, **E-STOP** (đỏ, phím tắt `Space`).
 - Lưới realtime với pose odometry của 2 xe và giá trị 2 cảm biến (vẽ thành tia).
 - **Corner stepper**: danh sách 10 bước của góc hiện tại, đánh dấu bước đã xong, đang chạy, lỗi. Khi lỗi có nút Retry / Jog / Abort.
@@ -34,7 +36,8 @@ Frontend Vite + TS + Canvas, giao tiếp với server qua REST và WS. Mỗi l�
 - Chế độ **Jog**: joystick hoặc phím WASD cho xe đang chọn.
 
 ### Calibrate
-Wizard cho từng bài trong [algorithms §6](algorithms.md#6-hiệu-chuẩn). Mỗi bài: hướng dẫn, Run, nhập số đo thực, xem giá trị đề xuất, rồi Apply vào config.
+Wizard cho từng bài trong [algorithms §6](algorithms.md#6-hiệu-chuẩn) và [motor-control §3](motor-control.md#3-hiệu-chuẩn-trên-web-wizard). Mỗi bài: hướng dẫn, Run, nhập số đo thực, xem biểu đồ và giá trị đề xuất, rồi Apply và Save vào flash.
+Có thêm nút "Xuất mô hình motor sang sim" để đưa `K`, `τ`, LUT của xe thật vào kịch bản sim.
 
 ## 2. Planner (nét vẽ → đường đi)
 1. Danh sách đỉnh lưới `P0..Pn` được đổi sang mm (`× cell_mm`, gốc toạ độ ở `P0`, hướng start là trục x).
@@ -51,6 +54,7 @@ Wizard cho từng bài trong [algorithms §6](algorithms.md#6-hiệu-chuẩn). M
 | Segment đầu ≥ `approach_dist` | cảnh báo |
 | `g_hold ≥ g_hold_min`, `exit_dist ≥ exit_dist_min` | lỗi |
 | `gap.target ≥ gap.min_safe` và nằm trong vùng đo cảm biến | lỗi |
+| `v_cruise ≤ headroom·min(v_max leader, v_max follower)` | cảnh báo |
 | Follower start (lùi `gap` sau P0) nằm trong bản đồ | lỗi |
 | Đường nằm trong bản đồ, cách biên ≥ nửa chiều rộng xe | cảnh báo |
 | Vòng `R_sw` tại góc không chạm đoạn khác | cảnh báo |

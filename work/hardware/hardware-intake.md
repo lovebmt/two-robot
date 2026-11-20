@@ -1,17 +1,20 @@
 # Hardware intake (điền khi có phần cứng)
 
+> Mọi số liệu ở đây (kể cả GPIO) cuối cùng được **nhập trên web và lưu flash** ([config-management](../../wiki/config-management.md)). File này chỉ để ghi lại số đo gốc và đối chiếu.
+
 Mỗi xe một cột. Nếu 2 xe giống nhau thì chỉ cần ghi xe A.
 
 ## 1. Linh kiện
 | Mục | Xe A | Xe B |
 |---|---|---|
 | Board ESP32 (model, số chân) | ESP32 DevKit thường, ? chân | |
-| Motor: model / điện áp định mức / rpm | GA25-370 / ? V / ? rpm | |
+| Motor: model / điện áp định mức / rpm | GA25-370 / 12 V / ? rpm | |
 | Hộp số: tỉ số | ? | |
 | Encoder: PPR (xung/vòng trục motor, 1 kênh) | 11 (cần xác nhận) | |
 | Encoder: nguồn 3.3/5 V, đầu ra push-pull/open-collector | | |
 | Driver | L298N | L298N |
-| Cảm biến khoảng cách: model ×2 | ToF200C (VL53L0X) | ToF200C |
+| Cảm biến khoảng cách: model ×2 | ToF200C (VL53L0X), đã xác nhận | ToF200C |
+| Pin (đề xuất) | 3S Li-ion 10.8–12.6 V | |
 | ToF200C có chân XSHUT / INT? | | |
 | IMU | MPU6050 | MPU6050 |
 | Pin: loại, số cell, dung lượng | | |
