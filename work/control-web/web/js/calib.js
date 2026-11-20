@@ -65,19 +65,34 @@ async function run(kind) {
     ? `<p class="small muted">Robot ảo: đã điền sẵn số đo thật từ mô phỏng (thay cho thước).</p>` : '';
   if (kind === 'drive') {
     out.innerHTML = kv([['Lệnh', `${f(x.cmd_mm, 0)} mm`], ['Encoder đo', `${f(x.enc_mm)} mm`], ['Hướng đổi (gyro)', `${f(x.yaw_change_deg, 2)}°`]])
-      + simNote + measureForm('drive', 'Quãng thật', 'mm', r.sim_measured);
+      + simNote + measureForm('drive', 'Quãng thật (vạch A → B)', 'mm', r.sim_measured);
     $('calApply-drive').onclick = () => apply('drive');
   } else if (kind === 'turn') {
     out.innerHTML = kv([['Lệnh', `${f(x.cmd_deg, 0)}°`], ['Gyro ước lượng', `${f(x.est_deg, 2)}°`],
       ['Cung bánh trái/phải', `${f(x.arc_l_mm, 0)} / ${f(x.arc_r_mm, 0)} mm`]])
-      + simNote + measureForm('turn', 'Góc thật', '°', r.sim_measured);
+      + simNote + measureForm('turn', 'Góc thật', '°', r.sim_measured, `
+      <details class="small"><summary>Tính góc từ thước (L, d)</summary>
+        <div class="row gap wrap">
+          <label>L <input type="number" id="calTL" class="num" value="150"> mm</label>
+          <label>d <input type="number" id="calTd" class="num" value="0"> mm</label>
+          <select id="calTdir"><option value="1">quay lố qua vạch</option><option value="-1">quay chưa tới vạch</option></select>
+          <button class="btn small" id="calTcalc">→ điền góc thật</button>
+        </div>
+        <p class="muted">L = khoảng cách giữa 2 điểm đo dọc mặt bên thân xe; d = chênh lệch khoảng cách từ vạch tới mép xe giữa 2 điểm đó. Góc lệch = atan(d / L).</p>
+      </details>`);
     $('calApply-turn').onclick = () => apply('turn');
+    $('calTcalc').onclick = () => {
+      const L = Number($('calTL').value), d = Number($('calTd').value), dir = Number($('calTdir').value);
+      if (!(L > 0)) { toast('L phải > 0', 'err'); return; }
+      const dev = Math.atan(Math.abs(d) / L) * 180 / Math.PI;
+      $('calMeas-turn').value = (Number(x.cmd_deg) + dir * dev).toFixed(2);
+    };
   } else {
     const known = Number($('calGapMm').value);
     out.innerHTML = kv([['Mắt trái / phải đo', `${f(x.dl_mm)} / ${f(x.dr_mm)} mm`], ['Δψ', `${f(x.dpsi_deg, 2)}°`],
       ['Nhiễu (σ gap)', `${f(x.std)} mm`]])
       + (Math.abs(x.dpsi_deg) > 2 ? '<p class="err small">Δψ > 2°: 2 xe chưa thẳng hàng — nếu bỏ "Giữ chênh lệch 2 mắt" kết quả sẽ sai.</p>' : '')
-      + simNote + measureForm('gap', 'Khoảng cách thật', 'mm', r.sim_measured ?? known);
+      + simNote + measureForm('gap', 'Khoảng cách thật (mặt kính ToF → mặt đuôi xe trước)', 'mm', r.sim_measured ?? known);
     $('calApply-gap').onclick = () => apply('gap', { keep_diff: $('calGapKeep').checked });
   }
 }

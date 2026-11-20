@@ -133,27 +133,64 @@
         </div>
         <div class="card">
           <div class="card-h"><h2>2. Đi thẳng → đường kính bánh</h2></div>
-          <p class="small muted">Đánh dấu vị trí trục bánh trên sàn. Xe chạy thẳng quãng đặt sẵn; đo quãng thật bằng thước rồi nhập.</p>
+          <ol class="small howto">
+            <li>Chọn <b>một điểm cố định trên xe</b>, ví dụ <b>mép sau thân xe</b> (hoặc điểm bánh trái chạm sàn).</li>
+            <li>Dán băng keo trên sàn, kẻ vạch <b>A</b> ngay tại điểm đó trước khi chạy.</li>
+            <li>Bấm Chạy. Xe đi thẳng về phía trước rồi dừng hẳn.</li>
+            <li>Kẻ vạch <b>B</b> tại <b>cùng điểm đó</b> sau khi xe dừng.</li>
+            <li><b>Quãng thật = khoảng cách từ vạch A đến vạch B</b>, đo theo hướng xe đi (mm).</li>
+          </ol>
+          <svg class="howto-fig" viewBox="0 0 320 70" role="img" aria-label="Đo quãng đi thẳng từ vạch A đến vạch B">
+            <rect x="18" y="16" width="56" height="34" rx="3" class="fig-car"/><rect x="226" y="16" width="56" height="34" rx="3" class="fig-car"/>
+            <line x1="18" y1="6" x2="18" y2="60" class="fig-mark"/><line x1="226" y1="6" x2="226" y2="60" class="fig-mark"/>
+            <text x="12" y="68" class="fig-t">A</text><text x="220" y="68" class="fig-t">B</text>
+            <line x1="22" y1="58" x2="222" y2="58" class="fig-dim"/><text x="92" y="54" class="fig-t">quãng thật (mm)</text>
+            <text x="100" y="36" class="fig-t">→ hướng đi</text><text x="20" y="13" class="fig-s">mép sau</text><text x="228" y="13" class="fig-s">mép sau</text>
+          </svg>
           <div class="row gap"><label>Cho xe đi <input type="number" id="calDriveMm" class="num" value="1000"> mm</label>
             <button class="btn primary" data-cal="drive">Chạy</button></div>
           <div class="cal-out" id="calOut-drive"></div>
         </div>
         <div class="card">
           <div class="card-h"><h2>3. Quay → hệ số gyro, track</h2></div>
-          <p class="small muted">Căn mép xe theo một vạch trên sàn. Nên quay 360° (hoặc 720°) rồi đo góc thật = 360 ± độ lệch so với vạch (quay lố → nhập lớn hơn 360).</p>
+          <ol class="small howto">
+            <li>Kẻ một <b>vạch thẳng dài</b> trên sàn. Đặt <b>mặt bên thân xe</b> (cạnh dài, phẳng) sát và song song với vạch.</li>
+            <li>Bấm Quay. Số dương là xe quay <b>ngược chiều kim đồng hồ</b> (sang trái). Nên quay 360°.</li>
+            <li>Sau khi xe dừng, đo <b>góc giữa mặt bên thân xe và vạch</b>.</li>
+            <li><b>Góc thật = 360 + góc lệch</b> nếu xe quay lố qua vạch, <b>360 − góc lệch</b> nếu quay chưa tới.</li>
+            <li>Khó đo góc trực tiếp: đo <b>độ lệch d (mm)</b> giữa vạch và mép xe tại 2 điểm cách nhau <b>L (mm)</b> dọc thân xe. Ô tính bên dưới (hiện sau khi quay) sẽ đổi ra góc.</li>
+          </ol>
           <div class="row gap"><label>Quay <input type="number" id="calTurnDeg" class="num" value="360"> °</label>
             <button class="btn primary" data-cal="turn">Quay</button></div>
           <div class="cal-out" id="calOut-turn"></div>
         </div>
         <div class="card">
           <div class="card-h"><h2>4. ToF quét tường → lệch 2 mắt</h2></div>
-          <p class="small muted">Đặt xe trước tường/hộp phẳng ≥ 40 cm, cách 15–30 cm, gần vuông góc. Xe tự quay ±40° (~25 s).</p>
+          <ol class="small howto">
+            <li>Đặt xe trước một <b>mặt phẳng rộng ≥ 40 cm</b> (tường, thùng carton), không có vật khác hai bên.</li>
+            <li>Khoảng cách <b>từ mặt kính 2 cảm biến ToF tới mặt phẳng: 15–30 cm</b>. Chỉ cần ước chừng, không cần đo chính xác.</li>
+            <li>Xe gần vuông góc với mặt phẳng là đủ (±10°). Xe tự quay ±40° trong khoảng 25 s.</li>
+          </ol>
           <button class="btn primary" data-cal="tofwall">Quét tường</button>
           <div class="cal-out" id="calOut-tofwall"></div>
         </div>
         <div class="card">
           <div class="card-h"><h2>5. Khoảng cách ToF (đặt sẵn)</h2></div>
-          <p class="small muted">Đặt xe này ngay sau đuôi xe kia, thẳng hàng, mặt kính 2 mắt ToF cách mặt đuôi xe trước đúng khoảng dưới đây (dùng thước/căn bằng khối gỗ).</p>
+          <ol class="small howto">
+            <li>Robot đang chọn là <b>xe sau</b>. Đặt nó ngay sau xe kia (<b>xe trước</b>), 2 xe thẳng hàng (căn mép bằng thước chữ L).</li>
+            <li>Đo <b>từ mặt kính phía trước của 2 cảm biến ToF</b> (mặt có lỗ phát laser, trên xe sau) <b>đến mặt sau / tấm phản xạ đuôi của xe trước</b>, vuông góc với mặt đuôi.</li>
+            <li>Hai mắt phải cách mặt đuôi bằng nhau (đo cả 2 bên). Nên dùng một <b>khối căn đúng 100 mm</b> kẹp giữa rồi rút ra.</li>
+            <li>Nhập đúng khoảng cách đó vào ô dưới, rồi bấm Đo.</li>
+          </ol>
+          <svg class="howto-fig" viewBox="0 0 320 84" role="img" aria-label="Khoảng cách từ mặt kính ToF xe sau đến mặt đuôi xe trước">
+            <rect x="14" y="20" width="100" height="44" rx="3" class="fig-car"/><text x="40" y="47" class="fig-t">xe sau</text>
+            <rect x="112" y="27" width="6" height="8" class="fig-tof"/><rect x="112" y="49" width="6" height="8" class="fig-tof"/>
+            <rect x="206" y="20" width="100" height="44" rx="3" class="fig-car"/><text x="232" y="47" class="fig-t">xe trước</text>
+            <rect x="202" y="14" width="4" height="56" class="fig-plate"/>
+            <line x1="118" y1="8" x2="118" y2="76" class="fig-mark"/><line x1="202" y1="8" x2="202" y2="76" class="fig-mark"/>
+            <line x1="121" y1="80" x2="199" y2="80" class="fig-dim"/><text x="128" y="76" class="fig-t">VD 100 mm</text>
+            <text x="78" y="12" class="fig-s">mặt kính ToF</text><text x="178" y="12" class="fig-s">mặt đuôi / tấm phản xạ</text>
+          </svg>
           <div class="row gap wrap"><label>Khoảng cách <input type="number" id="calGapMm" class="num" value="100"> mm</label>
             <label class="chk"><input type="checkbox" id="calGapKeep" checked> Giữ chênh lệch 2 mắt (đã làm bước 4)</label>
             <button class="btn primary" data-cal="gap">Đo</button></div>

@@ -184,6 +184,17 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .cal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
 .cal-grid .card { margin: 0; }
 .cal-out { margin-top: 8px; font-size: 13px; }
+.howto { margin: 4px 0 8px; padding-left: 20px; color: var(--muted); }
+.howto li { margin: 2px 0; }
+.howto b { color: var(--text); font-weight: 600; }
+.howto-fig { width: 100%; max-width: 360px; height: auto; display: block; margin: 4px 0 10px; }
+.fig-car { fill: var(--surface-2); stroke: var(--muted); stroke-width: 1.5; }
+.fig-tof { fill: var(--ray-ok); }
+.fig-plate { fill: var(--follower); }
+.fig-mark { stroke: var(--danger); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.fig-dim { stroke: var(--accent); stroke-width: 1.5; marker-start: none; }
+.fig-t { fill: var(--text); font: 600 10px var(--font); }
+.fig-s { fill: var(--muted); font: 9px var(--font); }
 .cal-out .kv { margin: 6px 0; }
 .checks { list-style: none; padding: 0; margin: 6px 0 0; font-size: 12.5px; }
 .checks li { padding: 3px 0; border-bottom: 1px dashed var(--border); }
