@@ -1,0 +1,28 @@
+# PlatformIO / firmware
+.pio/
+.vscode/
+*.bin
+*.elf
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / web
+node_modules/
+dist/
+.vite/
+
+# Sim output
+work/sim/out/
+
+# OS / editor
+.DS_Store
+*.swp
+
+# Secrets (WiFi credentials, tokens)
+secrets.h
+.env
+*.local.json
