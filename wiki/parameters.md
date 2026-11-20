@@ -1,72 +1,106 @@
 # Thông số cấu hình (Web Config)
 
-Đơn vị lưu nội bộ là **mm, mm/s, rad**. UI có thể hiển thị cm/độ. Mỗi xe có một bản cấu hình (có thể copy từ xe kia). Giá trị mặc định chỉ là ví dụ.
+Đơn vị nội bộ: **mm, mm/s, rad** (UI hiển thị cm/độ). Mỗi xe một profile. Giá trị mặc định chỉ là ví dụ, sẽ thay bằng số thật từ [hardware-intake](../work/hardware/hardware-intake.md).
+`auto` nghĩa là giá trị tính từ các thông số khác (vẫn ghi đè được).
 
-## Bản đồ
+## Bản đồ / project
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
-| `grid.cell_mm` | kích thước thực của 1 ô lưới | 100 |
+| `grid.cell_mm` | kích thước thực 1 ô | 100 |
 | `grid.cols`, `grid.rows` | số ô | 30 × 20 |
-| `path.start` | ô xuất phát và hướng (0/90/180/270) | — |
 
 ## Hình học xe (hình hộp)
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
 | `body.length_mm`, `body.width_mm`, `body.height_mm` | kích thước thân | 160 × 120 × 70 |
 | `body.axle_to_front_mm` | tâm trục bánh tới mặt trước | 120 |
-| `body.axle_to_rear_mm` | tâm trục bánh tới mặt sau (`x_rear`) | 40 |
-| `body.sweep_radius_mm` | bán kính quét khi quay tại chỗ (tính tự động, có thể ghi đè) | auto |
+| `body.axle_to_rear_mm` | tâm trục tới mặt sau / tấm phản xạ (`x_rear`) | 40 |
+| `body.sweep_radius_mm` | `R_sw` | auto |
 | `wheel.diameter_mm` | đường kính bánh dẫn động | 65 |
-| `wheel.track_mm` | khoảng cách 2 bánh (tâm–tâm vệt bánh) | 130 |
-| `wheel.diam_ratio_lr` | hệ số bù đường kính trái/phải | 1.000 |
-| `caster.offset_mm` | vị trí bánh caster so với trục | 100 |
+| `wheel.track_mm` | khoảng cách 2 bánh (đo bằng thước) | 130 |
+| `wheel.track_eff_mm` | `T_eff` sau hiệu chuẩn quay | auto = track |
+| `wheel.diam_eps` | `ε` bù trái/phải | 0.000 |
+| `caster.offset_mm` | vị trí caster so với trục | 100 |
+| `target.plate_width_mm` | bề rộng tấm phản xạ đuôi | 120 |
 
-## Động cơ và encoder
+## Driver L298N và motor
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
-| `enc.cpr` | xung/vòng trục động cơ (1 kênh) | 7 |
-| `enc.gear_ratio` | tỉ số hộp số | 100 |
-| `enc.invert_l/r`, `motor.invert_l/r` | đảo chiều | false |
-| `motor.pwm_hz`, `motor.deadband` (`ks`), `motor.kv` | đặc tính | 20000, —, — |
-| `motor.v_max_mm_s` | vận tốc tối đa vật lý | 400 |
+| `motor.pwm_hz`, `motor.pwm_bits` | LEDC | 2000, 10 |
+| `motor.invert_l/r` | đảo chiều motor | false |
+| `motor.ks_{l,r}_{fwd,rev}` | duty vùng chết (0–1) | hiệu chuẩn |
+| `motor.kv_{l,r}` | duty trên mỗi mm/s | hiệu chuẩn |
+| `motor.v_max_mm_s` | tốc độ tối đa thực tế | hiệu chuẩn |
+| `motor.brake_on_stop` | phanh nhanh khi dừng | true |
+| `motor.stall_ms` | duty > ngưỡng mà không có tick thì báo STALL | 500 |
+
+## Encoder
+| Khoá | Mô tả | Mặc định |
+|---|---|---|
+| `enc.ppr_motor` | xung/vòng trục motor, 1 kênh (GA25-370 thường là 11) | 11 |
+| `enc.gear_ratio` | tỉ số hộp số GA25-370 | ? (intake) |
+| `enc.invert_l/r` | đảo chiều đếm | false |
+| `enc.glitch_ns` | lọc nhiễu PCNT | 1000 |
+| `enc.mm_per_tick` | | auto |
 
 ## Cảm biến khoảng cách
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
-| `tof.type` | VL53L0X / VL53L1X / … | VL53L1X |
-| `tof.x_mm` | tâm trục tới mắt cảm biến (dọc) | 120 |
-| `tof.baseline_mm` | khoảng cách giữa 2 mắt cảm biến (ngang) | 80 |
-| `tof.toe_deg` | góc nghiêng ra ngoài của mỗi cảm biến | 0 |
-| `tof.offset_l/r_mm`, `tof.scale_l/r` | hiệu chuẩn | 0, 1 |
-| `tof.rate_hz`, `tof.timing_budget_ms` | tần số / thời gian đo | 33, 30 |
-| `tof.min/max_valid_mm` | khoảng hợp lệ | 30 / 1200 |
-| `target.rear_plate_width_mm` | bề rộng tấm phản xạ đuôi leader | 120 |
+| `range.type` | ToF200C (nhân VL53L0X) | `vl53l0x` |
+| `range.addr_l`, `range.addr_r` | địa chỉ I²C sau khi đổi qua XSHUT | `0x30`, `0x29` |
+| `range.timing_budget_ms` | 20 (nhanh) / 33 (mặc định) / 66 (chính xác) | 33 |
+| `range.toe_in_deg` | góc nghiêng vào trong của mỗi cảm biến | 0 |
+| `range.x_mm` | tâm trục tới mắt cảm biến (`x_s`) | 120 |
+| `range.baseline_mm` | khoảng cách 2 mắt (`b`) | 60 |
+| `range.offset_{l,r}_mm`, `range.scale_{l,r}` | hiệu chuẩn | 0, 1 |
+| `range.rate_hz` | tần số (mỗi cảm biến) | 30 |
+| `range.min_valid_mm`, `range.max_valid_mm` | vùng hợp lệ | 30, 1000 |
+| `range.max_diff_mm` | `|d_l − d_r|` tối đa còn tin | 40 |
+| `range.sigma_mm` | độ lệch chuẩn nhiễu (cho KF) | 6 |
 
-## IMU
-`imu.type`, `imu.gyro_bias_auto` (true), `imu.yaw_fusion_alpha`.
-
-## Chuyển động và profile
+## IMU MPU6050
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
-| `motion.v_cruise` | vận tốc trên đoạn thẳng | 200 |
-| `motion.a_max`, `motion.j_max` | gia tốc / jerk | 300, 1500 |
-| `motion.v_corner` | vận tốc trong vùng tiếp cận góc | 50 |
+| `imu.i2c_bus` | 0 (chung với ToF) / 1 (bus riêng) | 1 |
+| `imu.addr` | | `0x68` |
+| `imu.gyro_range_dps`, `imu.dlpf_hz`, `imu.rate_hz` | | 250, 42, 200 |
+| `imu.gyro_bias_z`, `imu.gyro_scale_z` | hiệu chuẩn | auto, 1.0 |
+| `imu.mount_sign_z` | +1/−1 tuỳ chiều gắn | +1 |
+| `imu.fusion_beta_straight`, `imu.fusion_beta_turn` | trọng số encoder trong fusion hướng | 0.05, 0.0 |
+| `imu.zupt_enable` | cập nhật bias khi đứng yên | true |
+| `motion.turn_tol_deg` | sai số chấp nhận khi quay theo gyro | 1.0 |
+| `motion.turn_omega_max_dps` | | 90 |
+| `pid.heading.{kp,ki}` | giữ hướng khi đi thẳng | — |
+
+## Chuyển động
+| Khoá | Mô tả | Mặc định |
+|---|---|---|
+| `motion.v_cruise` | tốc độ đoạn thẳng | 150 |
+| `motion.a_max` | gia tốc | 250 |
+| `motion.v_corner` | tốc độ khi tiếp cận góc | 40 |
 | `motion.approach_dist` | bắt đầu giảm tốc trước góc | 150 |
-| `motion.turn_omega_max` | tốc độ quay tại chỗ (deg/s) | 90 |
-| `motion.turn_tol_deg` | sai số chấp nhận khi quay | 1.0 |
-| `motion.exit_dist` | leader tiến thêm sau khi quay | auto (≥ clear_dist) |
+| `motion.stop_tol_mm` | sai số dừng tại điểm | 3 |
+| `motion.turn_wheel_v` | tốc độ bánh khi quay tại chỗ | 60 |
+| `motion.turn_a_max` | gia tốc bánh khi quay | 150 |
+| `motion.obstacle_stop_mm` | leader phanh khi thấy vật | 80 |
 
-## Đội hình (formation)
+## Đội hình và góc cua
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
-| `gap.target_mm` | gap tâm–tâm mong muốn trên đoạn thẳng | 300 |
-| `gap.min_safe_mm` | dưới ngưỡng này thì dừng | 200 |
-| `gap.max_mm` | leader chờ nếu vượt ngưỡng | 600 |
-| `gap.hold_dist_mm` | follower đứng cách góc khi leader quay | auto |
-| `gap.lost_timeout_ms` | mất leader thì dừng | 500 |
+| `gap.target_mm` | gap tâm–tâm trên đoạn thẳng (`g*`) | 300 |
+| `gap.min_safe_mm` | dưới ngưỡng thì phanh | auto |
+| `gap.hold_mm` | follower chờ khi leader quay (`g_hold`) | auto (≥ `g_hold_min`) |
+| `corner.exit_dist_mm` | leader tiến thêm sau khi quay | auto (≥ `exit_dist_min`) |
+| `corner.margin_mm` | biên an toàn | 30 |
+| `corner.snapshot_n`, `corner.snap_std_max_mm` | số mẫu, ngưỡng nhiễu | 15, 4 |
+| `corner.align_tol_deg` | ngưỡng căn song song | 1.5 |
+| `corner.reacquire_tol_mm`, `corner.scan_deg` | | 40, 10 |
+| `corner.step_timeout_ms` | timeout mỗi bước | 8000 |
+| `gap.lost_timeout_ms` | mất leader trên đoạn thẳng | 400 |
 
 ## Bộ điều khiển và bộ lọc
-`pid.wheel.{kp,ki,kff}`, `track.{k_psi,k_y,lookahead}`, `follow.{kp,ki}`, `kf.{q_a, r_tof, r_radio_s, r_radio_v, gate_chi2}`.
+`pid.wheel.{kp,ki}`, `pid.straight.{kp,ki}` (đồng bộ 2 bánh), `pid.pos.kp` (dừng tại điểm),
+`follow.{kp_g, ki_g, k_psi, k_edge}`, `kf.{q_a, r_relay_v, gate_chi2}`, `filt.dpsi_alpha`.
 
 ## Mạng và an toàn
-`net.hostname`, `net.link_timeout_ms` (500), `net.telemetry_hz` (10), `peer.rate_hz` (50), `peer.channel`, `safety.bat_min_v` (6.6).
+`net.hostname`, `net.link_timeout_ms` (300), `net.hb_hz` (5), `net.state_hz` (25), `net.udp_state_port` (47801), `net.udp_relay_port` (47802), `safety.bat_min_mv` (6600).
