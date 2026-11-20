@@ -1,69 +1,76 @@
 # Roadmap
 
-Nguyên tắc: **làm lõi thuật toán và sim trước, phần cứng sau**. Mỗi mốc có tiêu chí xong rõ ràng. Mỗi task nên là 1 hoặc vài commit nhỏ.
+Nguyên tắc: **làm lõi thuật toán và sim trước, phần cứng sau**. Mỗi mốc có tiêu chí xong rõ ràng. Mỗi task là 1 hoặc vài commit nhỏ.
+Có thể làm song song: M2/M3 (phần mềm) chạy song song với M4a (lắp và đo phần cứng).
 
 ## M0 — Kế hoạch và repo ✅ (2026-11-20)
-- [x] Brief, yêu cầu, kiến trúc, thuật toán, thông số, câu hỏi mở
-- [ ] Chốt câu hỏi mở Q1–Q14
+- [x] Brief, yêu cầu, kiến trúc, thuật toán, thông số, giao thức, UI
+- [x] Chốt Q1, Q3, Q4, Q5, Q7, Q8, Q11, Q19
+- [ ] Chốt Q15–Q18, Q21, Q22 và bảng GPIO (trước M4)
 
 ## M1 — Khung dự án
-- [ ] `work/firmware`: PlatformIO, các env `esp32` và `native`, `lib/core` rỗng, Unity test chạy được
-- [ ] `work/control-web`: FastAPI skeleton, Vite + TS skeleton, script dev
+- [ ] `work/firmware`: PlatformIO, env `esp32dev` và `native`, `lib/core` rỗng, Unity test chạy được
+- [ ] `work/control-web/server`: FastAPI skeleton, cấu trúc module (discovery, robots, relay, coordinator, planner, validator, timesync, logger)
+- [ ] `work/control-web/web`: Vite + TS skeleton, khung 6 màn hình
 - [ ] `work/sim`: CLI native dùng `lib/core`
-- [ ] Schema JSON cho config và path (`work/control-web/schemas/`) dùng chung cho validator
-- [ ] CI cục bộ: `pio test -e native`, `pytest`, `npm run build`
+- [ ] `work/shared/schemas`: JSON Schema cho config, path, message. Struct nhị phân UDP mô tả 1 nơi, sinh ra code C và Python
+- [ ] Script: `make test` chạy `pio test -e native`, `pytest`, `npm run build`
 
-**Xong khi:** 3 lệnh build/test đều xanh.
+**Xong khi:** `make test` xanh.
 
-## M2 — Lõi thuật toán (C++ thuần) và mô phỏng
-- [ ] Kinematics, odometry, fusion góc
-- [ ] Path: tham số hoá `s`, chiếu pose, Stanley
-- [ ] Profile vận tốc có dừng tại góc
-- [ ] KF gap và gating
-- [ ] Máy trạng thái leader/follower và giao thức sự kiện góc cua
-- [ ] Sim 2 xe (nhiễu, trễ, mất gói, mô hình ToF) xuất JSON
-- [ ] Bộ kịch bản: thẳng 3 m, chữ L, chữ nhật, zig-zag, các góc sát nhau
+## M2 — Lõi thuật toán (C++ thuần) và sim
+- [ ] Kinematics, profile hình thang, dừng tại điểm
+- [ ] Fusion hướng gyro + encoder, giữ hướng khi đi thẳng, quay 90° vòng kín theo gyro
+- [ ] Mô hình đo 2 ToF (`ρ`, `Δψ`, mép tấm), KF gap, gating
+- [ ] Luật FOLLOW, các primitive: DRIVE_TO, TURN, FOLLOW, SNAPSHOT, REACQUIRE, ALIGN, HOLD
+- [ ] Sim vật lý 2 xe: motor + vùng chết, trượt, nhiễu encoder, gyro bias, ToF (FOV/nhiễu/mép tấm)
+- [ ] "Robot ảo": sim nói đúng giao thức (UDP/WS/HTTP) để server test được mà không cần xe thật
 
-**Xong khi:** sim đạt N1–N3 và không có va chạm ở tất cả kịch bản.
+**Xong khi:** unit test xanh. FOLLOW trên đoạn thẳng trong sim đạt N1/N2.
 
 ## M3 — Web Control
-- [ ] Discovery: mDNS, UDP, subnet scan. Màn Devices, identify, gán vai trò
-- [ ] Màn Config theo [parameters.md](../wiki/parameters.md), lưu/mở JSON
-- [ ] Grid editor: vẽ, sửa, xoá, đặt start, hiển thị vị trí follower
-- [ ] Planner (nét vẽ → ops) và validator (F9)
-- [ ] Xem sim trong browser (dùng JSON từ sim CLI, sau này dùng WASM)
-- [ ] Màn Run/Monitor: lệnh, telemetry realtime, đồ thị, ghi log
+- [ ] Discovery (beacon, mDNS, scan). Màn Devices, Identify, gán vai trò
+- [ ] Config, hình xem trước xe, giá trị suy ra, push/pull/diff
+- [ ] Grid editor có ràng buộc 90°, planner, validator
+- [ ] Relay UDP, time sync, heartbeat, E-STOP
+- [ ] **Corner coordinator** (máy trạng thái 10 bước, timeout, retry/abort)
+- [ ] Màn Simulate và Run (corner stepper, đồ thị, log)
 
-**Xong khi:** dùng "xe giả" (sim chạy như robot ảo qua WS) đi trọn quy trình dò → cấu hình → vẽ → chạy.
+**Xong khi:** 2 robot ảo chạy trọn kịch bản chữ L, chữ nhật, zig-zag, không va chạm. Có thêm kịch bản mất relay và mất gói 10 %.
+
+## M4a — Phần cứng: lắp, đo, bàn giao (song song M2/M3)
+- [ ] Điền [hardware-intake](../work/hardware/hardware-intake.md) và chốt GPIO
+- [ ] Đi dây: buck 5 V, GND chung, tháo jumper ENA/ENB, kiểm tra mức điện áp encoder
+- [ ] Gắn tấm phản xạ đuôi. Gắn MPU6050 có đệm chống rung
 
 ## M4 — Firmware HAL và mạng (1 xe)
-- [ ] Motor + PCNT encoder, PI bánh, bài quét `ks`/`kv`
-- [ ] 2 ToF (XSHUT, continuous), IMU, bias gyro
-- [ ] WiFi + captive portal, mDNS, UDP beacon, REST, WS, NVS config
-- [ ] Safety: heartbeat timeout, E-STOP, watchdog, pin yếu
-- [ ] Các bài hiệu chuẩn (F14)
+- [ ] MotorL298N + EncoderPCNT, PI bánh, bài quét vùng chết
+- [ ] 2× ToF200C (XSHUT đổi địa chỉ, continuous), MPU6050 (bias, 200 Hz)
+- [ ] WiFi + AP portal, beacon, mDNS, HTTP, WS, UDP, time sync, NVS config
+- [ ] Safety: heartbeat, E-STOP, watchdog, pin yếu, stall
+- [ ] Các bài hiệu chuẩn (F14) gọi được từ web
 
-**Xong khi:** 1 xe chạy thẳng 1 m sai ≤ 1 cm và quay 90° sai ≤ 2°.
+**Xong khi:** 1 xe chạy thẳng 1 m sai ≤ 1 cm và quay 90° sai ≤ 1.5°, điều khiển từ web.
 
 ## M5 — 1 xe theo đường
-- [ ] Nạp đường từ web, chạy chữ L/chữ nhật, telemetry khớp sim
+- [ ] Leader chạy chữ L và chữ nhật bằng primitive từ coordinator. Telemetry khớp sim
 
 ## M6 — 2 xe bám nhau
-- [ ] ESP-NOW `PeerState` + sự kiện có ACK
-- [ ] Follower bám trên đoạn thẳng (KF + ToF), tinh chỉnh
-- [ ] Giao thức qua góc cua stop-and-go
-- [ ] Kịch bản lỗi: rút WiFi, che cảm biến, đẩy leader lệch
+- [ ] Relay và FOLLOW trên đoạn thẳng thật, tinh chỉnh KF và hệ số
+- [ ] Góc cua 10 bước trên xe thật
+- [ ] Kịch bản lỗi: rút router, che ToF, đẩy leader lệch, pin yếu
 
-**Xong khi:** đạt tiêu chí nghiệm thu ở [requirements §4](../wiki/requirements.md#4-tiêu-chí-nghiệm-thu-v1).
+**Xong khi:** đạt [tiêu chí nghiệm thu](../wiki/requirements.md#4-tiêu-chí-nghiệm-thu-v1).
 
-## M7 — Mở rộng (tuỳ chọn)
-Góc 45° và cua cung tròn ở tốc độ thấp, đường khép kín nhiều vòng, sim WASM trong browser, OTA firmware, nhiều hơn 2 xe.
+## M7 — Tối ưu (tuỳ chọn)
+Chạy song song các bước ở góc cua, tăng tốc, đường khép kín nhiều vòng, sim WASM trong browser, OTA firmware.
 
 ## Rủi ro chính
 | Rủi ro | Giảm thiểu |
 |---|---|
-| ToF đo nhiễu hoặc mất khi leader quay hay lệch góc | Tấm phản xạ phẳng, gating KF, tắt ToF trong lúc cua, có radio làm nguồn chính khi đó |
-| Drift odometry làm 2 xe lệch điểm cua | Gyro, hiệu chuẩn, đoạn thẳng ngắn. Sau này: mốc vạch line/AprilTag |
-| Trượt bánh khi quay tại chỗ | Quay vòng kín theo gyro, giới hạn gia tốc góc |
-| WiFi trễ hoặc mất gói | Điều khiển realtime nằm trên xe, ESP-NOW cho link peer, timeout an toàn |
-| ESP-NOW và WiFi STA khác kênh | Ép ESP-NOW dùng kênh của AP (đọc kênh sau khi kết nối) |
+| ToF200C FOV 25° thấy cả sàn hoặc vật bên cạnh | Tấm phản xạ rộng và đủ cao, gắn mắt ToF cao hơn sàn, gating, thử góc toe-in |
+| L298N sụt áp và vùng chết lớn làm chạy chậm không mượt | Feedforward + bù vùng chết, pin đủ áp, điều khiển vị trí khi dừng |
+| Rung motor làm nhiễu gyro | Đệm mút, DLPF 42 Hz, ZUPT |
+| Trượt bánh khi quay | Quay vòng kín theo gyro, gia tốc thấp, ToF ALIGN cho follower |
+| WiFi trễ hoặc mất gói (qua PC) | Vòng nhanh nằm trên xe, UDP cho stream, WS có ACK cho lệnh, timeout an toàn |
+| Router bật client isolation | Router riêng, tài liệu hướng dẫn cài đặt |
