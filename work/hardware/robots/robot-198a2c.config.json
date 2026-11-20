@@ -2,8 +2,8 @@
  "robot_id": "198a2c",
  "name": "Robot-198a2c",
  "saved_at": "2026-11-20",
- "cfg_rev": 2,
- "crc": "b2cefc22",
+ "cfg_rev": 3,
+ "crc": "592fb18b",
  "measured": {
   "wheel.diameter_mm": 69,
   "wheel.track_mm": 141,
@@ -32,7 +32,7 @@
   "motor.v_min_reliable": 15,
   "motor.adapt_rate": 0.05,
   "motor.adapt_limit": 0.2,
-  "motor.invert_l": false,
+  "motor.invert_l": true,
   "motor.invert_r": false,
   "motor.pwm_hz": 2000,
   "power.l298n_vdrop_v": 2,
@@ -97,5 +97,8 @@
   "start.front_clear_mm": 250,
   "safety.allow_tune_while_running": true,
   "safety.link_timeout_ms": 500
- }
+ },
+ "history": [
+  "2026-11-20 rev 3: motor.invert_l = true (motor trái đấu ngược, encoder trái đúng chiều)"
+ ]
 }
