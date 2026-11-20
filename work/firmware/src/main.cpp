@@ -36,9 +36,28 @@ static void rangeTask(void*) {
   }
 }
 
+// Snapshot telemetry + sự kiện cho GET /api/state: task control dựng mỗi 40 ms, HTTP chỉ sao chép
+// (khoá riêng giữ vài µs) → HTTP không bao giờ chặn vòng điều khiển 100 Hz.
+static SemaphoreHandle_t snapMutex = nullptr;
+static std::string snapTel;
+static std::deque<tr::App::Ev> snapEv;
+static uint32_t snapEseq = 0;
+
+void stateSnapshot(std::string& tel, std::deque<tr::App::Ev>& ev, uint32_t& eseq) {
+  xSemaphoreTake(snapMutex, portMAX_DELAY);
+  tel = snapTel;
+  ev = snapEv;
+  eseq = snapEseq;
+  xSemaphoreGive(snapMutex);
+}
+
 static void controlTask(void*) {
   TickType_t last = xTaskGetTickCount();
-  uint32_t lastSeq = 0, maxUs = 0, lastLog = 0;
+  uint32_t lastSeq = 0, maxUs = 0, lastLog = 0, n = 0;
+  uint32_t mxLock = 0, mxTick = 0, mxSnap = 0, mxSnapLock = 0, mxRange = 0;
+  std::string tel;
+  std::deque<tr::App::Ev> ev;
+  uint32_t eseq = 0;
   for (;;) {
     vTaskDelayUntil(&last, pdMS_TO_TICKS(10));
     const uint32_t t0 = micros();
@@ -47,22 +66,42 @@ static void controlTask(void*) {
     s = tofBox;
     portEXIT_CRITICAL(&tofMux);
     xSemaphoreTake(appMutex, portMAX_DELAY);
+    const uint32_t t1 = micros();
     if (s.seq != lastSeq) {
       lastSeq = s.seq;
       app->onRange(s.l, s.ls, s.r, s.rs);
     }
+    const uint32_t t2 = micros();
     app->tick(0.01f);
+    const uint32_t t3 = micros();
     const bool led = app->ledOn(millis());
+    const bool snap = (++n % 4) == 0;  // 25 Hz
+    if (snap) app->snapshot(tel, ev, eseq);
+    const uint32_t t4 = micros();
     xSemaphoreGive(appMutex);
+    mxLock = std::max(mxLock, t1 - t0);
+    mxRange = std::max(mxRange, t2 - t1);
+    mxTick = std::max(mxTick, t3 - t2);
+    mxSnap = std::max(mxSnap, t4 - t3);
+    if (snap) {
+      const uint32_t t5 = micros();
+      xSemaphoreTake(snapMutex, portMAX_DELAY);
+      mxSnapLock = std::max(mxSnapLock, (uint32_t)(micros() - t5));
+      std::swap(snapTel, tel);
+      std::swap(snapEv, ev);
+      snapEseq = eseq;
+      xSemaphoreGive(snapMutex);
+    }
     hal.setLed(led);
     const uint32_t us = micros() - t0;
     if (us > maxUs) maxUs = us;
     if (millis() - lastLog > 10000) {  // nhật ký nhẹ mỗi 10 s
       lastLog = millis();
-      con.printf("[%lus] state=%s role=%s ip=%s tick_max=%luus heap=%u hw=0x%x\n", millis() / 1000,
-                    app->state.c_str(), app->role.c_str(), net::ipString().c_str(), (unsigned long)maxUs,
-                    ESP.getFreeHeap(), (unsigned)hal.hwFault());
-      maxUs = 0;
+      con.printf("[%lus] state=%s role=%s ip=%s tick_max=%luus (khoá %lu, tof %lu, tick %lu, snap %lu, khoá snap %lu) heap=%u hw=0x%x\n",
+                 millis() / 1000, app->state.c_str(), app->role.c_str(), net::ipString().c_str(), (unsigned long)maxUs,
+                 (unsigned long)mxLock, (unsigned long)mxRange, (unsigned long)mxTick, (unsigned long)mxSnap,
+                 (unsigned long)mxSnapLock, ESP.getFreeHeap(), (unsigned)hal.hwFault());
+      maxUs = mxLock = mxRange = mxTick = mxSnap = mxSnapLock = 0;
     }
   }
 }
@@ -85,6 +124,7 @@ void setup() {
   app = new tr::App(hal, id, name.c_str());
   app->begin();
   appMutex = xSemaphoreCreateMutex();
+  snapMutex = xSemaphoreCreateMutex();
   Serial.printf("id=%s name=%s role=%s cfg_rev=%u%s\n", id, name.c_str(), app->role.c_str(), app->params.rev,
                 app->params.flag_default ? " (CẤU HÌNH MẶC ĐỊNH — cần Save trên Web Control trước khi chạy)" : "");
 

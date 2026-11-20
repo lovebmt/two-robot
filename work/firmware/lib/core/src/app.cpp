@@ -8,7 +8,7 @@
 
 namespace tr {
 
-const char* FW_VERSION = "0.2.2-esp32";
+const char* FW_VERSION = "0.2.4-esp32";
 
 App::App(Hal& h, const std::string& id_, const std::string& name_) : hal(h), params(h), id(id_), name(name_) {}
 
@@ -276,6 +276,15 @@ void App::telemetry(JsonObject t) {
   g["track"] = c.wheel_track_mm; g["wheel_d"] = c.wheel_diameter_mm;
 }
 
+void App::snapshot(std::string& telJson, std::deque<Ev>& events, uint32_t& eseq) {
+  JsonDocument d;
+  telemetry(d.to<JsonObject>());
+  telJson.clear();
+  serializeJson(d, telJson);
+  events = outbox_;
+  eseq = eseq_;
+}
+
 // ================================================================ commands
 void App::startPrim_(JsonObjectConst cmd, JsonObject out) {
   const char* pname = cmd["prim"] | "";
@@ -370,7 +379,7 @@ void App::configView_(JsonObject o) {
   configToJson(params.view(), o["params"].to<JsonObject>());
   derivedToJson(params.viewDerived(), o["derived"].to<JsonObject>());
   o["cfg_rev"] = params.rev;
-  o["crc"] = configCrc(params.view());
+  o["crc"] = params.viewCrc();
   if (params.saved_crc.empty()) o["saved_crc"] = nullptr; else o["saved_crc"] = params.saved_crc;
   o["dirty"] = params.dirty();
   JsonArray f = o["flags"].to<JsonArray>();

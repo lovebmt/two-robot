@@ -33,6 +33,7 @@ void ParamService::load() {
   }
   active_ = base;
   derived_ = derive(base);
+  view_crc_ = configCrc(base);
 }
 
 void ParamService::submit(JsonObjectConst patch, bool running, JsonObject out) {
@@ -70,6 +71,7 @@ void ParamService::submit(JsonObjectConst patch, bool running, JsonObject out) {
   }
   pending_ = nw;
   pending_der_ = derive(nw);
+  view_crc_ = configCrc(nw);
   pending_groups_ |= groups;
   has_pending_ = true;
   out["cfg_rev"] = rev + 1;
@@ -99,7 +101,7 @@ void ParamService::save(JsonObject out) {
   serializeJson(doc, s);
   const bool ok = hal_.storageSave(s);
   if (ok) {
-    saved_crc = configCrc(c);
+    saved_crc = view_crc_;
     flag_default = flag_partial = false;  // người dùng đã xác nhận cấu hình
   }
   out["ok"] = ok;

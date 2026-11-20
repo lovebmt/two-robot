@@ -33,6 +33,13 @@ class App {
   void handleCmd(JsonObjectConst cmd, JsonObject out);
   void telemetry(JsonObject out);
 
+  // Hộp thư sự kiện (cho GET /api/state?since=)
+  struct Ev { uint32_t eseq; std::string json; };
+  // Snapshot cho HTTP không cần khoá điều khiển: gọi trong task control (đang giữ khoá)
+  void snapshot(std::string& telJson, std::deque<Ev>& events, uint32_t& eseq);
+  // Heartbeat từ HTTP (ghi 32-bit nguyên tử, không cần khoá)
+  void touchLink(uint32_t now) { last_hb_ms_ = now; link_watch_ = true; }
+
   // ---- dùng bởi primitive ----
   Hal& hal;
   ParamService params;
@@ -71,8 +78,8 @@ class App {
   int32_t test_tl0_ = 0, test_tr0_ = 0;
   bool has_last_ticks_ = false;
   int32_t last_tl_ = 0, last_tr_ = 0;
-  uint32_t last_hb_ms_ = 0;
-  bool link_watch_ = false;
+  volatile uint32_t last_hb_ms_ = 0;
+  volatile bool link_watch_ = false;
   float jog_v_ = 0, jog_w_ = 0;
   uint32_t jog_until_ = 0, ident_until_ = 0;
   float v_cmd_ = 0, w_cmd_ = 0, vbat_ = 12.f;
@@ -83,8 +90,6 @@ class App {
   int path_id_ = 0;
   std::string path_crc_;
   float leader_rear_ = -1;
-  // hộp thư sự kiện cho GET /api/state?since=
-  struct Ev { uint32_t eseq; std::string json; };
   std::deque<Ev> outbox_;
   uint32_t eseq_ = 0;
 

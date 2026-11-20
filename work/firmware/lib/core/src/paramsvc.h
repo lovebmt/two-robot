@@ -24,7 +24,9 @@ class ParamService {
   std::string saved_crc;
   bool flag_default = false, flag_partial = false;
 
-  bool dirty() const { return configCrc(view()) != saved_crc; }
+  // CRC cấu hình hiện hành được tính sẵn khi cấu hình đổi (configCrc tốn ~10 ms trên ESP32 — không gọi mỗi telemetry)
+  bool dirty() const { return view_crc_ != saved_crc; }
+  const std::string& viewCrc() const { return view_crc_; }
   void submit(JsonObjectConst patch, bool running, JsonObject out);
   uint32_t swapIfPending();  // trả bitmask nhóm vừa đổi (0 = không đổi)
   void save(JsonObject out);
@@ -36,6 +38,7 @@ class ParamService {
   Config active_, pending_;
   Derived derived_, pending_der_;
   bool has_pending_ = false;
+  std::string view_crc_;
   uint32_t pending_groups_ = 0;
 };
 

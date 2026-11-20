@@ -162,12 +162,19 @@ uint32_t crc32(const uint8_t* data, size_t len) {
 }
 
 std::string configCrc(const Config& c) {
-  JsonDocument doc;
-  configToJson(c, doc.to<JsonObject>());
-  std::string s;
-  serializeJson(doc, s);
+  // Băm trực tiếp giá trị từng tham số theo thứ tự schema (vài µs; không serialize JSON, không phụ thuộc padding)
+  uint32_t crc = 0xFFFFFFFFu;
+  for (size_t i = 0; i < PARAM_COUNT; ++i) {
+    const ParamMeta& m = PARAMS[i];
+    const size_t n = m.type == PType::Bool ? 1 : 4;
+    const uint8_t* p = fieldPtr(c, m);
+    for (size_t k = 0; k < n; ++k) {
+      crc ^= p[k];
+      for (int b = 0; b < 8; ++b) crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+    }
+  }
   char buf[9];
-  std::snprintf(buf, sizeof(buf), "%08x", static_cast<unsigned>(crc32(reinterpret_cast<const uint8_t*>(s.data()), s.size())));
+  std::snprintf(buf, sizeof(buf), "%08x", static_cast<unsigned>(~crc));
   return buf;
 }
 

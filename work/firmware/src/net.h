@@ -3,7 +3,13 @@
 #include <Arduino.h>
 #include <Preferences.h>
 
+#include <deque>
+#include <string>
+
 #include "app.h"
+
+// Định nghĩa trong main.cpp: sao chép snapshot telemetry + sự kiện (không khoá điều khiển)
+void stateSnapshot(std::string& tel, std::deque<tr::App::Ev>& ev, uint32_t& eseq);
 
 namespace net {
 

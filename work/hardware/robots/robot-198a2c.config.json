@@ -2,8 +2,8 @@
  "robot_id": "198a2c",
  "name": "Robot-198a2c",
  "saved_at": "2026-11-20",
- "cfg_rev": 4,
- "crc": "2b99ade5",
+ "cfg_rev": 6,
+ "crc": "e04ef104",
  "measured": {
   "wheel.diameter_mm": 69,
   "wheel.track_mm": 141,
@@ -40,8 +40,8 @@
   "power.vbat_divider": 0,
   "range.x_mm": 120,
   "range.baseline_mm": 124,
-  "range.offset_l_mm": 0,
-  "range.offset_r_mm": 0,
+  "range.offset_l_mm": -30.03,
+  "range.offset_r_mm": -30.03,
   "range.min_valid_mm": 30,
   "range.max_valid_mm": 1200,
   "range.max_diff_mm": 40,
@@ -100,6 +100,7 @@
  },
  "history": [
   "2026-11-20 rev 3: motor.invert_l = true (motor trái đấu ngược, encoder trái đúng chiều)",
-  "2026-11-20 rev 4: motor.invert_r = true, enc.invert_r = true (motor phải và encoder phải đều đấu ngược; sửa dây kênh B L298N)"
+  "2026-11-20 rev 4: motor.invert_r = true, enc.invert_r = true (motor phải và encoder phải đều đấu ngược; sửa dây kênh B L298N)",
+  "2026-11-20 rev 6: chỉnh trên UI — range.offset_l_mm: 0 → -30.03, range.offset_r_mm: 0 → -30.03"
  ]
 }

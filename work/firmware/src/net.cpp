@@ -78,8 +78,43 @@ static const char* methodName(HTTPMethod m) {
   }
 }
 
+// GET /api/state?since=N — đọc snapshot (không khoá điều khiển). Định dạng giống App::handleRequest.
+static void handleState() {
+  g_app->touchLink(millis());  // heartbeat
+  const uint32_t since = server.hasArg("since") ? strtoul(server.arg("since").c_str(), nullptr, 10) : 0;
+  std::string tel;
+  std::deque<tr::App::Ev> ev;
+  uint32_t eseq = 0;
+  stateSnapshot(tel, ev, eseq);
+  if (tel.empty()) tel = "null";
+  String out;
+  out.reserve(tel.size() + 256);
+  out += "{\"tel\":";
+  out += tel.c_str();
+  out += ",\"events\":[";
+  bool first = true;
+  for (auto& e : ev) {
+    if (e.eseq <= since) continue;
+    if (!first) out += ',';
+    out += e.json.c_str();
+    first = false;
+  }
+  const bool lost = !ev.empty() && since + 1 < ev.front().eseq;
+  out += "],\"eseq\":";
+  out += String(eseq);
+  out += ",\"events_lost\":";
+  out += lost ? "true}" : "false}";
+  server.sendHeader("Access-Control-Allow-Origin", "*");
+  server.sendHeader("Cache-Control", "no-store");
+  server.send(200, "application/json", out);
+}
+
 static void handleApi() {
   const String uri = server.uri();
+  if (uri == "/api/state" && server.method() == HTTP_GET) {
+    handleState();
+    return;
+  }
   if (!uri.startsWith("/api/")) {
     server.send(404, "text/plain", "not found");
     return;
