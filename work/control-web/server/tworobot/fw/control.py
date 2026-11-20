@@ -105,31 +105,130 @@ class DriveBase:
         return dl, dr, False
 
 
+class ImuCalibrator:
+    """Calib bias gyro khi xe đứng yên (wiki/algorithms.md §2.1).
+
+    Lấy trung bình gyro trong imu.calib_time_s. Nếu encoder nhích hoặc gyro dao động quá
+    imu.calib_max_spread_dps (bị chạm, rung) thì làm lại từ đầu; quá MAX_RESTART lần → lỗi.
+    """
+
+    MAX_RESTART = 5
+
+    def __init__(self, cfg: dict):
+        self.dur = cfg["imu.calib_time_s"]
+        self.max_spread = math.radians(cfg["imu.calib_max_spread_dps"])
+        self.restarts = 0
+        self._reset()
+
+    def _reset(self) -> None:
+        self.n, self.s, self.s2, self.t = 0, 0.0, 0.0, 0.0
+        self.lo, self.hi = math.inf, -math.inf
+
+    @property
+    def progress(self) -> float:
+        return min(1.0, self.t / self.dur)
+
+    def feed(self, gz_raw: float, moved: bool, dt: float) -> dict | None:
+        """Trả None khi chưa xong; dict {ok, bias, std, spread, ...} khi xong hoặc thất bại."""
+        if moved or (self.n and max(self.hi, gz_raw) - min(self.lo, gz_raw) > self.max_spread):
+            self.restarts += 1
+            self._reset()
+            if self.restarts > self.MAX_RESTART:
+                return {"ok": False, "err": "IMU_NOT_STILL", "restarts": self.restarts}
+            return None
+        self.n += 1
+        self.s += gz_raw
+        self.s2 += gz_raw * gz_raw
+        self.lo, self.hi = min(self.lo, gz_raw), max(self.hi, gz_raw)
+        self.t += dt
+        if self.t < self.dur:
+            return None
+        mean = self.s / self.n
+        std = math.sqrt(max(0.0, self.s2 / self.n - mean * mean))
+        return {"ok": True, "bias": mean, "std": std, "spread": self.hi - self.lo,
+                "n": self.n, "restarts": self.restarts}
+
+
 class HeadingEstimator:
-    """ψ = tích phân [(1-β)·ω_gyro + β·ω_enc]; β>0 chỉ khi đi thẳng. ZUPT ước lượng bias khi đứng yên."""
+    """ψ = tích phân [(1-β)·ω_gyro + β·ω_enc]; β>0 chỉ khi đi thẳng (wiki/algorithms.md §2).
+
+    Bias gyro:
+      1. ImuCalibrator đặt bias lúc đầu (xe đứng yên).
+      2. ZUPT: mỗi khi xe đứng yên (bánh phanh, encoder không nhích, |ω gyro| nhỏ) lọc bias
+         theo số đo → bám bias trôi (nóng máy, random walk).
+      3. Bù nhiệt: bias trôi chủ yếu theo nhiệt độ chip. Mỗi lần đứng yên đủ lâu ghi một điểm
+         (T, bias); hồi quy tuyến tính → hệ số k (rad/s/°C). Khi chạy: bias = bias_neo + k·(T − T_neo).
+    Không học bias bằng encoder khi đang chạy: lệch đường kính 2 bánh 1 % đã gây ~0.7 °/s sai ω_enc
+    ở 150 mm/s, lớn hơn chính bias cần bám.
+    """
 
     ZUPT_DELAY = 0.3
-    BIAS_GAIN = 0.02
+    ANCHOR_MIN_STILL = 1.0        # s: chỉ lấy điểm (T, bias) từ lần đứng yên đủ lâu
+    ANCHOR_PERIOD = 5.0           # s: khi đứng yên lâu, ghi điểm định kỳ
+    MAX_ANCHORS = 24
+    MIN_TEMP_SPAN = 0.5           # °C: cần chênh nhiệt tối thiểu để hồi quy
+    K_MAX = math.radians(0.5)     # rad/s/°C
 
     def __init__(self):
         self.psi = 0.0
         self.bias = 0.0
+        self.k_temp: float | None = None   # None → dùng giá trị trong config
+        self.temp = 25.0
         self.w = 0.0
         self.w_gyro = 0.0
         self.w_enc = 0.0
+        self.zupt_active = False
         self._still_t = 0.0
+        self._anchor_t = 0.0
+        self._anchors: list[tuple[float, float]] = []
+        self._ref: tuple[float, float] | None = None  # (T, bias) neo gần nhất
 
-    def update(self, gz_raw: float, dl: float, dr: float, straight: bool, still: bool, cfg: dict, dt: float) -> None:
+    def k(self, cfg: dict) -> float:
+        return self.k_temp if self.k_temp is not None else math.radians(cfg["imu.temp_coeff_dps_c"])
+
+    def anchor_bias(self) -> None:
+        """Ghi điểm (T, bias) tin cậy (sau calib hoặc khi kết thúc lần ZUPT đủ dài), học lại k."""
+        self._ref = (self.temp, self.bias)
+        self._anchors.append(self._ref)
+        if len(self._anchors) > self.MAX_ANCHORS:
+            self._anchors.pop(0)
+        ts = [a[0] for a in self._anchors]
+        if max(ts) - min(ts) < self.MIN_TEMP_SPAN:
+            return
+        n = len(ts)
+        mt = sum(ts) / n
+        mb = sum(a[1] for a in self._anchors) / n
+        sxx = sum((t - mt) ** 2 for t in ts)
+        sxy = sum((t - mt) * (b - mb) for t, b in self._anchors)
+        self.k_temp = max(-self.K_MAX, min(self.K_MAX, sxy / sxx))
+
+    def update(self, gz_raw: float, dl: float, dr: float, straight: bool, still: bool, cfg: dict, dt: float,
+               calibrating: bool = False, temp: float | None = None) -> None:
+        if temp is not None:
+            self.temp = temp
+        still = still and abs(gz_raw - self.bias) < math.radians(cfg["imu.still_gyro_dps"])
         if still:
             self._still_t += dt
-            if self._still_t > self.ZUPT_DELAY:
-                self.bias += self.BIAS_GAIN * (gz_raw - self.bias)
         else:
+            if self.zupt_active and self._still_t > self.ANCHOR_MIN_STILL and cfg["imu.zupt_enable"]:
+                self.anchor_bias()
             self._still_t = 0.0
+            self._anchor_t = 0.0
+        self.zupt_active = still and self._still_t > self.ZUPT_DELAY
+        if self.zupt_active and cfg["imu.zupt_enable"] and not calibrating:
+            self.bias += cfg["imu.zupt_gain"] * (gz_raw - self.bias)
+            # Đứng yên lâu (vd. vừa bật nguồn, chip đang nóng dần): ghi điểm định kỳ để học k sớm.
+            self._anchor_t += dt
+            if self._still_t > self.ANCHOR_MIN_STILL and self._anchor_t >= self.ANCHOR_PERIOD:
+                self._anchor_t = 0.0
+                self.anchor_bias()
+        elif not calibrating and cfg["imu.temp_comp"] and self._ref is not None:
+            # Đang chạy: bias theo nhiệt độ hiện tại so với điểm neo gần nhất.
+            self.bias = self._ref[1] + self.k(cfg) * (self.temp - self._ref[0])
         self.w_gyro = (gz_raw - self.bias) * cfg["imu.gyro_scale_z"]
         self.w_enc = (dr - dl) / cfg["wheel.track_eff_mm"] / dt
-        if still and self._still_t > self.ZUPT_DELAY:
-            self.w = 0.0
+        if (self.zupt_active and cfg["imu.zupt_enable"]) or calibrating:
+            self.w = 0.0  # đứng yên: không tích phân góc
         else:
             beta = cfg["imu.beta_straight"] if straight else 0.0
             self.w = (1 - beta) * self.w_gyro + beta * self.w_enc

@@ -52,6 +52,17 @@
 
     {"key": "imu.gyro_scale_z",      "type": "float", "unit": "",  "min": 0.8, "max": 1.2, "default": 1.0,  "group": "imu", "scope": "robot", "apply": "live", "desc": "Hệ số scale gyro Z"},
     {"key": "imu.beta_straight",     "type": "float", "unit": "",  "min": 0,   "max": 1,   "default": 0.05, "group": "imu", "scope": "robot", "apply": "live", "desc": "Trọng số encoder trong fusion hướng khi đi thẳng"},
+    {"key": "imu.auto_calib",        "type": "bool",  "unit": "",    "default": true, "group": "imu", "scope": "robot", "apply": "live", "desc": "Tự calib gyro khi khởi động (xe đứng yên)"},
+    {"key": "imu.require_calib",     "type": "bool",  "unit": "",    "default": true, "group": "imu", "scope": "robot", "apply": "live", "desc": "Từ chối ARM nếu gyro chưa calib"},
+    {"key": "imu.recal_before_run",  "type": "bool",  "unit": "",    "default": true, "group": "imu", "scope": "robot", "apply": "live", "desc": "Calib lại gyro ngay trước mỗi lần chạy"},
+    {"key": "imu.calib_time_s",      "type": "float", "unit": "s",   "min": 0.5, "max": 10,  "default": 2.0,  "group": "imu", "scope": "robot", "apply": "live", "desc": "Thời gian đứng yên để calib"},
+    {"key": "imu.calib_max_spread_dps","type": "float","unit": "°/s","min": 0.1, "max": 10,  "default": 1.5,  "group": "imu", "scope": "robot", "apply": "live", "desc": "Dao động gyro tối đa khi calib (lớn hơn → coi là bị chạm, calib lại)"},
+    {"key": "imu.bias_max_dps",      "type": "float", "unit": "°/s", "min": 1,   "max": 50,  "default": 10,   "group": "imu", "scope": "robot", "apply": "live", "desc": "Bias lớn hơn mức này → cảnh báo IMU bất thường"},
+    {"key": "imu.zupt_enable",       "type": "bool",  "unit": "",    "default": true, "group": "imu", "scope": "robot", "apply": "live", "desc": "Cập nhật bias mỗi khi xe đứng yên (ZUPT)"},
+    {"key": "imu.zupt_gain",         "type": "float", "unit": "",    "min": 0,   "max": 0.2, "default": 0.01, "group": "imu", "scope": "robot", "apply": "live", "desc": "Hệ số lọc bias khi ZUPT (mỗi chu kỳ 10 ms)"},
+    {"key": "imu.temp_comp",         "type": "bool",  "unit": "",    "default": true, "group": "imu", "scope": "robot", "apply": "live", "desc": "Bù bias theo nhiệt độ chip khi đang chạy (học hệ số từ các lần đứng yên)"},
+    {"key": "imu.temp_coeff_dps_c",  "type": "float", "unit": "°/s/°C", "min": -0.5, "max": 0.5, "default": 0.0, "group": "imu", "scope": "robot", "apply": "live", "desc": "Hệ số bias theo nhiệt độ (giá trị khởi đầu; robot tự học, lưu lại sau khi chạy)"},
+    {"key": "imu.still_gyro_dps",    "type": "float", "unit": "°/s", "min": 0.2, "max": 20,  "default": 2.0,  "group": "imu", "scope": "robot", "apply": "live", "desc": "|ω gyro| lớn hơn → không coi là đứng yên"},
 
     {"key": "pid.wheel_kp",          "type": "float", "unit": "V/(mm/s)", "min": 0, "max": 1,  "default": 0.01,  "group": "pid", "scope": "robot", "apply": "live", "desc": "PI tốc độ bánh: Kp"},
     {"key": "pid.wheel_ki",          "type": "float", "unit": "V/mm",     "min": 0, "max": 5,  "default": 0.15,  "group": "pid", "scope": "robot", "apply": "live", "desc": "PI tốc độ bánh: Ki"},

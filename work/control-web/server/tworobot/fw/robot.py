@@ -11,7 +11,7 @@ import math
 from typing import Callable
 
 from .. import params as P
-from .control import DriveBase, HeadingEstimator, Odometry
+from .control import DriveBase, HeadingEstimator, ImuCalibrator, Odometry
 from .gapkf import GapKF
 from .hal import Hal
 from .paramsvc import ParamService
@@ -59,6 +59,12 @@ class VirtualFirmware:
         self._last_ticks: tuple[int, int] | None = None
         self._tel_acc = 0.0
         self.flags: set[str] = set()
+        # IMU: calib bias gyro khi đứng yên (bắt buộc trước ARM nếu imu.require_calib)
+        self.imu_cal: ImuCalibrator | None = None
+        self.imu_ok = False
+        self.imu_info: dict = {}
+        self._calib_prev_state = "IDLE"
+        self._enc_still_t = 0.0
 
     # ------------------------------------------------------------ control
     def tick(self, dt: float) -> None:
@@ -71,14 +77,29 @@ class VirtualFirmware:
         tl, tr = self.hal.read_encoder("l"), self.hal.read_encoder("r")
         if self._last_ticks is None:
             self._last_ticks = (tl, tr)
+        moved = (tl, tr) != self._last_ticks
         dl = (tl - self._last_ticks[0]) * der["mm_per_tick_l"]
         dr = (tr - self._last_ticks[1]) * der["mm_per_tick_r"]
         self._last_ticks = (tl, tr)
         self.drive.measure(dl, dr, dt)
 
-        still = self.drive.braking and abs(self.drive.v_meas_l) < 1.0 and abs(self.drive.v_meas_r) < 1.0
+        gz = self.hal.read_gyro_z()
+        enc_still = self.drive.braking and not moved
+        self._enc_still_t = self._enc_still_t + dt if enc_still else 0.0
+        calibrating = self.imu_cal is not None
+        if calibrating:
+            res = self.imu_cal.feed(gz, moved, dt)
+            if res is not None:
+                self._finish_calib(res)
+        elif (not self.imu_ok and cfg["imu.auto_calib"] and self.state == "IDLE"
+              and self._enc_still_t > 0.5):
+            self.start_calib()
+        still = enc_still and abs(self.drive.v_meas_l) < 1.0 and abs(self.drive.v_meas_r) < 1.0
         straight = abs(self.w_cmd) < 0.05 and abs(self.v_cmd) > 5.0
-        self.heading.update(self.hal.read_gyro_z(), dl, dr, straight, still, cfg, dt)
+        # Chưa calib mà xe đứng yên: bias chưa biết → không tích phân hướng (tránh trôi lúc khởi động).
+        hold = calibrating or (not self.imu_ok and enc_still)
+        self.heading.update(gz, dl, dr, straight, still, cfg, dt, calibrating=hold,
+                            temp=self.hal.read_imu_temp())
         self.odo.update(dl, dr, self.heading.psi)
 
         self.vbat = self.hal.read_vbat()
@@ -127,6 +148,37 @@ class VirtualFirmware:
         # PI bánh/hướng/follow: tích phân lưu theo đơn vị đầu ra → tự bumpless.
         # Odometry: giữ pose, chu kỳ sau dùng mm_per_tick mới.
 
+    # ------------------------------------------------------------ IMU calib
+    def start_calib(self) -> bool:
+        if self.state not in ("IDLE", "ARMED", "FAULT", "CALIB"):
+            return False
+        if self.imu_cal is None:
+            self._calib_prev_state = self.state
+        self.imu_cal = ImuCalibrator(self.params.active)
+        self.state = "CALIB"
+        return True
+
+    def _finish_calib(self, res: dict) -> None:
+        self.imu_cal = None
+        if self.state == "CALIB":
+            self.state = self._calib_prev_state
+        cfg = self.params.active
+        out = {"restarts": res.get("restarts", 0)}
+        if res["ok"]:
+            self.heading.bias = res["bias"]
+            self.heading.anchor_bias()
+            self.imu_ok = True
+            out.update(bias_dps=math.degrees(res["bias"]), std_dps=math.degrees(res["std"]),
+                       spread_dps=math.degrees(res["spread"]), n=res["n"])
+            self.imu_info = {**out, "t_ms": self.hal.now_ms()}
+            self.flags.discard("IMU_BIAS_HIGH")
+            if abs(out["bias_dps"]) > cfg["imu.bias_max_dps"]:
+                self.flags.add("IMU_BIAS_HIGH")
+        else:
+            self.imu_ok = False
+        self.emit({"t": "evt", "e": "calib_done", "ok": res["ok"], "err": res.get("err"),
+                   "result": out, "ts": self.hal.now_ms()})
+
     # ------------------------------------------------------------ helpers
     def raise_fault(self, code: str) -> None:
         if self.state in ("FAULT", "ESTOP"):
@@ -174,6 +226,10 @@ class VirtualFirmware:
             flags.add("IDENT")
         if abs(self.heading.w_enc - self.heading.w_gyro) > 0.35:
             flags.add("SLIP")
+        if not self.imu_ok:
+            flags.add("IMU_UNCAL")
+        if self.imu_cal is not None:
+            flags.add("IMU_CALIB")
         if self.params.dirty():
             flags.add("CFG_DIRTY")
         return {
@@ -196,6 +252,13 @@ class VirtualFirmware:
             "dpsi": m.dpsi if (m and m.dpsi is not None) else None,
             "prim": {"id": self.prim.id, "name": self.prim.name} if self.prim else None,
             "flags": sorted(flags), "vbat": self.vbat, "gyro_bias": self.heading.bias,
+            "imu": {"ok": self.imu_ok, "bias_dps": math.degrees(self.heading.bias),
+                    "temp_c": self.heading.temp,
+                    "k_dps_c": math.degrees(self.heading.k(cfg)),
+                    "k_learned": self.heading.k_temp is not None,
+                    "calib": self.imu_cal.progress if self.imu_cal else None,
+                    "std_dps": self.imu_info.get("std_dps"), "zupt": self.heading.zupt_active,
+                    "age_s": (now - self.imu_info["t_ms"]) / 1000 if "t_ms" in self.imu_info else None},
             "geom": {"length": cfg["body.length_mm"], "width": cfg["body.width_mm"],
                      "front": cfg["body.axle_to_front_mm"], "rear": cfg["body.axle_to_rear_mm"],
                      "tof_x": cfg["range.x_mm"], "tof_b": cfg["range.baseline_mm"],
@@ -282,7 +345,7 @@ class VirtualFirmware:
             return
         op = msg.get("op")
         if op == "estop":
-            self.prim, self.paused = None, False
+            self.prim, self.paused, self.imu_cal = None, False, None
             self.state = "ESTOP"
             self._ack(msg)
             return
@@ -301,6 +364,10 @@ class VirtualFirmware:
                 return self._ack(msg, False, f"fault:{self.fault}")
             if "CFG_DEFAULT" in self.params.flags:
                 return self._ack(msg, False, "cfg_default")
+            if self.imu_cal is not None:
+                return self._ack(msg, False, "imu_calibrating")
+            if self.params.active["imu.require_calib"] and not self.imu_ok:
+                return self._ack(msg, False, "imu_uncal")
             self.state, self.paused = "ARMED", False
             self.last_hb_ms = now
             return self._ack(msg)
@@ -331,10 +398,13 @@ class VirtualFirmware:
             self.last_hb_ms = now
             return self._ack(msg)
         if op == "stop":
-            self.prim, self.paused = None, False
+            self.prim, self.paused, self.imu_cal = None, False, None
             if self.state != "FAULT":
                 self.state = "IDLE"
             return self._ack(msg)
+        if op == "calib_imu":
+            ok = self.start_calib()
+            return self._ack(msg, ok, None if ok else f"state:{self.state}")
         if op == "set_s":
             self.odo.s = float(msg["s"])
             return self._ack(msg)

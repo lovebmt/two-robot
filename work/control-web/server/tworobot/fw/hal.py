@@ -21,6 +21,9 @@ class Hal(Protocol):
     def read_gyro_z(self) -> float:
         """rad/s thô (chưa trừ bias)."""
 
+    def read_imu_temp(self) -> float:
+        """Nhiệt độ chip MPU6050 (°C), thanh ghi TEMP_OUT: T = raw/340 + 36.53."""
+
     def read_vbat(self) -> float: ...
 
     def storage_load(self) -> dict | None:

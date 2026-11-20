@@ -48,6 +48,8 @@ class Coordinator:
         self._ids = itertools.count(1)
         self._waiters: dict[int, asyncio.Future] = {}
         self._acks: dict[int, asyncio.Future] = {}
+        self._calib: dict[str, asyncio.Future] = {}
+        self.phase = ""
         self._fault: str | None = None
         self.paused = False
 
@@ -55,7 +57,7 @@ class Coordinator:
     def status(self) -> dict:
         n_corners = len(self.path["corners_s"]) if self.path else 0
         return {"state": "PAUSED" if self.paused and self.state == "RUNNING" else self.state,
-                "error": self.error, "seg": self.seg, "step": self.step,
+                "error": self.error, "seg": self.seg, "step": self.step, "phase": self.phase,
                 "n_segments": len(self.path["segments"]) if self.path else 0,
                 "n_corners": n_corners, "steps": STEP_NAMES,
                 "path_id": self.path["path_id"] if self.path else None,
@@ -71,6 +73,11 @@ class Coordinator:
     def on_event(self, sess: RobotSession, msg: dict) -> None:
         if msg.get("t") in ("ack", "nack"):
             fut = self._acks.pop(msg.get("seq"), None)
+            if fut is not None and not fut.done():
+                fut.set_result(msg)
+            return
+        if msg.get("e") == "calib_done":
+            fut = self._calib.pop(sess.id, None)
             if fut is not None and not fut.done():
                 fut.set_result(msg)
             return
@@ -103,6 +110,27 @@ class Coordinator:
         res = fut.result()
         if res.get("t") == "nack":
             raise RunFault(f"{sess.name} từ chối {op}: {res.get('err')}")
+
+    @staticmethod
+    def _cfg(sess: RobotSession, key: str, default):
+        return ((sess.config or {}).get("params") or {}).get(key, default)
+
+    async def _calib_imu(self, sessions: list[RobotSession]) -> None:
+        """Calib gyro đồng thời các xe (đứng yên), chờ kết quả, ghi log bias."""
+        loop = asyncio.get_running_loop()
+        pending = []
+        for s in sessions:
+            fut = loop.create_future()
+            self._calib[s.id] = fut
+            await self._cmd_ack(s, "calib_imu")
+            pending.append((s, fut))
+        for s, fut in pending:
+            t = float(self._cfg(s, "imu.calib_time_s", 2.0))
+            res = await self._wait(fut, 8 * t + 5, f"{s.name} calib IMU")
+            self.log.append({"t": round(self.clock(), 2),
+                             "msg": f"{s.name}: calib IMU bias {res['bias_dps']:+.2f}°/s, nhiễu {res['std_dps']:.3f}°/s"
+                                    + (f" (làm lại {res['restarts']} lần do bị chạm)" if res.get("restarts") else "")})
+        self.on_change()
 
     async def _start_prim(self, sess: RobotSession, prim: str, **args) -> asyncio.Future:
         pid = next(self._ids)
@@ -205,6 +233,13 @@ class Coordinator:
         segs = p["segments"]
         v = max(sh["motion.v_cruise"], 20.0)
         try:
+            need = [s for s in (L, F) if self._cfg(s, "imu.recal_before_run", True)
+                    or not ((s.last_tel or {}).get("imu") or {}).get("ok")]
+            if need:
+                self.phase = "CALIB_IMU"
+                self._set(0, 0, "Calib IMU: giữ 2 xe đứng yên…")
+                await self._calib_imu(need)
+            self.phase = "RUN"
             for s in (L, F):
                 await self._cmd_ack(s, "arm", path_id=p["path_id"])
             for i, seg in enumerate(segs):
@@ -261,7 +296,9 @@ class Coordinator:
                     pass
             self.on_change()
         finally:
-            for fut in self._waiters.values():
+            for fut in [*self._waiters.values(), *self._calib.values()]:
                 if not fut.done():
                     fut.cancel()
             self._waiters.clear()
+            self._calib.clear()
+            self.phase = ""
