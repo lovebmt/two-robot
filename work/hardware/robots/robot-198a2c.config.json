@@ -2,8 +2,8 @@
  "robot_id": "198a2c",
  "name": "Robot-198a2c",
  "saved_at": "2026-11-20",
- "cfg_rev": 3,
- "crc": "592fb18b",
+ "cfg_rev": 4,
+ "crc": "2b99ade5",
  "measured": {
   "wheel.diameter_mm": 69,
   "wheel.track_mm": 141,
@@ -24,7 +24,7 @@
   "enc.ppr_motor": 11,
   "enc.gear_ratio": 34,
   "enc.invert_l": false,
-  "enc.invert_r": false,
+  "enc.invert_r": true,
   "motor.ks_l_v": 1.2,
   "motor.ks_r_v": 1.2,
   "motor.kv_l": 0.0126,
@@ -33,7 +33,7 @@
   "motor.adapt_rate": 0.05,
   "motor.adapt_limit": 0.2,
   "motor.invert_l": true,
-  "motor.invert_r": false,
+  "motor.invert_r": true,
   "motor.pwm_hz": 2000,
   "power.l298n_vdrop_v": 2,
   "power.bat_min_v": 10.5,
@@ -99,6 +99,7 @@
   "safety.link_timeout_ms": 500
  },
  "history": [
-  "2026-11-20 rev 3: motor.invert_l = true (motor trái đấu ngược, encoder trái đúng chiều)"
+  "2026-11-20 rev 3: motor.invert_l = true (motor trái đấu ngược, encoder trái đúng chiều)",
+  "2026-11-20 rev 4: motor.invert_r = true, enc.invert_r = true (motor phải và encoder phải đều đấu ngược; sửa dây kênh B L298N)"
  ]
 }
