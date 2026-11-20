@@ -16,9 +16,10 @@ Thứ tự: M1 khung → M2 lõi + sim batch → M3 server + view trên sim → 
 - [x] Web UI: Thiết bị, Cấu hình (form tự sinh), Bản đồ (vẽ lưới ràng buộc 90°), Chạy/Xem (view chung, đồ thị, bảng bước, gây lỗi, vật lý)
 - [x] 16 test pytest; batch 36/36 kịch bản (L/rect/zigzag × 4 seed × 3 mức sai lệch) xong, 0 va chạm, gap RMSE 4–9 mm, sai số điểm cua ≤ 27 mm
 - [x] (đợt 6) Mô hình trôi MPU6050 trong sim; calib gyro khi đứng yên + ZUPT + bù nhiệt; bước 0 calib IMU trong coordinator; UI hiển thị IMU, nút Calib IMU, Lưu k nhiệt
+- [x] (đợt 7) NetLink HTTP (poll 20 Hz, hộp thư sự kiện, ack đồng bộ), quét HTTP, robot HTTP ảo `tworobot-vrobot`, test end-to-end qua socket thật; cấm đường khép kín
 - [ ] Wizard hiệu chuẩn scale gyro (quay 360° có mốc ngoài) trên web
-- [ ] NetLink + firmware ESP32 (M4), port `fw/` sang C++
-- [ ] Đường khép kín; vẽ vùng ma sát trên UI; replay có kéo timeline
+- [ ] Firmware ESP32 (M4): HTTP server theo protocol.md, port `fw/` sang C++
+- [ ] Vẽ vùng ma sát trên UI; replay có kéo timeline
 - [ ] Unit test riêng cho từng primitive; kịch bản đổi tham số giữa lúc chạy
 
 ## M1 — Khung dự án và schema

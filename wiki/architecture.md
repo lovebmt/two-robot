@@ -5,14 +5,14 @@
 ```
 ┌────────────────────────── PC (LAN) ──────────────────────────┐
 │ Browser UI ⇄ Control Server (Python FastAPI)                 │
-│  grid editor   ├ discovery (UDP beacon / mDNS / subnet scan) │
+│  grid editor   ├ discovery (quét HTTP GET /api/info)         │
 │  config/sim    ├ planner + validator                         │
-│  run/monitor   ├ RELAY: leader state → follower (UDP)        │
+│  run/monitor   ├ RELAY: leader state → follower (HTTP POST)  │
 │                ├ CORNER COORDINATOR (máy trạng thái)         │
 │                ├ time sync, heartbeat, logger                │
 └───────▲─────────────────────────────────────▲────────────────┘
-        │ HTTP + WS (lệnh/sự kiện, tin cậy)   │
-        │ UDP (state stream 25 Hz)            │
+        │ HTTP: POST /api/cmd (lệnh)          │
+        │ HTTP: GET /api/state 20 Hz (poll)   │
 ┌───────┴──────────┐                  ┌───────┴──────────┐
 │ ESP32 LEADER     │   (không nói     │ ESP32 FOLLOWER   │
 │ drive/turn prims │    chuyện trực   │ follow (local),  │
@@ -79,7 +79,7 @@ work/firmware/
   lib/proto/    encode/decode message, dispatcher lệnh (không phụ thuộc transport)
   lib/hal_api/  interface IMotor/IEncoder/IImu/IRange/IClock/IBattery/IStorage/ITransport
   src/board/pins.h  GPIO, địa chỉ I²C, port cố định (compile-time)
-  src/hal_esp32/  LEDC, PCNT, Wire (2 bus), VL53L0X, MPU6050, LittleFS, AsyncTCP/UDP
+  src/hal_esp32/  LEDC, PCNT, Wire (2 bus), VL53L0X, MPU6050, LittleFS, HTTP server (AsyncTCP)
   src/main.cpp    tạo HAL ESP32 và FreeRTOS task, gọi lib/app
 work/sim/
   hal_sim/  world/  main.cpp      (CMake, dùng lại lib/*)
@@ -91,8 +91,8 @@ work/sim/
 | `imu` | 200 Hz | 1 | đọc gyro Z, trừ bias, tích phân yaw |
 | `control` | 100 Hz | 1 | encoder, fusion odometry + gyro, primitive hiện tại (drive/turn/follow), PI bánh, PWM |
 | `range` | 30 Hz | 1 | đọc 2 ToF, lọc median/outlier, timestamp |
-| `net_rx` | sự kiện | 0 | WS lệnh, UDP relay vào hàng đợi lock-free |
-| `net_tx` | 25 Hz | 0 | UDP state/telemetry, WS sự kiện kèm retry |
+| `http` | sự kiện | 0 | HTTP server: lệnh/relay vào hàng đợi lock-free, trả snapshot telemetry + hộp thư sự kiện |
+| `tel` | 25 Hz | 1 | chuẩn bị snapshot telemetry (handler HTTP chỉ copy, không tính toán) |
 | `safety` | 50 Hz | 1 | heartbeat timeout, E-STOP, pin yếu, watchdog |
 
 **WiFi:** `WiFi.setSleep(false)` (bắt buộc, nếu không độ trễ sẽ lên 100–300 ms), kênh cố định nếu được, có thể đặt DHCP reservation trên router.
@@ -109,7 +109,7 @@ work/sim/
 | `HOLD` / `BRAKE` | | đứng yên và giữ phanh |
 
 ## 4. Control Web (PC)
-- **Server:** Python 3.11+, FastAPI, asyncio. Gồm các module: `discovery`, `robots` (session/WS/UDP), `relay`, `coordinator`, `planner`, `validator`, `timesync`, `logger`, `sim_bridge`.
+- **Server:** Python 3.11+, FastAPI, asyncio. Gồm các module: `discovery` (quét HTTP), `links` (SimLink / NetLink HTTP poll 20 Hz), `relay`, `coordinator`, `planner`, `validator`, `timesync`, `logger`, `sim_bridge`.
 - **Frontend:** Vite + TypeScript + Canvas 2D. Màn hình chi tiết ở [web-ui.md](web-ui.md).
 - **Sim:** process C++ chạy 2 robot ảo (chính code firmware, thay HAL) cộng mô hình vật lý. Nói cùng giao thức nên server và UI không phân biệt sim với thật. Có cùng một view cho SIM, REAL và REPLAY. Chi tiết ở [simulation.md](simulation.md).
 

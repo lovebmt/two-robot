@@ -22,6 +22,17 @@ Thứ tự thao tác trên UI:
 
 Có thể mở thẳng một tab bằng URL: `/#map`, `/#run`, `/#config`, `/#devices`.
 
+## Robot thật: HTTP qua LAN
+Robot thật (ESP32) giao tiếp với server **chỉ bằng HTTP**: lệnh `POST /api/cmd`, trạng thái `GET /api/state` hỏi 20 Hz, kèm hộp thư sự kiện. Đặc tả đầy đủ ở [wiki/protocol.md](../../wiki/protocol.md).
+Tab **Thiết bị** → ô "Robot thật" → nhập subnet (mặc định subnet của PC), IP hoặc IP:cổng → **Quét**.
+
+Thử ngay khi chưa có ESP32, bằng **robot HTTP ảo** (mỗi robot là một HTTP server thật, cùng API với ESP32):
+```bash
+.venv/bin/tworobot-vrobot --n 2 --port 8101      # terminal 1
+.venv/bin/tworobot-server                        # terminal 2 → Thiết bị → Quét "127.0.0.1:8101-8102"
+```
+Robot HTTP ảo tự đặt vào vị trí xuất phát khi nhận đường (thay cho người đặt xe), và gửi kèm vị trí thật để view so sánh.
+
 ## Chạy không UI (hồi quy / chấm điểm)
 
 ```bash
@@ -44,8 +55,9 @@ server/tworobot/
     paramsvc.py      tham số động: validate → derive → swap ở đầu chu kỳ
     robot.py         máy trạng thái, an toàn, HTTP/WS handler, telemetry 25 Hz
     hal.py           interface phần cứng
-  sim/             world.py (vật lý, ToF ray-cast, va chạm), engine.py (bước 2 ms, lập lịch task), batch.py
-  links.py         SimLink (robot ảo trong process) | NetLink (ESP32 — M4)
+  sim/             world.py (vật lý, gyro MPU6050, ToF ray-cast, va chạm), engine.py, batch.py, vrobot.py (robot HTTP ảo)
+  links.py         SimLink (robot ảo trong process) | NetLink (robot thật, HTTP poll 20 Hz)
+  discovery.py     quét HTTP GET /api/info (subnet, IP, IP:cổng, dải cổng)
   registry.py      danh sách robot, vai trò, relay leader→follower
   coordinator.py   quy trình 10 bước ở góc cua
   planner.py       nét vẽ → segments, validator
@@ -55,6 +67,6 @@ tests/             params, planner, kịch bản sim
 ```
 
 ## Giới hạn hiện tại
-- **NetLink (robot thật) chưa có**: server đã nghe beacon UDP 47800 và hiện robot thật trong danh sách, nhưng chưa điều khiển được. Phần này làm cùng firmware (M4).
-- Robot ảo nói chuyện với server qua gọi hàm trong process, nhưng message vẫn đúng định dạng JSON của giao thức. Lớp HTTP/WS/UDP thật sẽ được kiểm chứng khi có firmware.
-- Đường khép kín (quay về điểm đầu) đang bị validator coi là tự cắt.
+- Chưa có firmware ESP32. Phía PC (NetLink HTTP) đã được kiểm chứng qua socket thật bằng robot HTTP ảo (`tests/test_http.py`).
+- Robot ảo "trong server" (nút Bật 2 robot ảo) nối qua gọi hàm (SimLink) để chạy nhanh và deterministic. Muốn kiểm tra đúng đường HTTP thì dùng `tworobot-vrobot`.
+- Không cho vẽ đường khép kín (theo yêu cầu): trình vẽ chặn, validator báo lỗi.

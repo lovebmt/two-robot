@@ -5,7 +5,7 @@ Frontend Vite + TS + Canvas, giao tiếp với server qua REST và WS. Mỗi l�
 ## 1. Màn hình
 
 ### Devices
-- Nút **Scan** (đồng thời luôn nghe beacon). Bảng xe: tên, IP, MAC, fw, pin, RSSI, ping (ms), trạng thái online.
+- Ô **Quét** (subnet / IP / IP:cổng / dải cổng, mặc định subnet của PC). Bảng xe: tên, IP, RTT HTTP (ms), số lỗi, fw, trạng thái online. Nút **Ngắt** cho robot thật.
 - **Identify**: xe nháy LED và lắc bánh. Hai ô chọn **Leader / Follower**, không cho 2 xe trùng vai trò.
 - Nút kết nối và ngắt kết nối. Có cảnh báo khi fw 2 xe khác nhau.
 

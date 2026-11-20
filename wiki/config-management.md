@@ -24,7 +24,7 @@ Từ schema này sinh code (codegen) cho 3 phía:
 ### 3.1 Luồng xử lý
 ```
  HTTP PUT /api/config  ─┐
- WS cfg_set (slider)    ├─► ParamService (task net, core 0)
+ slider (PUT /api/config)├─► ParamService (task http, core 0)
  Boot: LittleFS         ─┘      1. parse JSON patch → bản copy Config mới (staging)
                                 2. validate từng khoá + ràng buộc chéo → lỗi trả theo khoá
                                 3. kiểm tra apply: có khoá 'idle' mà xe đang chạy → nack busy
@@ -90,7 +90,7 @@ Sửa form ─► [Apply]   PUT /api/config?persist=0   → RAM, có hiệu lự
          ─► [Save]    POST /api/config/save        → flash; xe trả {cfg_rev, crc}
          ─► [Revert]  POST /api/config/reload      → đọc lại từ flash
          ─► [Pull] [Diff] [Export JSON] [Import JSON] [Factory reset]
-Slider ─► WS {"t":"cfg_set","key":"pid.wheel.kp","value":1.2}  (RAM, tối đa 10 lần/s)
+Slider ─► PUT /api/config {"patch":{"pid.wheel_kp":1.2}}  (RAM, tối đa 10 lần/s)
 ```
 - Ô chưa lưu flash có viền vàng. Ô khác giữa PC và xe có viền tím. Khoá `idle` có biểu tượng khoá khi xe đang chạy.
 - Project trên PC giữ **bản chuẩn** cho từng xe (theo MAC). Khi xe kết nối, so `cfg_rev`/`crc`. Nếu khác, web hỏi chiều đồng bộ: PC → xe hay xe → PC.

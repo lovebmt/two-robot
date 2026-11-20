@@ -27,14 +27,14 @@ Ngoài phạm vi v1: tránh vật cản lạ (chỉ dừng khẩn cấp), địn
 
 ### 2.1 Dò tìm và kết nối
 - **F1** ESP32 tự vào WiFi đã lưu. Nếu chưa có WiFi hoặc không kết nối được thì xe phát AP `TwoRobot-XXXX` kèm trang nhập SSID/password.
-- **F2** Web Control dò IP các xe trong LAN bằng UDP beacon (chính), mDNS (phụ), và quét `GET /api/info` trên subnet /24 (fallback).
+- **F2** Web Control dò IP các xe trong LAN bằng **quét HTTP** `GET /api/info` (subnet, IP, IP:cổng, dải cổng). Mọi giao tiếp với robot thật là **HTTP** ([protocol.md](protocol.md), D25).
 - **F3** Danh sách xe: tên, MAC, IP, fw, pin, RSSI, độ trễ ping. Có nút **Identify** (nháy LED và cho bánh lắc nhẹ) để biết xe nào là xe nào.
 - **F4** Người dùng gán **LEADER** và **FOLLOWER**. Vai trò lưu ở cả PC và NVS của xe.
 - **F5** Heartbeat PC↔xe. Xe mất PC quá `link_timeout_ms` thì phanh và dừng. PC mất một xe thì ra lệnh dừng xe còn lại.
 
 ### 2.2 Bản đồ và vẽ đường
 - **F6** Lưới N×M, kích thước ô thực (mm) cấu hình được.
-- **F7** Vẽ bằng cách click các đỉnh lưới. Mỗi đoạn tự ép về ngang hoặc dọc. Tại mỗi đỉnh nối chỉ cho **rẽ trái 90°, rẽ phải 90° hoặc đi thẳng** (các đoạn thẳng hàng tự gộp lại). Có undo/redo, xoá điểm, kéo điểm.
+- **F7** Vẽ bằng cách click các đỉnh lưới. Mỗi đoạn tự ép về ngang hoặc dọc. Tại mỗi đỉnh nối chỉ cho **rẽ trái 90°, rẽ phải 90° hoặc đi thẳng** (các đoạn thẳng hàng tự gộp lại). **Không cho vẽ đường khép kín**: trình vẽ chặn điểm chạm lại đường cũ, validator cũng kiểm tra. Có undo/redo, xoá điểm, kéo điểm.
 - **F8** Đặt điểm xuất phát và hướng ban đầu của leader. Follower tự được đặt lùi `gap` dọc trên phần kéo dài của đoạn đầu tiên (hiển thị trên lưới).
 - **F9** Validator chạy trước khi gửi đường. Chi tiết quy tắc ở [web-ui.md §3](web-ui.md#3-validator):
   không tự cắt, không có góc 180°, mọi đoạn đều ≥ `seg_min`, có đủ khoảng trống quanh góc cua để quay tại chỗ, follower bắt đầu trong bản đồ.

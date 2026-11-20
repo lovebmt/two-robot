@@ -8,6 +8,8 @@
 | Q4 | Loại cảm biến khoảng cách | **ToF200C** ×2, **VL53L0X** (I²C), xác nhận ở đợt 3 |
 | Q15a | Điện áp motor | **GA25-370 12 V**, nên dùng pin 3S |
 | Q23 | Kích thước và tham số nhập ở đâu | **Nhập trên web, firmware áp dụng lúc chạy, lưu flash**. **GPIO cố định trong code** (đợt 4) ([config-management](config-management.md)) |
+| Q12 | Đường khép kín | **Không cho vẽ đường khép kín** (đợt 7) |
+| Q25 | Giao tiếp robot thật | **HTTP qua LAN** (đợt 7, [protocol](protocol.md)) |
 | Q24 | Có mô phỏng không | **Có**: sim 2 xe đầy đủ, view chung cho sim, xe thật và replay ([simulation](simulation.md)) |
 | Q5 | IMU | **Có MPU6050** (đợt 2 sửa lại đợt 1) |
 | Q7 | Loại góc cua | **Chỉ 90°**, không vẽ được góc khác |
@@ -32,7 +34,6 @@
 | Q2 | Cách nạp WiFi cho xe | AP + trang cấu hình khi chưa có WiFi |
 | Q9 | Gap định nghĩa thế nào | Lưu tâm–tâm. UI cho nhập "khe hở mũi–đuôi" |
 | Q10 | Tốc độ, kích thước sân, ô lưới | 150 mm/s, 3×2 m, ô 100 mm |
-| Q12 | Đường khép kín, lặp nhiều vòng | Hỗ trợ khép kín, chạy 1 lần |
 | Q13 | Ngôn ngữ server | Python FastAPI |
 | Q14 | Đảo vai trò, chạy lùi | Không ở v1 |
 | Q20 | Router cho sân test (tắt được client isolation không)? | Có router riêng |

@@ -35,3 +35,9 @@
 - Code: mô hình trôi MPU6050 (sim), ImuCalibrator + ZUPT + bù nhiệt (fw), bước 0 calib IMU (coordinator), UI IMU
 - Cập nhật: algorithms.md (§2.1 trôi MPU6050 và calib, bảng kết quả sim), simulation.md, parameters.md (imu.*)
 - Cập nhật ngoài wiki: ops/decisions.md (D24), ops/roadmap.md
+
+## [2026-11-20] ingest | 2026-11-20-answers-7
+- Chốt: robot thật giao tiếp HTTP qua LAN; không cho vẽ đường khép kín
+- Viết lại: protocol.md (HTTP API, polling /api/state, hộp thư sự kiện, heartbeat bằng request)
+- Cập nhật: architecture.md, requirements.md (F2, F7), web-ui.md, config-management.md, open-questions.md (Q12, Q25)
+- Cập nhật ngoài wiki: ops/decisions.md (D25, D26; D8 bị thay), ops/roadmap.md
