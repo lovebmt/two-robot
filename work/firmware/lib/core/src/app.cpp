@@ -8,7 +8,7 @@
 
 namespace tr {
 
-const char* FW_VERSION = "0.2.5-esp32";
+const char* FW_VERSION = "0.2.6-esp32";
 
 App::App(Hal& h, const std::string& id_, const std::string& name_) : hal(h), params(h), id(id_), name(name_) {}
 
@@ -59,8 +59,10 @@ void App::tick(float dt) {
   const float vb = hal.readVbat(c.power_vbat_divider);
   vbat_ = std::isnan(vb) ? 12.f : vb;
   bat_low_ = !std::isnan(vb) && vb < c.power_bat_min_v;
-  if (runState_() && link_watch_ && now - last_hb_ms_ > static_cast<uint32_t>(c.safety_link_timeout_ms))
-    raiseFault("LINK_LOST");
+  // Hiệu có dấu: heartbeat từ task HTTP (không khoá) có thể mới hơn `now` chụp đầu chu kỳ → hiệu âm, không phải mất link
+  // (trước đây trừ không dấu → tràn ~4e9 ms → LINK_LOST giả)
+  const int32_t since_hb = static_cast<int32_t>(now - last_hb_ms_);
+  if (runState_() && link_watch_ && since_hb > c.safety_link_timeout_ms) raiseFault("LINK_LOST");
 
   Cmd cmd = BRAKE;
   if (state == "RUNNING" && prim_ && !paused) {

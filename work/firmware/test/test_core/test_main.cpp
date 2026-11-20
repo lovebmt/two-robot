@@ -216,6 +216,9 @@ void test_app_state_events_and_link_loss() {
   c["op"] = "arm";
   a.handleCmd(c.as<JsonObjectConst>(), r.to<JsonObject>());
   TEST_ASSERT_TRUE(r["ok"].as<bool>());
+  // Heartbeat từ task HTTP mới hơn `now` của chu kỳ (race thật trên ESP32) → KHÔNG được báo LINK_LOST
+  for (int i = 0; i < 50; ++i) { a.touchLink(h.t + 10 + 5); h.t += 10; a.tick(0.01f); }
+  TEST_ASSERT_EQUAL_STRING("ARMED", a.state.c_str());
   runTicks(a, h, 2.0f);  // không có request nào > link_timeout (1500 ms) → LINK_LOST
   TEST_ASSERT_EQUAL_STRING("FAULT", a.state.c_str());
   TEST_ASSERT_EQUAL_STRING("LINK_LOST", a.fault.c_str());
