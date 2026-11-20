@@ -42,6 +42,10 @@
 - Cập nhật: architecture.md, requirements.md (F2, F7), web-ui.md, config-management.md, open-questions.md (Q12, Q25)
 - Cập nhật ngoài wiki: ops/decisions.md (D25, D26; D8 bị thay), ops/roadmap.md
 
+## [2026-11-20] ingest | yêu cầu viết firmware ESP32
+- Code: work/firmware (lib/core C++, HAL ESP32, net, main, test native, tools/gen_vectors.py), work/shared/codegen_cpp.py; schema thêm invert/pwm/vbat_divider
+- Cập nhật ngoài wiki: ops/decisions.md (D29), ops/roadmap.md, work/firmware/README.md
+
 ## [2026-11-20] query | Đặt xe lệch lúc đầu; kiểm tra trước khi chạy; wizard hiệu chuẩn
 - Code: preflight (coordinator), CAL_DRIVE/CAL_TURN, SNAPSHOT chạy từ IDLE, calibration.py, API /api/run/check + /api/robots/{id}/cal/*, tab Hiệu chuẩn, đặt xe lệch trong sim
 - Cập nhật: algorithms.md (§5.1 kèm bảng ảnh hưởng đặt lệch, §6 wizard), web-ui.md, parameters (start.*)

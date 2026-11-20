@@ -19,7 +19,8 @@ Thứ tự: M1 khung → M2 lõi + sim batch → M3 server + view trên sim → 
 - [x] (đợt 7) NetLink HTTP (poll 20 Hz, hộp thư sự kiện, ack đồng bộ), quét HTTP, robot HTTP ảo `tworobot-vrobot`, test end-to-end qua socket thật; cấm đường khép kín
 - [x] Hiệu chuẩn 2 mắt ToF (TOF_CAL, nút Calib ToF), sim sai lệch lắp ToF, thanh trượt nhiễu gyro / sai đường kính bánh
 - [x] Wizard hiệu chuẩn trên web: đi thẳng, quay 360°, khoảng cách ToF đặt sẵn; bước kiểm tra trước khi chạy + nút Kiểm tra; sim đặt xe lệch
-- [ ] Firmware ESP32 (M4): HTTP server theo protocol.md, port `fw/` sang C++
+- [x] Firmware ESP32 (M4, phần code): lib/core C++ port từ Python, HAL ESP32, WiFi/AP, HTTP API, task FreeRTOS; build OK; 12 test native (đối chiếu Python, hợp đồng API); bước 0 Kiểm tra chiều + an toàn WHEEL_DIR
+- [ ] M4 trên phần cứng: nạp 2 xe, kiểm tra chiều, đo tick_max, tinh chỉnh PI, hiệu chuẩn, chạy 1 xe rồi 2 xe
 - [ ] Vẽ vùng ma sát trên UI; replay có kéo timeline
 - [ ] Unit test riêng cho từng primitive; kịch bản đổi tham số giữa lúc chạy
 

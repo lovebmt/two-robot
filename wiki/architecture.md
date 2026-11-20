@@ -69,7 +69,9 @@ GPIO **cố định trong code** tại `work/firmware/src/board/pins.h` (D19). F
 - Tổng mỗi xe: 6 (L298N) + 4 (encoder) + 2 (I²C ToF) + 2 (XSHUT) + 0–2 (INT ToF) + 2 (I²C IMU) + 1 (ADC pin) + 1–2 (LED/buzzer) ≈ **18–21 chân**. ESP32 DevKit 30 chân vẫn đủ nếu tránh strapping.
 
 ## 3. Firmware (ESP32)
-- PlatformIO, Arduino-ESP32 v3.x, FreeRTOS. Tách lớp để **cùng code chạy trên ESP32 và trong sim** ([simulation §2.1](simulation.md#21-tách-hal-trong-firmware)):
+> **Đã cài đặt (2026-11-20):** `work/firmware`, xem [README](../work/firmware/README.md). Thực tế: platform cố định espressif32@6.8.1 (Arduino 2.0.17), WebServer đồng bộ (HTTP, D25), lõi `lib/core` không phụ thuộc Arduino, test native. Bản Python `tworobot/fw` là bản tham chiếu dùng trong sim. Sơ đồ dưới đây là thiết kế ban đầu.
+
+- PlatformIO, Arduino-ESP32, FreeRTOS. Tách lớp để **cùng thuật toán chạy trên ESP32 và trên PC** ([simulation §2.1](simulation.md#21-tách-hal-trong-firmware)):
 
 ```
 work/firmware/
