@@ -11,7 +11,11 @@ const PHYS = [
   ['motor_scale_r', 'Motor phải ×', 0.6, 1.2, 0.01, 1.0],
   ['fric_scale', 'Ma sát ×', 0.5, 2.5, 0.05, 1.0],
   ['slip_turn', 'Trượt khi quay', 0, 0.15, 0.005, 0.03],
-  ['gyro_bias_dps', 'Bias gyro °/s', -3, 3, 0.1, 0.4],
+  ['gyro_bias_dps', 'Bias gyro bật nguồn °/s', -5, 5, 0.1, 1.5],
+  ['gyro_warm_dps', 'Trôi nóng máy °/s', -2, 2, 0.05, 0.6],
+  ['gyro_rw_dps', 'Bias random walk', 0, 0.05, 0.002, 0.01],
+  ['gyro_scale_err', 'Sai scale gyro', -0.05, 0.05, 0.002, 0.01],
+  ['gyro_vib', 'Nhiễu rung motor', 0, 0.01, 0.0005, 0.002],
   ['tof_sigma', 'Nhiễu ToF mm', 0.5, 15, 0.5, 3.0],
 ];
 
@@ -68,6 +72,9 @@ function addEvent(e) {
   li.className = e.kind || '';
   let txt = e.msg || '';
   if (e.kind === 'prim_done') txt = `${e.prim} #${e.id} ${e.ok ? 'xong' : 'lỗi ' + e.err}`;
+  else if (e.kind === 'calib_done') txt = e.ok
+    ? `calib IMU xong: bias ${n(e.result.bias_dps, 2)}°/s, nhiễu ${n(e.result.std_dps, 3)}°/s${e.result.restarts ? `, làm lại ${e.result.restarts} lần` : ''}`
+    : `calib IMU LỖI: ${e.err}`;
   else if (e.kind === 'fault') txt = `FAULT ${e.code}`;
   else if (e.kind === 'nack') txt = `NACK ${e.err}`;
   if (e.kind === 'prim_done' && e.err === 'preempted') return;
@@ -81,7 +88,8 @@ function renderPanels(f) {
   const badge = $('coordState');
   badge.textContent = c.state || 'IDLE';
   badge.className = `badge ${c.state}`;
-  $('coordSeg').textContent = c.n_segments ? `Đoạn ${c.seg + 1}/${c.n_segments} · ${c.n_corners} góc cua` : 'Chưa chạy';
+  $('coordSeg').textContent = c.phase === 'CALIB_IMU' ? 'Đang calib IMU: giữ 2 xe đứng yên…'
+    : c.n_segments ? `Đoạn ${c.seg + 1}/${c.n_segments} · ${c.n_corners} góc cua` : 'Chưa chạy';
   const steps = c.steps || [];
   $('stepper').innerHTML = steps.map((s, k) => {
     const idx = k + 1;
@@ -110,6 +118,7 @@ function renderPanels(f) {
         ${perr !== null ? `<div><span>sai vị trí</span> <b>${n(perr)} mm</b></div>` : ''}
         <div><span>học FF</span> <b>${r.wheels ? n(r.wheels.l.adapt * 100) + '/' + n(r.wheels.r.adapt * 100) + '%' : '—'}</b></div>
       </div>
+      ${imuLine(r)}
       <div>${flags}${r.fault ? `<span class="chip bad">${r.fault}</span>` : ''}</div>
     </div>`;
   }).join('') : '<p class="muted">Chưa có robot. Bật mô phỏng ở tab Thiết bị.</p>';
@@ -125,6 +134,21 @@ function renderPanels(f) {
   $('recBtn').textContent = f.recording ? '■ Dừng ghi' : '● Ghi log';
   $('srcBadge').textContent = f.source;
   $('srcBadge').className = `badge ${f.source}`;
+}
+
+function imuLine(r) {
+  const m = r.imu;
+  if (!m) return '';
+  const st = m.calib != null ? `<b class="mono">calib ${n(m.calib * 100)}%</b>`
+    : m.ok ? '<b>✓</b>' : '<b class="danger-text">chưa calib</b>';
+  const truth = r.truth?.gyro_bias != null ? ` <span class="muted">(thật ${n(r.truth.gyro_bias * DEG, 2)})</span>` : '';
+  return `<div class="imu small">
+    <span class="muted">IMU</span> ${st} · bias <b class="mono">${n(m.bias_dps, 2)}°/s</b>${truth}
+    · ${n(m.temp_c, 1)}°C · k <b class="mono">${n(m.k_dps_c, 3)}</b>${m.k_learned ? ' <span class="chip">học</span>' : ''}
+    ${m.zupt ? '<span class="chip">ZUPT</span>' : ''}
+    <div class="row gap"><button class="btn small" data-act="calib" data-id="${r.id}">Calib IMU</button>
+    <button class="btn small" data-act="savek" data-id="${r.id}" ${m.k_learned ? '' : 'disabled'}>Lưu k nhiệt</button></div>
+  </div>`;
 }
 
 function renderPhys(sim) {
@@ -264,9 +288,16 @@ export function initView() {
       const t = b.dataset.fault;
       const calls = t === 'tof_both'
         ? [{ type: 'tof_block', side: 'l', dur: 1 }, { type: 'tof_block', side: 'r', dur: 1 }]
-        : [{ type: t, side: b.dataset.side, dur: t === 'caster' ? 2 : 1 }];
+        : [{ type: t, side: b.dataset.side, dur: t === 'caster' ? 2 : t === 'bump' ? 0.3 : 1 }];
       calls.forEach((c) => guard(() => api('POST', '/api/sim/fault', { robot, ...c })));
     };
+  });
+  // Thẻ robot vẽ lại 5 lần/s → dùng event delegation cho nút trong thẻ.
+  $('robotCards').addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-act]');
+    if (!b) return;
+    if (b.dataset.act === 'calib') guard(() => api('POST', `/api/robots/${b.dataset.id}/calib_imu`), 'Đang calib IMU — giữ xe đứng yên');
+    if (b.dataset.act === 'savek') guard(() => api('POST', `/api/robots/${b.dataset.id}/save_temp_coeff`), 'Đã lưu hệ số nhiệt vào flash');
   });
   $('runCanvas').addEventListener('click', () => {
     const ids = (store.frame?.robots || []).map((r) => r.id);

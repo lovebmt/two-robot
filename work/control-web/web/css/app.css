@@ -181,6 +181,8 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .rgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px 8px; font-size: 12px; margin-top: 4px; }
 .rgrid span { color: var(--muted); }
 .rgrid b { font-family: var(--mono); font-weight: 500; }
+.imu { margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border); }
+.imu .row { margin: 4px 0 0; }
 .events { list-style: none; padding: 0; margin: 0; font-size: 12px; max-height: 220px; overflow-y: auto; font-family: var(--mono); }
 .events li { padding: 2px 0; border-bottom: 1px dashed var(--border); }
 .events li.fault, .events li.nack { color: var(--danger); }

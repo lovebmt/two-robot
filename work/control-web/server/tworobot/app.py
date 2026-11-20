@@ -291,6 +291,31 @@ async def jog(rid: str, body: dict = Body(...)):
     return {"ok": True}
 
 
+@app.post("/api/robots/{rid}/calib_imu")
+async def calib_imu(rid: str):
+    """Calib bias gyro: robot phải đứng yên imu.calib_time_s giây. Kết quả về qua sự kiện calib_done."""
+    s = _sess(rid)
+    try:
+        await s.link.send({"t": "cmd", "op": "calib_imu"})
+    except LinkError as e:
+        raise HTTPException(502, str(e)) from None
+    return {"ok": True}
+
+
+@app.post("/api/robots/{rid}/save_temp_coeff")
+async def save_temp_coeff(rid: str):
+    """Lưu hệ số bias-nhiệt độ robot đã học vào config + flash (dùng ngay từ lần chạy sau)."""
+    s = _sess(rid)
+    imu = (s.last_tel or {}).get("imu") or {}
+    if not imu.get("k_learned"):
+        raise HTTPException(400, "robot chưa học được hệ số (cần chênh nhiệt ≥ 0.5 °C giữa các lần đứng yên)")
+    k = round(float(imu["k_dps_c"]), 4)
+    res = await _req(s, "PUT", "/api/config", {"patch": {"imu.temp_coeff_dps_c": k}, "persist": True})
+    s.config = await _req(s, "GET", "/api/config")
+    S.note(f"{s.name}: lưu hệ số nhiệt gyro {k} °/s/°C")
+    return {"ok": True, "k": k, **res}
+
+
 @app.post("/api/robots/{rid}/reset")
 async def reset_robot(rid: str):
     await _sess(rid).link.send({"t": "cmd", "op": "reset"})

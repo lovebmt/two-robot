@@ -6,8 +6,8 @@ const $ = (id) => document.getElementById(id);
 
 function flagChips(flags = []) {
   return flags.map((f) => {
-    const cls = ['LEADER_LOST', 'LINK_LOST', 'BAT_LOW', 'CFG_DEFAULT'].includes(f) ? 'bad'
-      : ['SAT', 'SLIP', 'CFG_DIRTY'].includes(f) ? 'warn' : '';
+    const cls = ['LEADER_LOST', 'LINK_LOST', 'BAT_LOW', 'CFG_DEFAULT', 'IMU_BIAS_HIGH'].includes(f) ? 'bad'
+      : ['SAT', 'SLIP', 'CFG_DIRTY', 'IMU_UNCAL', 'IMU_CALIB'].includes(f) ? 'warn' : '';
     return `<span class="chip ${cls}">${f}</span>`;
   }).join('');
 }
