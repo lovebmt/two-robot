@@ -19,6 +19,7 @@ BRAKE = (0.0, 0.0, True)
 
 class Prim:
     name = "?"
+    standalone = False  # True: chạy được khi xe IDLE (bài hiệu chuẩn), không cần path/ARM
 
     def __init__(self, pid: int, args: dict):
         self.id = pid
@@ -346,6 +347,148 @@ class Reacquire(Prim):
         return BRAKE
 
 
+def _solve3(a: list[list[float]], b: list[float]) -> list[float] | None:
+    """Giải hệ 3×3 bằng Cramer (đủ cho fit parabol; dễ port C++)."""
+    def det(m):
+        return (m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
+                - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+                + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]))
+    d = det(a)
+    if abs(d) < 1e-12:
+        return None
+    out = []
+    for c in range(3):
+        m = [row[:] for row in a]
+        for r in range(3):
+            m[r][c] = b[r]
+        out.append(det(m) / d)
+    return out
+
+
+def tof_fit(samples: list[tuple[float, float, float]]) -> dict:
+    """Từ các mẫu (θ, d_l thô, d_r thô) khi quay ±30° trước một mặt phẳng → bù lệch 2 mắt ToF.
+
+    VL53L0X có chùm rộng ~25°: khi |θ−θ0| < ~12° trong chùm luôn có tia vuông góc nên d̄ gần như
+    PHẲNG; ra ngoài thì d̄ tăng nhanh. d̄ = (d_l + d_r)/2 đối xứng quanh θ0 (hướng vuông góc).
+    1. θ0 = trung điểm 2 mép đoạn phẳng (nơi d̄ vượt d_min + ngưỡng).
+    2. Trong đoạn phẳng: (d_r − d_l) ≈ c − b·(θ − θ0)  → fit tuyến tính.
+       c = lệch 2 mắt khi vuông góc (lắp lệch trước/sau + offset riêng module) → bù về 0.
+       b = khoảng cách 2 mắt hiệu dụng.
+    """
+    if len(samples) < 40:
+        return {"ok": False, "err": "TOO_FEW_SAMPLES", "n": len(samples)}
+    # Gom theo ô 1°, lấy trung vị d̄ mỗi ô (chống nhiễu, không phụ thuộc thứ tự mẫu).
+    bins: dict[int, list[float]] = {}
+    for th, dl, dr in samples:
+        bins.setdefault(int(math.floor(math.degrees(th))), []).append(0.5 * (dl + dr))
+    keys = sorted(bins)
+    prof = [(k + 0.5, sorted(bins[k])[len(bins[k]) // 2]) for k in keys]
+    d_min = min(v for _, v in prof)
+    thr = d_min + max(10.0, 0.05 * d_min)
+    i_min = min(range(len(prof)), key=lambda i: prof[i][1])
+
+    def cross(rng):
+        prev = None
+        for i in rng:
+            if prof[i][1] > thr:
+                if prev is None:
+                    return None
+                (a, va), (b_, vb) = prof[prev], prof[i]
+                return a + (thr - va) * (b_ - a) / (vb - va)
+            prev = i
+        return None
+    left = cross(range(i_min, -1, -1))
+    right = cross(range(i_min, len(prof)))
+    if left is None or right is None:
+        return {"ok": False, "err": "PERP_OUT_OF_SCAN", "d_min_mm": d_min}
+    th0 = math.radians(0.5 * (left + right))
+    half = math.radians(0.5 * abs(right - left))
+    win = max(math.radians(3.0), min(math.radians(8.0), half - math.radians(2.0)))
+    near = [(th - th0, dr - dl, 0.5 * (dl + dr)) for th, dl, dr in samples if abs(th - th0) <= win]
+    if len(near) < 15:
+        return {"ok": False, "err": "TOO_FEW_NEAR", "n": len(near)}
+    n = len(near)
+    mx = sum(x for x, _, _ in near) / n
+    my = sum(y for _, y, _ in near) / n
+    sxx = sum((x - mx) ** 2 for x, _, _ in near)
+    slope = sum((x - mx) * (y - my) for x, y, _ in near) / sxx
+    c = my - slope * mx
+    resid = math.sqrt(sum((y - (c + slope * x)) ** 2 for x, y, _ in near) / n)
+    d_perp = sorted(m for _, _, m in near)[n // 2]
+    return {"ok": True, "c_mm": c, "baseline_mm": -slope, "theta0_deg": math.degrees(th0),
+            "plateau_deg": math.degrees(2 * half), "d_perp_mm": d_perp, "resid_mm": resid, "n": len(samples)}
+
+
+class TofCal(Prim):
+    """Hiệu chuẩn 2 mắt ToF: đặt xe trước một mặt phẳng RỘNG (tường/hộp ≥ 40 cm, cách ~150–300 mm,
+    gần vuông góc ±10°), xe tự quay chậm ±scan_deg (40°) đi rồi về (2 lượt: gấp đôi mẫu, triệt tiêu
+    trễ ToF khi đang quay) và fit (tof_fit). Chạy được khi xe IDLE.
+
+    Kết quả: offset mới cho 2 mắt (bù c, chia đều 2 bên; nếu biết wall_mm — khoảng cách tâm trục
+    tới mặt phẳng khi vuông góc — thì bù cả offset tuyệt đối) và baseline hiệu dụng.
+    """
+    name = "TOF_CAL"
+    standalone = True
+
+    def start(self, fw):
+        cfg = fw.params.active
+        self.scan = math.radians(float(self.args.get("scan_deg") or 40.0))
+        self.rate = math.radians(float(self.args.get("rate_dps") or 8.0))
+        self.base = fw.heading.psi
+        self.samples: list[tuple[float, float, float]] = []
+        self.off0 = (cfg["range.offset_l_mm"], cfg["range.offset_r_mm"])
+        self.turn = Turn(-1, {"heading_deg": math.degrees(self.base - self.scan)})
+        self.turn.start(fw)
+        self.phase = "to_start"
+
+    def on_range(self, fw, m):
+        if self.phase not in ("sweep", "sweep_back"):
+            return
+        (lm, ls), (rm, rs) = fw.raw_tof["l"], fw.raw_tof["r"]
+        cfg = fw.params.active
+        if ls == 0 and rs == 0 and cfg["range.min_valid_mm"] <= min(lm, rm) and max(lm, rm) <= cfg["range.max_valid_mm"]:
+            self.samples.append((wrap(fw.heading.psi - self.base), lm, rm))
+
+    def update(self, fw, dt):
+        if self.phase == "to_start":
+            out = self.turn.update(fw, dt)
+            if self.turn.done:
+                self.phase = "sweep"
+            return out
+        if self.phase == "sweep":
+            if wrap(fw.heading.psi - self.base) >= self.scan:
+                self.phase = "sweep_back"
+                return BRAKE
+            return 0.0, self.rate, False
+        if self.phase == "sweep_back":
+            if wrap(fw.heading.psi - self.base) <= -self.scan:
+                self.phase = "back"
+                self.turn = Turn(-1, {"heading_deg": math.degrees(self.base)})
+                self.turn.start(fw)
+                return BRAKE
+            return 0.0, -self.rate, False
+        out = self.turn.update(fw, dt)
+        if self.turn.done:
+            self._finish(fw)
+        return out
+
+    def _finish(self, fw):
+        cfg = fw.params.active
+        r = tof_fit(self.samples)
+        if not r["ok"]:
+            self.finish(ok=False, err=r["err"], **{k: v for k, v in r.items() if k not in ("ok", "err")})
+            return
+        # Số đo đã bù = thô + offset. Muốn (r_bù − l_bù) = 0 khi vuông góc: off_r − off_l = −c.
+        mean_off = 0.0
+        if self.args.get("wall_mm"):
+            mean_off = (float(self.args["wall_mm"]) - cfg["range.x_mm"]) - r["d_perp_mm"]
+        r.update(offset_l_mm=mean_off + r["c_mm"] / 2, offset_r_mm=mean_off - r["c_mm"] / 2,
+                 old_offset_l_mm=self.off0[0], old_offset_r_mm=self.off0[1],
+                 dpsi_bias_deg=math.degrees(math.atan2(r["c_mm"] + self.off0[1] - self.off0[0], cfg["range.baseline_mm"])))
+        r.pop("ok")
+        self.finish(**r)
+
+
 PRIMS: dict[str, type[Prim]] = {
-    c.name: c for c in (DriveTo, Turn, Hold, Follow, Snapshot, Align, Reacquire)
+    c.name: c for c in (DriveTo, Turn, Hold, Follow, Snapshot, Align, Reacquire, TofCal)
 }

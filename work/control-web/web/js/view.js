@@ -20,6 +20,12 @@ const PHYS = [
   ['diam_err_l', 'Sai đường kính bánh trái', -0.05, 0.05, 0.002, 0],
   ['diam_err_r', 'Sai đường kính bánh phải', -0.05, 0.05, 0.002, 0],
   ['tof_sigma', 'Nhiễu ToF mm', 0.5, 15, 0.5, 3.0],
+  ['tof_dx_l', 'Mắt trái nhô trước mm', -5, 5, 0.5, 0],
+  ['tof_dx_r', 'Mắt phải nhô trước mm', -5, 5, 0.5, 0],
+  ['tof_off_l', 'Offset module trái mm', -15, 15, 0.5, 0],
+  ['tof_off_r', 'Offset module phải mm', -15, 15, 0.5, 0],
+  ['tof_yaw_l', 'Mắt trái quay lệch °', -10, 10, 0.5, 0],
+  ['tof_yaw_r', 'Mắt phải quay lệch °', -10, 10, 0.5, 0],
 ];
 
 const trails = new Map();
@@ -150,8 +156,28 @@ function imuLine(r) {
     · ${n(m.temp_c, 1)}°C · k <b class="mono">${n(m.k_dps_c, 3)}</b>${m.k_learned ? ' <span class="chip">học</span>' : ''}
     ${m.zupt ? '<span class="chip">ZUPT</span>' : ''}
     <div class="row gap"><button class="btn small" data-act="calib" data-id="${r.id}">Calib IMU</button>
-    <button class="btn small" data-act="savek" data-id="${r.id}" ${m.k_learned ? '' : 'disabled'}>Lưu k nhiệt</button></div>
+    <button class="btn small" data-act="savek" data-id="${r.id}" ${m.k_learned ? '' : 'disabled'}>Lưu k nhiệt</button>
+    <button class="btn small" data-act="caltof" data-id="${r.id}" data-src="${r.source}">Calib ToF</button></div>
   </div>`;
+}
+
+// Hiệu chuẩn 2 mắt ToF: xe quay ±40° trước mặt phẳng, đo lệch lắp đặt → hỏi rồi Apply + Save.
+async function calibTof(id, source) {
+  if (source !== 'SIM' && !confirm('Đặt xe trước một mặt phẳng rộng (tường/hộp ≥ 40 cm), cách 15–30 cm, '
+    + 'mặt xe gần vuông góc (±10°), không vật cản 2 bên. Xe sẽ tự quay ±40° trong ~25 s. Bắt đầu?')) return;
+  toast('Đang hiệu chuẩn ToF (~25 s)…');
+  const r = await guard(() => api('POST', `/api/robots/${id}/calib_tof`, {}));
+  if (!r) return;
+  const x = r.result;
+  const msg = `Kết quả hiệu chuẩn ToF:\n`
+    + `• Lệch 2 mắt khi vuông góc: ${n(x.c_mm, 1)} mm → Δψ đang lệch ${n(x.dpsi_bias_deg, 1)}°\n`
+    + `• Offset mới: trái ${n(x.offset_l_mm, 1)} mm, phải ${n(x.offset_r_mm, 1)} mm (cũ ${n(x.old_offset_l_mm, 1)} / ${n(x.old_offset_r_mm, 1)})\n`
+    + `• Baseline hiệu dụng: ${n(x.baseline_mm, 0)} mm (chỉ để tham khảo; lệch >15% so với cấu hình → kiểm tra lắp)\n`
+    + `• Nhiễu fit: ${n(x.resid_mm, 1)} mm · hướng vuông góc lúc đặt: ${n(x.theta0_deg, 1)}°\n\nÁp dụng offset mới và lưu flash?`;
+  if (!confirm(msg)) return;
+  await guard(() => api('PUT', `/api/robots/${id}/config`,
+    { patch: { 'range.offset_l_mm': Math.round(x.offset_l_mm * 100) / 100, 'range.offset_r_mm': Math.round(x.offset_r_mm * 100) / 100 }, persist: true }),
+  'Đã lưu offset ToF vào flash');
 }
 
 function renderPhys(sim) {
@@ -301,6 +327,7 @@ export function initView() {
     if (!b) return;
     if (b.dataset.act === 'calib') guard(() => api('POST', `/api/robots/${b.dataset.id}/calib_imu`), 'Đang calib IMU — giữ xe đứng yên');
     if (b.dataset.act === 'savek') guard(() => api('POST', `/api/robots/${b.dataset.id}/save_temp_coeff`), 'Đã lưu hệ số nhiệt vào flash');
+    if (b.dataset.act === 'caltof') calibTof(b.dataset.id, b.dataset.src);
   });
   $('runCanvas').addEventListener('click', () => {
     const ids = (store.frame?.robots || []).map((r) => r.id);

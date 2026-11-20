@@ -30,6 +30,14 @@ DEFAULT_MISMATCH = {
     "gyro_scale_err": 0.01,
     "slip_turn": 0.03,      # tỉ lệ trượt khi quay tại chỗ
     "tof_sigma": 3.0,       # mm
+    # Sai số lắp đặt 2 mắt ToF (firmware không biết; bù bằng bài hiệu chuẩn quét tường):
+    "tof_dx_l": 0.0,        # mắt trái nhô ra trước (+) / thụt vào (−) so với thiết kế, mm
+    "tof_dx_r": 0.0,
+    "tof_yaw_l": 0.0,       # mắt trái quay lệch (độ, + = sang trái)
+    "tof_yaw_r": 0.0,
+    "tof_off_l": 0.0,       # offset đo riêng của module VL53L0X (mm, cộng vào số đo)
+    "tof_off_r": 0.0,
+    "tof_db": 0.0,          # khoảng cách 2 mắt thật lớn hơn thiết kế, mm
     "vbat": 12.0,
 }
 
@@ -62,6 +70,9 @@ class Physical:
     tof_b: float
     tof_sigma: float
     tof_fov_deg: float
+    tof_dx: dict
+    tof_yaw: dict
+    tof_off: dict
     slip_turn: float
     vdrop: float
     vbat: float
@@ -85,8 +96,11 @@ def physical_from_cfg(cfg: dict, mismatch: dict | None = None) -> Physical:
         gyro_noise=math.radians(m["gyro_noise_dps"]),
         gyro_rw=math.radians(m["gyro_rw_dps"]), gyro_warm=math.radians(m["gyro_warm_dps"]),
         gyro_warm_tau=m["gyro_warm_tau_s"], gyro_vib=math.radians(m["gyro_vib"]), temp_rise=m["temp_rise_c"],
-        tof_x=cfg["range.x_mm"], tof_b=cfg["range.baseline_mm"], tof_sigma=m["tof_sigma"],
-        tof_fov_deg=25.0, slip_turn=m["slip_turn"], vdrop=cfg["power.l298n_vdrop_v"], vbat=m["vbat"],
+        tof_x=cfg["range.x_mm"], tof_b=cfg["range.baseline_mm"] + m["tof_db"], tof_sigma=m["tof_sigma"],
+        tof_fov_deg=25.0,
+        tof_dx={"l": m["tof_dx_l"], "r": m["tof_dx_r"]},
+        tof_yaw={"l": math.radians(m["tof_yaw_l"]), "r": math.radians(m["tof_yaw_r"])},
+        tof_off={"l": m["tof_off_l"], "r": m["tof_off_r"]}, slip_turn=m["slip_turn"], vdrop=cfg["power.l298n_vdrop_v"], vbat=m["vbat"],
     )
 
 
@@ -271,18 +285,19 @@ class World:
         if body.tof_block.get(side, 0.0) > t:
             return 15.0, 0
         by = p.tof_b / 2 if side == "l" else -p.tof_b / 2
-        ox, oy = body.to_world(p.tof_x, by)
+        ox, oy = body.to_world(p.tof_x + p.tof_dx[side], by)
         half = math.radians(p.tof_fov_deg / 2)
+        axis = body.th + p.tof_yaw[side]
         best = None
         for k in (-1.0, -0.5, 0.0, 0.5, 1.0):
-            d = self.raycast(ox, oy, body.th + k * half, body.id)
+            d = self.raycast(ox, oy, axis + k * half, body.id)
             if d is not None and (best is None or d < best):
                 best = d
         if best is None or best > 2000:
             return 8190.0, 4
         if rng.random() < 0.004:
             return 8190.0, 2  # lỗi sigma ngẫu nhiên
-        noisy = best + rng.gauss(0.0, p.tof_sigma * (1 + best / 1000))
+        noisy = best + p.tof_off[side] + rng.gauss(0.0, p.tof_sigma * (1 + best / 1000))
         return max(0.0, noisy), 0
 
     def collisions(self) -> list[tuple[str, str]]:

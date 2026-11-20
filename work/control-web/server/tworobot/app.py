@@ -57,6 +57,8 @@ class Server:
         self.last_path: dict | None = None
         self._bg: list[asyncio.Task] = []
         self._t0 = time.monotonic()
+        self._prim_waiters: dict[int, asyncio.Future] = {}
+        self._prim_ids = 900000
 
     # ------------------------------------------------------------ time
     def clock(self) -> float:
@@ -66,6 +68,10 @@ class Server:
 
     # ------------------------------------------------------------ events
     def _on_event(self, sess: RobotSession, msg: dict) -> None:
+        if msg.get("e") == "prim_done":
+            fut = self._prim_waiters.pop(msg.get("id"), None)
+            if fut is not None and not fut.done():
+                fut.set_result(msg)
         self.coord.on_event(sess, msg)
         if msg.get("t") in ("ack",):
             return
@@ -333,6 +339,50 @@ async def calib_imu(rid: str):
     except LinkError as e:
         raise HTTPException(502, str(e)) from None
     return {"ok": True}
+
+
+@app.post("/api/robots/{rid}/calib_tof")
+async def calib_tof(rid: str, body: dict = Body(default={})):
+    """Hiệu chuẩn 2 mắt ToF bằng cách quay ±40° trước một mặt phẳng rộng (wiki/algorithms.md §6.1).
+
+    Robot thật: người dùng đặt xe trước tường/hộp phẳng ≥ 40 cm, cách ~150–300 mm, gần vuông góc.
+    Robot ảo: server tự đặt xe trước tường bản đồ (lệch ngẫu nhiên vài độ) như người đặt.
+    Trả kết quả; chưa ghi config — UI hỏi người dùng rồi mới Apply + Save.
+    """
+    s = _sess(rid)
+    if S.coord.state == "RUNNING":
+        raise HTTPException(409, "đang chạy đường")
+    if s.source == "SIM" and S.sim is not None and body.get("place", True):
+        import random as _r
+        w = S.sim.world
+        r = S.sim.robots[rid]
+        S.sim.place(rid, w.width + w.wall_margin - r.body.p.front - float(body.get("dist_mm", 200)),
+                    w.height / 2, _r.uniform(-6, 6))
+        await asyncio.sleep(0.8 / max(S.sim.scale, 0.1))  # để xe đứng yên ổn định
+    S._prim_ids += 1
+    pid = S._prim_ids
+    fut = asyncio.get_running_loop().create_future()
+    S._prim_waiters[pid] = fut
+    args = {k: body[k] for k in ("scan_deg", "rate_dps", "wall_mm") if body.get(k) is not None}
+    try:
+        await s.link.send({"t": "cmd", "op": "prim", "id": pid, "prim": "TOF_CAL", **args})
+    except LinkError as e:
+        raise HTTPException(502, str(e)) from None
+    S.note(f"{s.name}: hiệu chuẩn ToF (quét ±40°)…")
+    try:
+        msg = await asyncio.wait_for(fut, timeout=90)
+    except asyncio.TimeoutError:
+        S._prim_waiters.pop(pid, None)
+        raise HTTPException(504, "hết thời gian chờ hiệu chuẩn ToF (robot bị từ chối lệnh? xem tab Sự kiện)") from None
+    if not msg.get("ok"):
+        hint = {"PERP_OUT_OF_SCAN": "không thấy hướng vuông góc trong ±40°: đặt xe gần vuông góc hơn, mặt phẳng rộng hơn",
+                "TOO_FEW_SAMPLES": "ít số đo hợp lệ: mặt phẳng quá xa/gần hoặc quá hẹp",
+                "imu_uncal": "gyro chưa calib"}.get(msg.get("err"), "")
+        raise HTTPException(400, f"hiệu chuẩn ToF lỗi: {msg.get('err')}. {hint}")
+    res = msg["result"]
+    S.note(f"{s.name}: ToF lệch 2 mắt {res['c_mm']:+.1f} mm (Δψ lệch {res['dpsi_bias_deg']:+.1f}°), "
+           f"baseline hiệu dụng {res['baseline_mm']:.0f} mm")
+    return {"ok": True, "result": res}
 
 
 @app.post("/api/robots/{rid}/save_temp_coeff")

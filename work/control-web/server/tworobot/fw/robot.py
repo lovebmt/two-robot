@@ -207,7 +207,7 @@ class VirtualFirmware:
         self.prim = None
         self.kf.active = False if p.name == "FOLLOW" else self.kf.active
         if self.state == "RUNNING":
-            self.state = "ARMED"
+            self.state = "IDLE" if p.standalone else "ARMED"
         self._event({"t": "evt", "e": "prim_done", "id": p.id, "prim": p.name, "ok": p.ok,
                    "err": p.err, "result": p.result, "ts": self.hal.now_ms()})
 
@@ -413,11 +413,16 @@ class VirtualFirmware:
             self.last_hb_ms = now
             return self._ack(msg)
         if op == "prim":
-            if self.state not in RUN_STATES:
-                return self._ack(msg, False, f"state:{self.state}")
             cls = PRIMS.get(msg.get("prim"))
             if cls is None:
                 return self._ack(msg, False, "unknown_prim")
+            if cls.standalone:  # bài hiệu chuẩn: chạy từ IDLE, cần gyro đã calib
+                if self.state != "IDLE":
+                    return self._ack(msg, False, f"state:{self.state}")
+                if not self.imu_ok:
+                    return self._ack(msg, False, "imu_uncal")
+            elif self.state not in RUN_STATES:
+                return self._ack(msg, False, f"state:{self.state}")
             if self.prim is not None:
                 old = self.prim
                 self._event({"t": "evt", "e": "prim_done", "id": old.id, "prim": old.name, "ok": False,
