@@ -59,6 +59,12 @@ Encoder: cấp **VCC 3.3 V** để tín hiệu ra 3.3 V. Cấp 5 V thì tín hi�
 GND chung giữa L298N, ESP32, encoder, cảm biến. ESP32 nên cấp bằng buck 5 V riêng. Motor 12 V dùng pin 3S.
 Lúc boot, log in kết quả quét từng bus I2C (MPU: `0x68`; ToF: `0x29 0x30`) và trạng thái từng cảm biến.
 
+## Console serial (USB, 115200)
+`pio device monitor`, gõ:
+- `status`: số đo 2 ToF, hướng/bias/nhiệt độ gyro, tick encoder, tốc độ bánh, trạng thái.
+- `wifi <ssid> <mật khẩu>`: lưu WiFi rồi khởi động lại (không cần vào AP).
+- `reboot`
+
 ## Chạy lần đầu (mỗi xe)
 1. Nạp firmware. Mở monitor: thấy `AP "TwoRobot-xxxxxx"`.
 2. Điện thoại/PC vào WiFi `TwoRobot-xxxxxx` (mật khẩu `tworobot`) → mở `http://192.168.4.1` → nhập WiFi → robot khởi động lại, monitor in IP.
@@ -82,6 +88,7 @@ Lúc boot, log in kết quả quét từng bus I2C (MPU: `0x68`; ToF: `0x29 0x30
 - ✓ Build ESP32 (RAM khoảng 15 %, Flash khoảng 51 %). 12 test native pass, gồm:
   - đối chiếu hàm fit ToF với Python trên 1811 mẫu mô phỏng (lệch < 0.05 mm);
   - **hợp đồng API**: mọi khoá JSON mà server/UI đọc đều có trong phản hồi của bản C++.
-- ✗ **Chưa chạy trên phần cứng thật**. Cần kiểm tra: chiều motor/encoder, chất lượng PCNT với encoder thật, địa chỉ/clone MPU6050, thời gian vòng `tick_max` (in mỗi 10 s), và hệ số PI (mặc định lấy từ mô phỏng).
+- ✓ (2026-11-20) Xe 1 (id 198a2c): nạp OK; I2C thấy 0x68 (MPU), 0x29 + 0x30 (ToF); ToF đo được; gyro tự calib (bias −0.92°/s); vào WiFi; Web Control quét và kết nối (HTTP mỗi request khoảng 55–70 ms). Vòng điều khiển tối đa khoảng 3 ms / 10 ms.
+- ✗ **Chưa chạy motor/encoder trên phần cứng**. Cần kiểm tra: chiều motor/encoder, chất lượng PCNT với encoder thật, địa chỉ/clone MPU6050, thời gian vòng `tick_max` (in mỗi 10 s), và hệ số PI (mặc định lấy từ mô phỏng).
 - An toàn đấu dây: duty lớn mà bánh quay ngược chiều lệnh > 0.3 s → phanh, báo `WHEEL_DIR_L/R` (motor hoặc encoder đấu ngược).
 - Vòng điều khiển trong C++ chưa được mô phỏng vòng kín như bản Python. Bản Python (sim) vẫn là nơi tinh chỉnh thuật toán; sửa thuật toán thì sửa cả hai và chạy lại `gen_vectors.py` + test.

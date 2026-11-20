@@ -238,6 +238,7 @@ uint32_t Esp32Hal::hwFault() {
 bool Esp32Hal::storageLoad(std::string& json) {
   if (!fs_ok_) return false;
   for (const char* path : {"/cfg/config.json", "/cfg/config.bak"}) {
+    if (!LittleFS.exists(path)) continue;
     File f = LittleFS.open(path, "r");
     if (!f) continue;
     json.clear();
@@ -261,6 +262,8 @@ bool Esp32Hal::storageSave(const std::string& json) {
   return LittleFS.rename("/cfg/config.tmp", "/cfg/config.json");
 }
 
-std::string Esp32Hal::nvsGetRole() { return std::string(prefs.getString("role", "").c_str()); }
+std::string Esp32Hal::nvsGetRole() {
+  return prefs.isKey("role") ? std::string(prefs.getString("role", "").c_str()) : std::string();
+}
 
 void Esp32Hal::nvsSetRole(const std::string& role) { prefs.putString("role", role.c_str()); }

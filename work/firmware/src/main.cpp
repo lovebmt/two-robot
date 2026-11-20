@@ -76,7 +76,7 @@ void setup() {
   char id[7];
   const uint64_t mac = ESP.getEfuseMac();
   snprintf(id, sizeof(id), "%02x%02x%02x", (uint8_t)(mac >> 24), (uint8_t)(mac >> 32), (uint8_t)(mac >> 40));
-  String name = hal.prefs.getString("name", String("Robot-") + id);
+  String name = hal.prefs.isKey("name") ? hal.prefs.getString("name", "") : String("Robot-") + id;
 
   app = new tr::App(hal, id, name.c_str());
   app->begin();
@@ -92,4 +92,49 @@ void setup() {
   xTaskCreatePinnedToCore(net::httpTask, "http", 12288, nullptr, 2, nullptr, 0);
 }
 
-void loop() { vTaskDelay(pdMS_TO_TICKS(1000)); }
+// Console serial (115200): kiểm tra phần cứng qua USB, không cần WiFi.
+//   status            số đo ToF, gyro, nhiệt độ, encoder, trạng thái
+//   wifi <ssid> <pw>  lưu WiFi vào NVS rồi khởi động lại (pw có thể bỏ trống)
+//   reboot
+static void printStatus() {
+  xSemaphoreTake(appMutex, portMAX_DELAY);
+  const float rl = app->raw_l, rr = app->raw_r;
+  const int sl = app->raw_ls, sr = app->raw_rs;
+  const float psi = app->heading.psi * 57.29578f, bias = app->heading.bias * 57.29578f, temp = app->heading.temp;
+  const float s = app->odo.s, vl = app->drive.v_meas_l, vr = app->drive.v_meas_r;
+  const std::string st = app->state;
+  xSemaphoreGive(appMutex);
+  const int32_t el = hal.readEncoderRaw('l'), er = hal.readEncoderRaw('r');
+  Serial.printf("ToF trái %s%.0f mm · phải %s%.0f mm | gyro hướng %.1f° bias %.2f°/s · %.1f°C | "
+                "enc tick L %ld R %ld · v L %.0f R %.0f mm/s · s %.0f mm | %s\n",
+                sl ? "×" : "", rl, sr ? "×" : "", rr, psi, bias, temp, (long)el, (long)er, vl, vr, s, st.c_str());
+}
+
+void loop() {
+  static String line;
+  while (Serial.available()) {
+    const char ch = Serial.read();
+    if (ch != '\n' && ch != '\r') { if (line.length() < 120) line += ch; continue; }
+    line.trim();
+    if (line == "status") {
+      printStatus();
+    } else if (line.startsWith("wifi ")) {
+      String rest = line.substring(5);
+      rest.trim();
+      const int sp = rest.indexOf(' ');
+      const String ssid = sp < 0 ? rest : rest.substring(0, sp);
+      const String pass = sp < 0 ? String() : rest.substring(sp + 1);
+      hal.prefs.putString("ssid", ssid);
+      hal.prefs.putString("pass", pass);
+      Serial.printf("Đã lưu WiFi \"%s\". Khởi động lại…\n", ssid.c_str());
+      delay(300);
+      ESP.restart();
+    } else if (line == "reboot") {
+      ESP.restart();
+    } else if (line.length()) {
+      Serial.println("Lệnh: status | wifi <ssid> <mật khẩu> | reboot");
+    }
+    line = "";
+  }
+  vTaskDelay(pdMS_TO_TICKS(20));
+}

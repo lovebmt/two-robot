@@ -21,8 +21,8 @@ bool isAp() { return g_ap; }
 String ipString() { return g_ap ? WiFi.softAPIP().toString() : WiFi.localIP().toString(); }
 
 bool begin(Preferences& prefs, const String& id) {
-  String ssid = prefs.getString("ssid", "");
-  String pass = prefs.getString("pass", "");
+  String ssid = prefs.isKey("ssid") ? prefs.getString("ssid", "") : String();
+  String pass = prefs.isKey("pass") ? prefs.getString("pass", "") : String();
 #ifdef WIFI_SSID
   if (ssid.isEmpty()) { ssid = WIFI_SSID; pass = WIFI_PASS; }
 #endif

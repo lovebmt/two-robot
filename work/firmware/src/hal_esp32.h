@@ -49,6 +49,7 @@ class Esp32Hal : public tr::Hal {
   uint32_t nowMs() override { return millis(); }
   void setMotor(char side, float duty, bool brake) override;
   int32_t readEncoder(char side) override;
+  int32_t readEncoderRaw(char side) const { return total_[side == 'l' ? 0 : 1]; }  // giá trị gần nhất (không đọc PCNT)
   float readGyroZ() override;
   float readImuTemp() override { return imu.tempC(); }
   float readVbat(float divider) override;
