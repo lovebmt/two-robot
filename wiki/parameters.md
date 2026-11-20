@@ -2,19 +2,15 @@
 
 Đơn vị nội bộ: **mm, mm/s, rad** (UI hiển thị cm/độ). Mỗi xe một profile. Giá trị mặc định chỉ là ví dụ, sẽ thay bằng số thật từ [hardware-intake](../work/hardware/hardware-intake.md).
 `auto` nghĩa là giá trị tính từ các thông số khác (vẫn ghi đè được).
-Tất cả khoá dưới đây **nhập trên web, gửi xuống xe, lưu flash** ([config-management.md](config-management.md)). Nguồn chuẩn là `work/shared/config.schema.json`.
-Quy ước áp dụng: nhóm `hw.*` cần **reboot**; nhóm hình học và cảm biến áp dụng khi **idle**; hệ số điều khiển áp dụng **live**.
+Tất cả khoá dưới đây **nhập trên web, gửi xuống xe, firmware áp dụng lúc chạy, lưu flash khi Save** ([config-management.md](config-management.md)). Nguồn chuẩn là `work/shared/config.schema.json`.
+Quy ước áp dụng: hình học và cảm biến áp dụng khi **idle**; hệ số điều khiển áp dụng **live**.
+**GPIO và địa chỉ I²C không nằm ở đây**: chúng cố định trong `work/firmware/src/board/pins.h`.
 
-## Phần cứng / GPIO (`hw.*`, reboot)
+## Nguồn điện
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
-| `hw.pins.ena`, `in1`, `in2`, `enb`, `in3`, `in4` | L298N | 25, 26, 27, 14, 23, 5 |
-| `hw.pins.enc_l_a/b`, `enc_r_a/b` | encoder | 34, 35, 36, 39 |
-| `hw.pins.i2c0_sda/scl`, `tof_xshut_l/r`, `tof_int_l/r` | ToF | 21, 22, 18, 19, 16, 17 |
-| `hw.pins.i2c1_sda/scl`, `imu_int` | MPU6050 | 13, 4, 33 |
-| `hw.pins.vbat_adc`, `led`, `buzzer` | | 32, 2, 15 |
-| `hw.vbat_divider` | hệ số cầu chia áp pin | ? |
-| `hw.l298n_vdrop_v` | sụt áp ước lượng | 2.0 |
+| `power.vbat_divider` | hệ số cầu chia áp đo pin | hiệu chuẩn |
+| `power.l298n_vdrop_v` | sụt áp ước lượng của L298N | 2.0 |
 
 ## Bản đồ / project
 | Khoá | Mô tả | Mặc định |
@@ -39,7 +35,7 @@ Quy ước áp dụng: nhóm `hw.*` cần **reboot**; nhóm hình học và cả
 ## Driver L298N và motor
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
-| `motor.pwm_hz`, `motor.pwm_bits` | LEDC (reboot) | 2000, 10 |
+| `motor.pwm_hz` | LEDC (idle). Độ phân giải 10 bit cố định trong code | 2000 |
 | `motor.rated_v` | điện áp định mức motor | 12 |
 | `motor.invert_l/r` | đảo chiều motor | false |
 | `motor.lut_{l,r}_{fwd,rev}` | bảng tra 12 điểm `[V, mm/s]` | hiệu chuẩn |
@@ -65,7 +61,6 @@ Quy ước áp dụng: nhóm `hw.*` cần **reboot**; nhóm hình học và cả
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
 | `range.type` | ToF200C (nhân VL53L0X) | `vl53l0x` |
-| `range.addr_l`, `range.addr_r` | địa chỉ I²C sau khi đổi qua XSHUT | `0x30`, `0x29` |
 | `range.timing_budget_ms` | 20 (nhanh) / 33 (mặc định) / 66 (chính xác) | 33 |
 | `range.toe_in_deg` | góc nghiêng vào trong của mỗi cảm biến | 0 |
 | `range.x_mm` | tâm trục tới mắt cảm biến (`x_s`) | 120 |
@@ -79,9 +74,7 @@ Quy ước áp dụng: nhóm `hw.*` cần **reboot**; nhóm hình học và cả
 ## IMU MPU6050
 | Khoá | Mô tả | Mặc định |
 |---|---|---|
-| `imu.i2c_bus` | 0 (chung với ToF) / 1 (bus riêng) | 1 |
-| `imu.addr` | | `0x68` |
-| `imu.gyro_range_dps`, `imu.dlpf_hz`, `imu.rate_hz` | | 250, 42, 200 |
+| `imu.dlpf_hz` | bộ lọc số của MPU6050 (bus, địa chỉ, dải đo cố định trong code) | 42 |
 | `imu.gyro_bias_z`, `imu.gyro_scale_z` | hiệu chuẩn | auto, 1.0 |
 | `imu.mount_sign_z` | +1/−1 tuỳ chiều gắn | +1 |
 | `imu.fusion_beta_straight`, `imu.fusion_beta_turn` | trọng số encoder trong fusion hướng | 0.05, 0.0 |
@@ -121,7 +114,8 @@ Quy ước áp dụng: nhóm `hw.*` cần **reboot**; nhóm hình học và cả
 `follow.{kp_g, ki_g, k_psi, k_edge}`, `kf.{q_a, r_relay_v, gate_chi2}`, `filt.dpsi_alpha`.
 
 ## Mạng và an toàn
-`net.hostname`, `net.link_timeout_ms` (300), `net.hb_hz` (5), `net.state_hz` (25), `net.udp_state_port` (47801), `net.udp_relay_port` (47802), `safety.bat_min_mv` (10500, 3S), `safety.allow_tune_while_running` (true).
+`net.hostname`, `net.link_timeout_ms` (300), `net.hb_hz` (5), `net.state_hz` (25), `safety.bat_min_mv` (10500, 3S), `safety.allow_tune_while_running` (true).
+Port UDP (47800/47801/47802) cố định trong code.
 
 ## Meta (không chỉnh tay)
 `cfg.schema_ver`, `cfg.rev`, `cfg.crc32`, `cfg.robot_id`.
