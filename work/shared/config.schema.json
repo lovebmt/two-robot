@@ -30,6 +30,8 @@
 
     {"key": "enc.ppr_motor",         "type": "int",   "unit": "xung/vòng", "min": 1, "max": 2048, "default": 11, "group": "enc", "scope": "robot", "apply": "idle", "desc": "Xung/vòng trục motor (1 kênh)"},
     {"key": "enc.gear_ratio",        "type": "float", "unit": "",   "min": 1,   "max": 1000, "default": 34,  "group": "enc", "scope": "robot", "apply": "idle", "desc": "Tỉ số hộp số GA25-370"},
+    {"key": "enc.invert_l",          "type": "bool",  "unit": "",   "default": false, "group": "enc", "scope": "robot", "apply": "idle", "desc": "Đảo chiều đếm encoder trái (xe tiến mà đếm âm)"},
+    {"key": "enc.invert_r",          "type": "bool",  "unit": "",   "default": false, "group": "enc", "scope": "robot", "apply": "idle", "desc": "Đảo chiều đếm encoder phải"},
 
     {"key": "motor.ks_l_v",          "type": "float", "unit": "V",       "min": 0, "max": 6,    "default": 1.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Vùng chết bánh trái (điện áp)"},
     {"key": "motor.ks_r_v",          "type": "float", "unit": "V",       "min": 0, "max": 6,    "default": 1.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Vùng chết bánh phải (điện áp)"},
@@ -38,9 +40,13 @@
     {"key": "motor.v_min_reliable",  "type": "float", "unit": "mm/s",    "min": 0, "max": 200,  "default": 15,     "group": "motor", "scope": "robot", "apply": "live", "desc": "Tốc độ bánh tối thiểu điều khiển được"},
     {"key": "motor.adapt_rate",      "type": "float", "unit": "1/s",     "min": 0, "max": 1,    "default": 0.05,   "group": "motor", "scope": "robot", "apply": "live", "desc": "Tốc độ học offset FF (L4), 0 = tắt"},
     {"key": "motor.adapt_limit",     "type": "float", "unit": "",        "min": 0, "max": 0.5,  "default": 0.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Giới hạn offset học được (tỉ lệ)"},
+    {"key": "motor.invert_l",        "type": "bool",  "unit": "",        "default": false, "group": "motor", "scope": "robot", "apply": "idle", "desc": "Đảo chiều motor trái (lệnh tiến mà bánh quay lùi)"},
+    {"key": "motor.invert_r",        "type": "bool",  "unit": "",        "default": false, "group": "motor", "scope": "robot", "apply": "idle", "desc": "Đảo chiều motor phải"},
+    {"key": "motor.pwm_hz",          "type": "int",   "unit": "Hz",      "min": 100, "max": 20000, "default": 2000, "group": "motor", "scope": "robot", "apply": "idle", "desc": "Tần số PWM L298N (thấp → mô-men tốt hơn ở duty thấp)"},
 
     {"key": "power.l298n_vdrop_v",   "type": "float", "unit": "V", "min": 0, "max": 4, "default": 2.0, "group": "power", "scope": "robot", "apply": "live", "desc": "Sụt áp L298N"},
     {"key": "power.bat_min_v",       "type": "float", "unit": "V", "min": 6, "max": 13, "default": 10.5, "group": "power", "scope": "robot", "apply": "live", "desc": "Ngưỡng pin yếu (3S)"},
+    {"key": "power.vbat_divider",    "type": "float", "unit": "",  "min": 0, "max": 20, "default": 0, "group": "power", "scope": "robot", "apply": "live", "desc": "Hệ số cầu chia đo pin (V_pin = V_adc × hệ số). 0 = không đo pin"},
 
     {"key": "range.x_mm",            "type": "float", "unit": "mm", "min": 0,   "max": 400,  "default": 120, "group": "range", "scope": "robot", "apply": "idle", "desc": "Tâm trục tới mắt cảm biến (dọc)"},
     {"key": "range.baseline_mm",     "type": "float", "unit": "mm", "min": 10,  "max": 300,  "default": 60,  "group": "range", "scope": "robot", "apply": "idle", "desc": "Khoảng cách 2 mắt ToF (ngang)"},
@@ -52,6 +58,7 @@
     {"key": "range.sigma_mm",        "type": "float", "unit": "mm", "min": 0.5, "max": 50,   "default": 6,   "group": "range", "scope": "robot", "apply": "live", "desc": "Độ lệch chuẩn nhiễu ToF (cho KF)"},
 
     {"key": "imu.gyro_scale_z",      "type": "float", "unit": "",  "min": 0.8, "max": 1.2, "default": 1.0,  "group": "imu", "scope": "robot", "apply": "live", "desc": "Hệ số scale gyro Z"},
+    {"key": "imu.invert_z",          "type": "bool",  "unit": "",  "default": false, "group": "imu", "scope": "robot", "apply": "idle", "desc": "Đảo dấu gyro Z (MPU6050 gắn úp ngược)"},
     {"key": "imu.beta_straight",     "type": "float", "unit": "",  "min": 0,   "max": 1,   "default": 0.05, "group": "imu", "scope": "robot", "apply": "live", "desc": "Trọng số encoder trong fusion hướng khi đi thẳng"},
     {"key": "imu.auto_calib",        "type": "bool",  "unit": "",    "default": true, "group": "imu", "scope": "robot", "apply": "live", "desc": "Tự calib gyro khi khởi động (xe đứng yên)"},
     {"key": "imu.require_calib",     "type": "bool",  "unit": "",    "default": true, "group": "imu", "scope": "robot", "apply": "live", "desc": "Từ chối ARM nếu gyro chưa calib"},
