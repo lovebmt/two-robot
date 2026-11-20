@@ -71,7 +71,6 @@ void TofPair::begin(TwoWire& w) {
   delay(10);
   ok_l_ = initTof(l_, w, pins::TOF_L_XSHUT, pins::TOF_L_ADDR);
   ok_r_ = initTof(r_, w, pins::TOF_R_XSHUT, pins::TOF_R_ADDR);
-  log_i("ToF trái %s, phải %s", ok_l_ ? "OK" : "LỖI", ok_r_ ? "OK" : "LỖI");
 }
 
 void TofPair::read(float& l_mm, int& l_st, float& r_mm, int& r_st) {
@@ -95,6 +94,21 @@ void TofPair::read(float& l_mm, int& l_st, float& r_mm, int& r_st) {
 }
 
 // ================================================================ Esp32Hal
+void Esp32Hal::i2cScan() {
+  Serial.print("I2C (SDA 21, SCL 22):");
+  int n = 0;
+  for (uint8_t a = 1; a < 127; ++a) {
+    Wire.beginTransmission(a);
+    if (Wire.endTransmission() == 0) {
+      Serial.printf(" 0x%02x", a);
+      ++n;
+    }
+  }
+  Serial.printf("  → %d thiết bị (cần: 0x29 ToF phải, 0x30 ToF trái, 0x68 MPU6050)\n", n);
+  Serial.printf("ToF trái %s · ToF phải %s · MPU6050 %s\n", tof.okL() ? "OK" : "LỖI", tof.okR() ? "OK" : "LỖI",
+                imu.ok() ? "OK" : "LỖI");
+}
+
 static constexpr int16_t PCNT_LIM = 30000;  // PCNT tự về 0 khi chạm ±LIM → xử lý quấn trong readEncoder
 
 static void setupPcnt(pcnt_unit_t unit, uint8_t a, uint8_t b) {
@@ -139,10 +153,11 @@ void Esp32Hal::begin() {
   setupPcnt(PCNT_UNIT_0, pins::ENC_L_A, pins::ENC_L_B);
   setupPcnt(PCNT_UNIT_1, pins::ENC_R_A, pins::ENC_R_B);
 
-  Wire.begin(pins::I2C0_SDA, pins::I2C0_SCL, 400000);
-  Wire1.begin(pins::I2C1_SDA, pins::I2C1_SCL, 400000);
-  if (!imu.begin(Wire1, pins::MPU_ADDR)) log_e("MPU6050 không phản hồi (kiểm tra dây I2C1, địa chỉ)");
-  tof.begin(Wire);
+  // 1 bus I2C chung cho MPU6050 + 2 ToF (Wire có mutex → an toàn giữa task control và range)
+  Wire.begin(pins::I2C_SDA, pins::I2C_SCL, 400000);
+  tof.begin(Wire);  // bật lần lượt qua XSHUT, đổi địa chỉ ToF trái → 0x30
+  if (!imu.begin(Wire, pins::MPU_ADDR)) Serial.println("LỖI: MPU6050 không phản hồi ở 0x68 (kiểm tra SDA 21 / SCL 22, AD0)");
+  i2cScan();
 
   analogSetPinAttenuation(pins::VBAT_ADC, ADC_11db);
   prefs.begin("tworobot", false);

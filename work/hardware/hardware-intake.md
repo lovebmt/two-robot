@@ -38,27 +38,18 @@ Mỗi xe một cột. Nếu 2 xe giống nhau thì chỉ cần ghi xe A.
 | Vị trí caster (so với trục) | | |
 | Tấm phản xạ đuôi: rộng × cao, chiều cao tâm | | |
 
-## 3. GPIO map (đề xuất, sửa theo thực tế)
-Xem ràng buộc chân ở [architecture §2.4](../../wiki/architecture.md#24-ràng-buộc-gpio-của-esp32-để-chọn-chân-khi-có-phần-cứng).
-
-| Chức năng | Gợi ý | Thực tế |
-|---|---|---|
-| L298N ENA (PWM trái) | 25 | |
-| L298N IN1 / IN2 | 26 / 27 | |
-| L298N ENB (PWM phải) | 14 | |
-| L298N IN3 / IN4 | 23 / 5 | |
-| Encoder trái A / B | 34 / 35 (cần pull-up ngoài) | |
-| Encoder phải A / B | 36 / 39 (cần pull-up ngoài) | |
-| I²C bus 0 SDA / SCL (2× ToF200C) | 21 / 22 | |
-| ToF XSHUT trái / phải | 18 / 19 | |
-| ToF INT trái / phải (tuỳ chọn) | 16 / 17 | |
-| I²C bus 1 SDA / SCL (MPU6050) | 13 / 4 *(hoặc dùng chung bus 0)* | |
-| MPU6050 INT (tuỳ chọn) | 33 | |
-| ADC pin (qua cầu chia, ADC1) | 32 | |
-| LED trạng thái | 2 (LED onboard) | |
-| Buzzer (tuỳ chọn, qua transistor) | 15 | |
-
-Ghi chú: chân 5 và 15 là strapping nhưng dùng làm output sau khi boot thì được. Chân 12 không dùng. Chân 0 để dành cho nút BOOT.
+## 3. GPIO map (đã chốt 2026-11-20 theo dây thật, có sửa 2 chỗ). Nguồn chuẩn: `work/firmware/src/board/pins.h`
+| Chức năng | Người dùng nối | Chốt | Lý do sửa |
+|---|---|---|---|
+| MPU6050 SDA / SCL | 21 / 22 | 21 / 22 | |
+| ToF phải: SDA/SCL + XSHUT | 34/35 + 32 | **21/22** + 32 | 34/35 chỉ là input, không làm I2C được → dùng chung bus với MPU |
+| ToF trái: SDA/SCL + XSHUT | 34/35 + 33 | **21/22** + 33 | như trên |
+| Encoder phải A / B | 14 / 27 | 14 / 27 | |
+| Encoder trái A / B | 13 / 12 | 13 / **35** | GPIO12 strapping: HIGH lúc reset làm ESP32 không boot (đã thấy `boot:0x33`) |
+| L298N ENA / IN1 / IN2 | (chưa nối) | 25 / 26 / 16 | chọn mới |
+| L298N ENB / IN3 / IN4 | (chưa nối) | 17 / 18 / 19 | chọn mới |
+| Đo pin (ADC1) | (chưa nối) | 34 | |
+| LED | | 2 | |
 
 ## 4. Ảnh / sơ đồ
 Đặt ảnh xe và sơ đồ đi dây vào `work/hardware/img/`.

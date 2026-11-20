@@ -41,6 +41,7 @@ class TofPair {
 class Esp32Hal : public tr::Hal {
  public:
   void begin();
+  void i2cScan();  // in địa chỉ I2C tìm thấy (chẩn đoán dây)
   TofPair tof;
   Mpu6050 imu;
   Preferences prefs;

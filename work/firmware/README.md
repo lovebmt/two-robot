@@ -34,20 +34,28 @@ pio test -e native                        # 12 test lõi trên máy tính
 ```
 Đổi schema tham số → chạy `python3 work/shared/codegen_cpp.py` rồi build lại. Server và web đọc chung schema đó.
 
-## Đi dây (theo `src/board/pins.h`, sửa nếu dây thật khác)
+## Đi dây (theo `src/board/pins.h`, bảng đã chốt với dây thật 2026-11-20)
 | Chức năng | GPIO | Ghi chú |
 |---|---|---|
-| L298N ENA / IN1 / IN2 (motor trái) | 25 / 26 / 27 | **tháo jumper ENA** |
-| L298N ENB / IN3 / IN4 (motor phải) | 14 / 23 / 5 | **tháo jumper ENB** |
-| Encoder trái A / B | 34 / 35 | input-only: cần **kéo lên 3.3 V** (10 kΩ) nếu encoder là open-collector; encoder cấp 5 V có đầu ra 5 V thì phải chia áp |
-| Encoder phải A / B | 36 / 39 | như trên |
-| I2C0 SDA / SCL (2 ToF) | 21 / 22 | |
-| ToF XSHUT trái / phải | 18 / 19 | trái được đổi địa chỉ 0x30 lúc boot |
-| I2C1 SDA / SCL (MPU6050) | 13 / 4 | bus riêng; MPU đặt xa L298N (nhiệt) |
-| Đo pin (qua cầu chia) | 32 | đặt `power.vbat_divider` (vd. 30k/10k → 4.0); 0 = không đo |
-| LED | 2 | nháy: xem bảng dưới |
+| **I2C chung** SDA / SCL | **21 / 22** | MPU6050 **và** cả 2 ToF cùng nối vào đây (địa chỉ 0x68 / 0x29 / 0x30) |
+| ToF phải XSHUT | 32 | giữ địa chỉ 0x29 |
+| ToF trái XSHUT | 33 | firmware đổi sang 0x30 lúc boot |
+| Encoder phải A / B | 14 / 27 | |
+| Encoder trái A / B | 13 / **35** | **không dùng GPIO12** (xem cảnh báo dưới). 35 không có pull-up nội |
+| L298N ENA / IN1 / IN2 (motor trái) | 25 / 26 / 16 | **tháo jumper ENA** |
+| L298N ENB / IN3 / IN4 (motor phải) | 17 / 18 / 19 | **tháo jumper ENB** |
+| Đo pin (qua cầu chia) | 34 | đặt `power.vbat_divider` (vd. 30k/10k → 4.0); 0 = không đo |
+| LED | 2 | LED onboard |
+| Còn trống | 4, 5, 15, 23 | 5, 15 là chân strapping, chỉ dùng làm output |
 
+⚠ **Không dùng:**
+- **GPIO12** (strapping MTDI): bị kéo HIGH lúc reset thì flash nhận 1.8 V, ESP32 không boot và không nạp được. Triệu chứng đã gặp: `boot:0x33` + `invalid header: 0xffffffff`.
+- **GPIO34–39 cho I2C hoặc output**: các chân này chỉ là input.
+- 6–11 (flash), 0/1/3 (boot/UART).
+
+Encoder: cấp **VCC 3.3 V** để tín hiệu ra 3.3 V. Cấp 5 V thì tín hiệu 5 V có thể hỏng ESP32.
 GND chung giữa L298N, ESP32, encoder, cảm biến. ESP32 nên cấp bằng buck 5 V riêng. Motor 12 V dùng pin 3S.
+Lúc boot, log in kết quả quét I2C (`I2C (SDA 21, SCL 22): 0x29 0x30 0x68`) và trạng thái từng cảm biến.
 
 ## Chạy lần đầu (mỗi xe)
 1. Nạp firmware. Mở monitor: thấy `AP "TwoRobot-xxxxxx"`.
