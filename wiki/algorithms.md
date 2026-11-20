@@ -19,10 +19,11 @@ Bù đường kính 2 bánh: `D_l = D·(1+ε)`, `D_r = D·(1−ε)`, với `ε` 
 
 ### 1.2 Điều khiển bánh (L298N)
 ```
-duty = sign(v_ref)·(ks + kv·|v_ref|) + PI(v_ref − v_meas)       // feedforward + PI
+duty = FF_LUT(v_ref, bánh, chiều) / (V_bat − V_drop) + PI(v_ref − v_meas)
 ```
-- `ks` (vùng chết) và `kv` lấy từ bài quét PWM, đo riêng cho từng bánh và từng chiều.
-- Vận tốc đo được: đạo hàm tick, lọc low-pass (α ≈ 0.3) hoặc đo chu kỳ xung khi chạy chậm.
+- Bảng tra FF lấy từ bài quét PWM, riêng cho từng bánh và từng chiều, bù theo điện áp pin.
+- Vận tốc đo: đo chu kỳ xung khi chậm, đếm tick trên cửa sổ 50 ms khi nhanh.
+- **Chi tiết xử lý motor mạnh yếu, ma sát khác nhau, bão hoà, thích nghi, tốc độ thấp: [motor-control.md](motor-control.md).**
 - Anti-windup (clamp tích phân), giới hạn gia tốc trên `v_ref`.
 - Khi dừng tại điểm: chuyển sang điều khiển **vị trí** cho từng bánh (P trên tick còn lại) ở tốc độ rất thấp, xong thì **phanh nhanh** L298N.
 
@@ -129,6 +130,6 @@ Ghi chú:
 
 ## 7. Kiểm chứng
 1. Unit test lõi trên `native`: kinematics, profile, dừng tại điểm, KF, gating, máy trạng thái primitive.
-2. Sim 2 xe: motor bậc 1 có vùng chết, trượt bánh khi quay (sai ngẫu nhiên 1–3°), nhiễu encoder, gyro có bias/random walk, mô hình ToF (nhiễu ~3 %, FOV 25°, mép tấm), trễ và mất gói relay. Coordinator dùng chính code server qua "robot ảo".
+2. Sim 2 xe ([simulation.md](simulation.md)): motor DC lệch từng bánh, vùng ma sát, trượt bánh khi quay (sai ngẫu nhiên 1–3°), nhiễu encoder, gyro có bias/random walk, mô hình ToF (nhiễu ~3 %, FOV 25°, mép tấm), trễ và mất gói relay. Coordinator dùng chính code server qua "robot ảo".
 3. Kịch bản: thẳng 3 m, chữ L, chữ nhật, zig-zag ô nhỏ, góc liên tiếp ở `seg_min`, mất relay, che cảm biến.
 4. Phần cứng: bánh, rồi 1 xe (thẳng, quay), rồi follower bám trên đoạn thẳng, rồi 1 góc cua, rồi cả đường.
