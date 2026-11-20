@@ -25,3 +25,8 @@
 - Viết lại: config-management.md (thêm §3 firmware xử lý tham số động: ParamService, Derived, swap ở ranh giới chu kỳ, onParams bumpless, live/idle)
 - Cập nhật: parameters.md (bỏ hw.pins, thêm power.*), requirements.md (C7, F29, F30), architecture.md, web-ui.md, open-questions.md
 - Cập nhật ngoài wiki: ops/decisions.md (D17 sửa, D19), ops/roadmap.md, hardware-intake.md, README.md
+
+## [2026-11-20] ingest | 2026-11-20-answers-5
+- Bắt đầu code: Web Control + sim Python (work/control-web), schema work/shared/config.schema.json
+- Cập nhật: simulation.md (trạng thái cài đặt Python)
+- Cập nhật ngoài wiki: ops/decisions.md (D20–D23), ops/roadmap.md (tiến độ thực tế)

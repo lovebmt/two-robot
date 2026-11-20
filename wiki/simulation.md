@@ -1,6 +1,10 @@
 # Mô phỏng 2 robot trên PC và view dùng chung cho sim và xe thật
 
-Nguồn: [đợt 3](../raw/2026-11-20-answers-3.md).
+Nguồn: [đợt 3](../raw/2026-11-20-answers-3.md), [đợt 5](../raw/2026-11-20-answers-5.md).
+
+> **Trạng thái cài đặt (2026-11-20):** giai đoạn đầu viết bằng **Python** (D20, D21), không phải C++ như §2 và §8 mô tả.
+> Firmware ảo nằm ở `work/control-web/server/tworobot/fw/`, sim ở `.../sim/`. Robot ảo nối server qua `SimLink` trong process.
+> Kiến trúc C++/CMake bên dưới vẫn là đích đến khi port firmware. Hướng dẫn chạy: [work/control-web/README.md](../work/control-web/README.md).
 
 ## 1. Mục tiêu
 1. Phát triển và tinh chỉnh thuật toán **hoàn toàn trên máy tính** trước khi có xe.

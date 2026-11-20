@@ -8,6 +8,17 @@ Thứ tự: M1 khung → M2 lõi + sim batch → M3 server + view trên sim → 
 - [x] Motor mạnh yếu và ma sát ([motor-control](../wiki/motor-control.md)), sim và view ([simulation](../wiki/simulation.md)), cấu hình động ([config-management](../wiki/config-management.md))
 - [ ] Chốt Q15 (tỉ số hộp số), Q16, Q21, Q22 trước M4. Kích thước không chặn vì nhập trên web
 
+## Tiến độ thực tế (2026-11-20): làm M2/M3 bằng Python trước (D20)
+- [x] `work/shared/config.schema.json`: 60+ tham số, scope robot/shared, apply live/idle
+- [x] Firmware ảo Python (`tworobot/fw`): motor control L1/L3/L4, fusion gyro + ZUPT, KF gap, 7 primitive, ParamService, máy trạng thái, an toàn
+- [x] Sim (`tworobot/sim`): motor lệch, L298N, ma sát theo vùng, trượt, gyro bias, ToF ray-cast 5 tia, va chạm, gây lỗi; batch CLI
+- [x] Server FastAPI: registry, SimLink, relay, coordinator 10 bước, planner/validator, config API, ghi log, replay, nghe beacon
+- [x] Web UI: Thiết bị, Cấu hình (form tự sinh), Bản đồ (vẽ lưới ràng buộc 90°), Chạy/Xem (view chung, đồ thị, bảng bước, gây lỗi, vật lý)
+- [x] 16 test pytest; batch 36/36 kịch bản (L/rect/zigzag × 4 seed × 3 mức sai lệch) xong, 0 va chạm, gap RMSE 4–9 mm, sai số điểm cua ≤ 27 mm
+- [ ] NetLink + firmware ESP32 (M4), port `fw/` sang C++
+- [ ] Đường khép kín; vẽ vùng ma sát trên UI; replay có kéo timeline
+- [ ] Unit test riêng cho từng primitive; kịch bản đổi tham số giữa lúc chạy
+
 ## M1 — Khung dự án và schema
 - [ ] `work/firmware`: PlatformIO env `esp32dev` và `native`, cấu trúc `lib/{core,app,proto,hal_api}`, Unity test
 - [ ] `work/sim`: CMake dùng lại `lib/*`, thêm `hal_sim/`, `world/`, deps (ArduinoJson, cpp-httplib, IXWebSocket)

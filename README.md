@@ -9,7 +9,7 @@ Mọi liên lạc giữa 2 xe đi qua PC.
 - **Đoạn thẳng:** follower tự bám leader bằng bộ lọc kết hợp **đường biết trước + encoder + gyro + 2 ToF** (relay trạng thái leader qua PC chỉ dùng làm phụ trợ).
 - **Góc cua:** PC điều phối quy trình stop-and-go 10 bước. Follower đo ToF làm mốc trước khi leader quay, nên follower quay đúng chỗ leader đã quay.
 
-> Trạng thái: **giai đoạn lập kế hoạch**, chưa có code.
+> Trạng thái: đã có **Web Control + mô phỏng 2 robot (Python)**, xem [work/control-web/README.md](work/control-web/README.md). Firmware ESP32 chưa làm.
 
 ## Đọc theo thứ tự
 
