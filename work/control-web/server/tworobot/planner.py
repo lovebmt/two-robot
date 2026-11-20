@@ -55,6 +55,9 @@ def plan_path(points: list[list[int]], grid: dict, form: dict, shared: dict,
             pts.append(q)
     if len(pts) < 2:
         return {"ok": False, "errors": errors + ["cần ít nhất 2 điểm"], "warnings": warnings, "path": None}
+    if len(pts) > 2 and pts[-1] in pts[:-1]:
+        errors.append("không cho vẽ đường khép kín (điểm cuối quay về điểm đã đi qua)")
+        return {"ok": False, "errors": errors, "warnings": warnings, "path": None}
 
     # Gộp các điểm thẳng hàng thành segment; chỉ cho ngang/dọc, cấm quay đầu 180°.
     segs: list[dict] = []  # {a:(i,j), b:(i,j), dir:(dx,dy), n: số ô}
@@ -93,12 +96,15 @@ def plan_path(points: list[list[int]], grid: dict, form: dict, shared: dict,
                          "a": [sg["a"][0] * cell, sg["a"][1] * cell], "b": [sg["b"][0] * cell, sg["b"][1] * cell]})
     total = s
 
-    # Tự cắt (bỏ qua 2 đoạn kề nhau, vốn chung 1 đỉnh).
+    # Tự cắt / chạm lại chính nó (bỏ qua 2 đoạn kề nhau, vốn chung 1 đỉnh).
+    # Bao gồm cả trường hợp khép kín: điểm cuối nằm trên một đoạn trước đó.
     lines = [(*sg["a"], *sg["b"]) for sg in out_segs]
     for i in range(len(lines)):
         for j in range(i + 2, len(lines)):
             if _segments_intersect(lines[i], lines[j]):
-                errors.append(f"đường tự cắt: đoạn {i + 1} và đoạn {j + 1}")
+                closed = j == len(lines) - 1 and _point_seg_dist(*lines[j][2:], lines[i]) < 1e-6
+                errors.append("không cho vẽ đường khép kín: đoạn cuối chạm lại đoạn " + str(i + 1)
+                              if closed else f"đường tự cắt: đoạn {i + 1} và đoạn {j + 1}")
 
     exit_dist = form["exit_dist"]
     for k in range(1, len(out_segs)):

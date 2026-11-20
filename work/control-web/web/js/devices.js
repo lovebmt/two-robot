@@ -1,5 +1,5 @@
 // Tab Thiết bị: danh sách robot (sim/thật), gán vai trò, identify, bật/tắt mô phỏng.
-import { api, guard } from './api.js';
+import { api, guard, toast } from './api.js';
 import { emit, store } from './store.js';
 
 const $ = (id) => document.getElementById(id);
@@ -31,7 +31,7 @@ function render() {
     <tr>
       <td><b>${r.name}</b><div class="muted small mono">${r.id}${r.fw ? ' · fw ' + r.fw : ''}</div></td>
       <td><span class="badge ${r.source}">${r.source}</span></td>
-      <td class="mono">${r.ip ?? '—'}</td>
+      <td class="mono">${r.ip ?? '—'}${r.link?.rtt_ms != null ? `<div class="muted small">${r.link.rtt_ms.toFixed(0)} ms${r.link.errors ? ' · lỗi ' + r.link.errors : ''}</div>` : ''}</td>
       <td>${r.online ? '🟢' : '⚪'} ${r.state}${r.fault ? ` <span class="chip bad">${r.fault}</span>` : ''}</td>
       <td>
         <select data-role="${r.id}">
@@ -43,7 +43,8 @@ function render() {
       <td class="mono">${r.cfg_rev ?? '—'}</td>
       <td>${flagChips(r.flags)}</td>
       <td><button class="btn small" data-ident="${r.id}">Identify</button>
-          <button class="btn small" data-reset="${r.id}">Reset</button></td>
+          <button class="btn small" data-reset="${r.id}">Reset</button>
+          ${r.source === 'REAL' ? `<button class="btn small" data-del="${r.id}">Ngắt</button>` : ''}</td>
     </tr>`).join('');
   tb.querySelectorAll('select[data-role]').forEach((sel) => {
     sel.onchange = async () => {
@@ -57,9 +58,33 @@ function render() {
   tb.querySelectorAll('[data-reset]').forEach((b) => {
     b.onclick = () => guard(() => api('POST', `/api/robots/${b.dataset.reset}/reset`), 'Đã reset');
   });
+  tb.querySelectorAll('[data-del]').forEach((b) => {
+    b.onclick = async () => { await guard(() => api('DELETE', `/api/robots/${b.dataset.del}`), 'Đã ngắt'); refreshRobots(); };
+  });
+}
+
+async function doScan() {
+  const raw = $('scanTargets').value.trim() || $('scanTargets').placeholder;
+  const targets = raw.split(',').map((x) => x.trim()).filter(Boolean);
+  $('scanBtn').disabled = true;
+  $('scanBtn').textContent = 'Đang quét…';
+  try {
+    const r = await guard(() => api('POST', '/api/discover', { targets }));
+    if (r) {
+      const names = r.found.map((f) => `${f.name} (${f.base})`).join(', ');
+      if (r.found.length) toast(`Thấy ${r.found.length} robot: ${names}`, 'ok'); else toast('Không thấy robot nào', 'err');
+    }
+  } finally {
+    $('scanBtn').disabled = false;
+    $('scanBtn').textContent = 'Quét';
+    refreshRobots();
+  }
 }
 
 export function initDevices() {
+  $('scanBtn').onclick = doScan;
+  $('scanTargets').addEventListener('keydown', (e) => { if (e.key === 'Enter') doScan(); });
+  api('GET', '/api/discover/default').then((d) => { $('scanTargets').placeholder = d.subnet; }).catch(() => {});
   $('simStart').onclick = async () => {
     await guard(() => api('POST', '/api/sim/start', { seed: Number($('simSeed').value) || 1, grid: store.grid }),
       'Đã bật 2 robot ảo');

@@ -1,5 +1,5 @@
 // Tab Bản đồ & Đường: vẽ đường trên lưới (ép ngang/dọc), kiểm tra qua /api/plan.
-import { api } from './api.js';
+import { api, toast } from './api.js';
 import { cssVar, drawGrid, drawPath, drawRobot, fitCanvas, makeTransform } from './draw.js';
 import { downloadJSON, emit, on, saveProject, store } from './store.js';
 
@@ -33,6 +33,26 @@ function snap(cx, cy) {
     if (Math.abs(i - last[0]) >= Math.abs(j - last[1])) j = last[1]; else i = last[0];
   }
   return [i, j];
+}
+
+// Đoạn mới (a→b) có chạm phần đường đã vẽ không (trừ đỉnh a nối với đoạn ngay trước)?
+function crossesPath(a, b) {
+  if (!a || store.points.length < 2) return false;
+  const lo = (u, v) => Math.min(u, v), hi = (u, v) => Math.max(u, v);
+  const pts = store.points;
+  for (let k = 0; k < pts.length - 1; k++) {
+    const [p, q] = [pts[k], pts[k + 1]];
+    const adjacent = k === pts.length - 2;
+    // Hộp bao của 2 đoạn ngang/dọc giao nhau ⇒ chạm nhau
+    const touch = lo(a[0], b[0]) <= hi(p[0], q[0]) && lo(p[0], q[0]) <= hi(a[0], b[0])
+      && lo(a[1], b[1]) <= hi(p[1], q[1]) && lo(p[1], q[1]) <= hi(a[1], b[1]);
+    if (!touch) continue;
+    if (!adjacent) return true;
+    // Đoạn kề: chỉ được chung đỉnh a, không được chồng ngược lại (quay đầu 180°)
+    const back = (b[0] - a[0]) * (p[0] - a[0]) + (b[1] - a[1]) * (p[1] - a[1]) > 0;
+    if (back) return true;
+  }
+  return false;
 }
 
 function changed() {
@@ -154,6 +174,10 @@ export function initMap() {
     const q = snap(e.clientX - r.left, e.clientY - r.top);
     const last = store.points[store.points.length - 1];
     if (last && last[0] === q[0] && last[1] === q[1]) return;
+    if (crossesPath(last, q)) {
+      toast('Không cho vẽ đường khép kín hoặc tự cắt: điểm mới chạm lại đường đã vẽ', 'err');
+      return;
+    }
     store.points.push(q);
     changed();
   });

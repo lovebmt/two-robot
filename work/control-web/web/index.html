@@ -34,16 +34,25 @@
               <tbody></tbody>
             </table>
           </div>
-          <p class="muted small">Robot thật được dò qua UDP beacon cổng 47800 khi cùng mạng LAN. Kênh điều khiển robot thật (NetLink) sẽ có ở mốc firmware M4; hiện tại chạy với robot ảo.</p>
         </div>
-        <div class="card side">
-          <div class="card-h"><h2>Mô phỏng</h2></div>
+        <div class="side">
+        <div class="card">
+          <div class="card-h"><h2>Robot thật (HTTP qua LAN)</h2></div>
+          <div class="row gap wrap">
+            <input id="scanTargets" placeholder="192.168.1.0/24" style="flex:1;min-width:160px">
+            <button class="btn primary" id="scanBtn">Quét</button>
+          </div>
+          <p class="muted small">Quét gửi <span class="mono">GET /api/info</span> tới từng địa chỉ. Nhập subnet (<span class="mono">192.168.1.0/24</span>), một IP, <span class="mono">IP:cổng</span> hoặc dải cổng <span class="mono">127.0.0.1:8101-8102</span> (robot HTTP ảo: <span class="mono">tworobot-vrobot</span>). Ngăn cách nhiều mục bằng dấu phẩy.</p>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Mô phỏng (trong server)</h2></div>
           <div class="row"><label>Seed <input type="number" id="simSeed" value="1" min="1" class="num"></label></div>
           <div class="row gap">
             <button class="btn primary" id="simStart">Bật 2 robot ảo</button>
             <button class="btn" id="simStop">Tắt</button>
           </div>
           <p class="muted small">Robot ảo chạy chính "firmware ảo" (Python, sẽ port sang C++), nói cùng giao thức message với robot thật. View ở tab Chạy dùng chung cho sim, xe thật và replay.</p>
+        </div>
         </div>
       </div>
     </section>
