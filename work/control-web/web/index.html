@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Two-Robot Control</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Two-Robot Control</div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" data-tab="devices" role="tab">Thiết bị</button>
+      <button class="tab" data-tab="config" role="tab">Cấu hình</button>
+      <button class="tab" data-tab="map" role="tab">Bản đồ &amp; Đường</button>
+      <button class="tab" data-tab="run" role="tab">Chạy / Xem</button>
+    </nav>
+    <div class="status">
+      <span id="srcBadge" class="badge">NONE</span>
+      <span id="wsDot" class="dot" title="Kết nối server"></span>
+      <button id="estopTop" class="btn danger small" title="Dừng khẩn cấp (phím Space ở tab Chạy)">E-STOP</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ============================== DEVICES -->
+    <section id="tab-devices" class="page">
+      <div class="cols">
+        <div class="card grow">
+          <div class="card-h"><h2>Robot</h2><span class="muted" id="devCount"></span></div>
+          <div class="table-wrap">
+            <table class="tbl" id="devTable">
+              <thead><tr><th>Tên</th><th>Nguồn</th><th>IP</th><th>Trạng thái</th><th>Vai trò</th><th>cfg</th><th>Cờ</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <p class="muted small">Robot thật được dò qua UDP beacon cổng 47800 khi cùng mạng LAN. Kênh điều khiển robot thật (NetLink) sẽ có ở mốc firmware M4; hiện tại chạy với robot ảo.</p>
+        </div>
+        <div class="card side">
+          <div class="card-h"><h2>Mô phỏng</h2></div>
+          <div class="row"><label>Seed <input type="number" id="simSeed" value="1" min="1" class="num"></label></div>
+          <div class="row gap">
+            <button class="btn primary" id="simStart">Bật 2 robot ảo</button>
+            <button class="btn" id="simStop">Tắt</button>
+          </div>
+          <p class="muted small">Robot ảo chạy chính "firmware ảo" (Python, sẽ port sang C++), nói cùng giao thức message với robot thật. View ở tab Chạy dùng chung cho sim, xe thật và replay.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== CONFIG -->
+    <section id="tab-config" class="page">
+      <div class="card">
+        <div class="card-h">
+          <div class="seg" id="cfgTargets"></div>
+          <div class="row gap wrap">
+            <button class="btn" id="cfgPull" title="Đọc lại từ robot">Pull</button>
+            <button class="btn primary" id="cfgApply" title="Gửi xuống robot, chỉ RAM">Apply (RAM)</button>
+            <button class="btn" id="cfgApplySave" title="Gửi xuống robot và lưu flash">Apply + Save</button>
+            <button class="btn" id="cfgSave" title="Lưu cấu hình đang chạy vào flash">Save flash</button>
+            <button class="btn" id="cfgRevert" title="Nạp lại từ flash">Revert</button>
+            <button class="btn" id="cfgCopy" title="Copy tham số riêng sang robot kia (RAM)">Copy sang xe kia</button>
+            <button class="btn" id="cfgExport">Export</button>
+            <button class="btn ghost danger-text" id="cfgFactory">Factory reset</button>
+          </div>
+        </div>
+        <div id="cfgInfo" class="muted small"></div>
+        <div class="cfg-layout">
+          <div id="cfgForm" class="cfg-form"></div>
+          <aside class="cfg-side">
+            <h3>Hình xe</h3>
+            <canvas id="cfgPreview" class="preview"></canvas>
+            <h3>Giá trị suy ra (robot tính)</h3>
+            <dl id="cfgDerived" class="kv"></dl>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== MAP -->
+    <section id="tab-map" class="page">
+      <div class="cols">
+        <div class="card grow canvas-card">
+          <div class="card-h">
+            <div class="row gap wrap">
+              <label>Ô <input type="number" id="gridCell" class="num" min="20" max="500"> mm</label>
+              <label>Cột <input type="number" id="gridCols" class="num" min="5" max="200"></label>
+              <label>Hàng <input type="number" id="gridRows" class="num" min="5" max="200"></label>
+              <select id="mapPreset"><option value="">Mẫu…</option><option value="L">Chữ L</option><option value="rect">Chữ nhật</option><option value="zigzag">Zig-zag</option><option value="line">Thẳng</option></select>
+            </div>
+            <div class="row gap wrap">
+              <button class="btn" id="mapUndo">Undo</button>
+              <button class="btn" id="mapClear">Xoá</button>
+              <button class="btn" id="mapExport">Export</button>
+              <label class="btn">Import<input type="file" id="mapImport" accept=".json" hidden></label>
+              <button class="btn primary" id="mapRun">Chạy đường này ▶</button>
+            </div>
+          </div>
+          <div class="canvas-box"><canvas id="mapCanvas"></canvas></div>
+          <p class="muted small">Click các đỉnh lưới để vẽ (tự ép ngang/dọc, chỉ rẽ 90°). Chuột phải hoặc Backspace để xoá điểm cuối. Điểm đầu là vị trí leader; follower tự đặt lùi theo gap.</p>
+        </div>
+        <div class="card side">
+          <div class="card-h"><h2>Kiểm tra đường</h2></div>
+          <div id="planStatus"></div>
+          <dl id="planStats" class="kv"></dl>
+          <ul id="planMsgs" class="msgs"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================== RUN / VIEW -->
+    <section id="tab-run" class="page">
+      <div class="run-layout">
+        <div class="card canvas-card run-main">
+          <div class="card-h">
+            <div class="row gap wrap">
+              <button class="btn primary" id="runStart">▶ Start</button>
+              <button class="btn" id="runPause">Pause</button>
+              <button class="btn" id="runResume">Resume</button>
+              <button class="btn" id="runStop">Stop</button>
+              <button class="btn" id="runReset" title="Xoá lỗi/E-STOP trên robot">Reset lỗi</button>
+              <button class="btn danger" id="runEstop">E-STOP</button>
+            </div>
+            <div class="row gap wrap">
+              <label class="chk"><input type="checkbox" id="layTruth" checked> Thật</label>
+              <label class="chk"><input type="checkbox" id="layRays" checked> Tia ToF</label>
+              <label class="chk"><input type="checkbox" id="layTrail" checked> Vết</label>
+              <label class="chk"><input type="checkbox" id="layFollow"> Bám camera</label>
+            </div>
+          </div>
+          <div class="canvas-box"><canvas id="runCanvas"></canvas></div>
+          <div class="charts">
+            <div class="chart"><canvas id="chGap"></canvas></div>
+            <div class="chart"><canvas id="chWheel"></canvas></div>
+            <div class="chart"><canvas id="chPsi"></canvas></div>
+          </div>
+        </div>
+        <div class="run-side">
+          <div class="card">
+            <div class="card-h"><h2>Điều phối</h2><span id="coordState" class="badge">IDLE</span></div>
+            <div id="coordSeg" class="muted small"></div>
+            <ol id="stepper" class="stepper"></ol>
+            <div id="coordErr" class="err"></div>
+          </div>
+          <div class="card" id="robotCards"></div>
+          <div class="card" id="simPanel">
+            <div class="card-h"><h2>Mô phỏng</h2><span id="simClock" class="mono small"></span></div>
+            <div class="row gap wrap">
+              <button class="btn" id="simPlay">⏸</button>
+              <select id="simScale"><option>0.25</option><option>0.5</option><option selected>1</option><option>2</option><option>4</option><option>8</option></select>
+              <button class="btn" id="simStep" title="Chạy thêm 0.1 s khi đang dừng">+0.1s</button>
+              <button class="btn" id="recBtn">● Ghi log</button>
+            </div>
+            <div class="row gap wrap">
+              <select id="replayFile"><option value="">Replay…</option></select>
+              <button class="btn" id="replayBtn">Phát</button>
+              <button class="btn" id="replayStop">Dừng</button>
+            </div>
+            <details>
+              <summary>Gây lỗi</summary>
+              <div class="row gap wrap">
+                <select id="faultRobot"></select>
+                <button class="btn small" data-fault="tof_block" data-side="l">Che ToF trái 1s</button>
+                <button class="btn small" data-fault="tof_both">Che 2 ToF 1s</button>
+                <button class="btn small" data-fault="push">Đẩy lệch</button>
+                <button class="btn small" data-fault="link_drop">Mất link 1s</button>
+                <button class="btn small" data-fault="caster">Caster kẹt 2s</button>
+              </div>
+            </details>
+            <details>
+              <summary>Vật lý (lệch motor, ma sát, trượt)</summary>
+              <div id="physForm"></div>
+            </details>
+          </div>
+          <div class="card">
+            <div class="card-h"><h2>Sự kiện</h2></div>
+            <ul id="eventLog" class="events"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>
