@@ -1,20 +1,35 @@
-# Câu hỏi mở (cần chốt)
+# Câu hỏi mở
 
-Mỗi câu có **giả định mặc định**. Tài liệu đang thiết kế theo giả định này cho tới khi bạn trả lời khác.
-
-| # | Câu hỏi | Giả định mặc định |
+## Đã chốt (2026-11-20, nguồn: [đợt 1](../raw/2026-11-20-answers-1.md), [đợt 2](../raw/2026-11-20-answers-2.md))
+| # | Câu hỏi | Kết luận |
 |---|---|---|
-| Q1 | Brief có nhắc "web server của 1 con". Web có cần chạy trên ESP32 không, hay chỉ trên PC? | Web chính chạy trên PC. Mỗi xe chỉ có REST/WS API, thêm 1 trang status/cấu hình WiFi rất nhỏ |
-| Q2 | Xe nhận WiFi bằng cách nào (hard-code, captive portal, hay qua USB serial)? | Captive portal (AP mode) khi chưa có WiFi. Đổi được qua web |
-| Q3 | Có cho phép 2 xe nói chuyện trực tiếp (ESP-NOW) không, hay mọi thứ đi qua PC? | Có ESP-NOW, PC relay làm fallback |
-| Q4 | Loại cảm biến khoảng cách định dùng (ToF VL53L0X/VL53L1X, siêu âm, IR Sharp)? | VL53L1X |
-| Q5 | Có gắn IMU (gyro) được không? | Có. Rất nên có để quay 90° chính xác |
-| Q6 | 2 cảm biến song song hay nghiêng ra ngoài? Mặt sau leader có tấm phản xạ phẳng không? | Song song, có tấm phẳng sáng màu ở đuôi |
-| Q7 | Đường chỉ có góc 90° hay cả 45° và cung tròn? | v1: chỉ 90° (vẽ theo cạnh lưới) |
-| Q8 | Khi cua, cả 2 xe luôn quay tại chỗ (stop-and-go), hay cho phép cua cung tròn ở tốc độ thấp? | Luôn quay tại chỗ (v1) |
-| Q9 | Gap định nghĩa là tâm–tâm, hay từ mũi follower tới đuôi leader? | Lưu nội bộ tâm–tâm. UI cho nhập kiểu "khe hở" và tự quy đổi |
-| Q10 | Tốc độ mong muốn, kích thước sân, cỡ ô lưới? | 200 mm/s, sân 3×2 m, ô 100 mm |
-| Q11 | Phần cứng đã có sẵn chưa (model động cơ/encoder/driver, ESP32 loại nào)? | Chưa. Dùng BOM đề xuất |
-| Q12 | Đường có cần khép kín và lặp nhiều vòng không? | Có hỗ trợ khép kín, mặc định chạy 1 lần |
-| Q13 | Ngôn ngữ server PC: Python hay Node.js? | Python FastAPI |
-| Q14 | Có cần chạy chế độ "vai trò đảo" (đuôi thành đầu, chạy lùi đường) không? | Không ở v1 |
+| Q1 | Web trên PC hay ESP32 | **PC** |
+| Q3 | Liên lạc giữa 2 xe | **Qua PC**, không có ESP-NOW |
+| Q4 | Loại cảm biến khoảng cách | **ToF200C** ×2 (nhân VL53L0X, I²C) |
+| Q5 | IMU | **Có MPU6050** (đợt 2 sửa lại đợt 1) |
+| Q7 | Loại góc cua | **Chỉ 90°**, không vẽ được góc khác |
+| Q8 | Cách cua | Quay tại chỗ, stop-and-go |
+| Q11 | Phần cứng | ESP32, L298N, GA25-370 có encoder. **GPIO cung cấp sau** |
+| Q19 | Board ESP32 | ESP32 thường (WROOM DevKit) |
+
+## Còn mở (cần trước M4, phần cứng)
+| # | Câu hỏi | Giả định đang dùng |
+|---|---|---|
+| Q15 | GA25-370: **bản 6 V hay 12 V, tỉ số hộp số / rpm**? Encoder cấp 3.3 hay 5 V? | 11 PPR; tỉ số chưa biết |
+| Q16 | Pin và nguồn (2S hay 3S? buck riêng cho ESP32?) | 3S nếu motor 12 V, 2S nếu 6 V. Buck 5 V riêng |
+| Q17 | Kích thước thật: thân xe, bánh, track, vị trí cảm biến và IMU | Điền [intake](../work/hardware/hardware-intake.md) |
+| Q18 | Có làm được tấm phản xạ phẳng ở đuôi xe không? | Có |
+| Q21 | Module ToF200C có chân XSHUT và INT không (sơ đồ chân thực tế)? | Có XSHUT. INT tuỳ chọn |
+| Q22 | Board DevKit 30 hay 38 chân? | 30 chân |
+| GPIO | Bảng GPIO thực tế | Đề xuất ở intake §3 |
+
+## Còn mở (không chặn, có giả định)
+| # | Câu hỏi | Giả định |
+|---|---|---|
+| Q2 | Cách nạp WiFi cho xe | AP + trang cấu hình khi chưa có WiFi |
+| Q9 | Gap định nghĩa thế nào | Lưu tâm–tâm. UI cho nhập "khe hở mũi–đuôi" |
+| Q10 | Tốc độ, kích thước sân, ô lưới | 150 mm/s, 3×2 m, ô 100 mm |
+| Q12 | Đường khép kín, lặp nhiều vòng | Hỗ trợ khép kín, chạy 1 lần |
+| Q13 | Ngôn ngữ server | Python FastAPI |
+| Q14 | Đảo vai trò, chạy lùi | Không ở v1 |
+| Q20 | Router cho sân test (tắt được client isolation không)? | Có router riêng |
