@@ -30,3 +30,8 @@
 - Bắt đầu code: Web Control + sim Python (work/control-web), schema work/shared/config.schema.json
 - Cập nhật: simulation.md (trạng thái cài đặt Python)
 - Cập nhật ngoài wiki: ops/decisions.md (D20–D23), ops/roadmap.md (tiến độ thực tế)
+
+## [2026-11-20] ingest | 2026-11-20-answers-6
+- Code: mô hình trôi MPU6050 (sim), ImuCalibrator + ZUPT + bù nhiệt (fw), bước 0 calib IMU (coordinator), UI IMU
+- Cập nhật: algorithms.md (§2.1 trôi MPU6050 và calib, bảng kết quả sim), simulation.md, parameters.md (imu.*)
+- Cập nhật ngoài wiki: ops/decisions.md (D24), ops/roadmap.md

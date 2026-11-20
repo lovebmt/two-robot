@@ -32,12 +32,48 @@ duty = FF_LUT(v_ref, bánh, chiều) / (V_bat − V_drop) + PI(v_ref − v_meas)
 - Hướng `ψ` dùng **complementary filter** hoặc KF 1 chiều:
   `ψ ← ψ + [ (1−β)·ω_gyro + β·ω_enc ]·dt`
   với `β` nhỏ (≈ 0.02–0.1) khi đi thẳng và `β ≈ 0` khi quay tại chỗ (bánh trượt, encoder sai, nên tin gyro hoàn toàn).
-- **Bias gyro:** ước lượng lúc đứng yên (encoder = 0 và |accel| ổn định). Bias được cập nhật lại ở mỗi lần dừng tại góc cua (ZUPT). Thêm hệ số scale gyro từ bài quay 360°.
+- **Bias gyro:** calib bắt buộc khi đứng yên, ZUPT mỗi lần dừng, bù theo nhiệt độ chip. Chi tiết ở §2.1. Scale gyro lấy từ bài quay 360° (§6).
 - **Đi thẳng:** PI giữ hướng `ψ → ψ_seg`, kết hợp đồng bộ quãng đường 2 bánh. Gyro bắt được lệch nhanh, encoder giữ chuẩn dài hạn.
 - **Quay 90° tại chỗ:** **vòng kín theo yaw gyro**. Profile `ω` hình thang tới `ψ_target = ψ_seg_mới`, lúc gần đích chuyển sang P-control với tốc độ tối thiểu vượt vùng chết. Dừng khi `|e_ψ| < turn_tol` và `|ω| ≈ 0`.
   Góc mục tiêu tính tuyệt đối (`ψ_seg_k = ψ_0 + Σ turns`) chứ không cộng dồn ±90 tương đối, nhờ đó sai số không tích luỹ.
 - `T_eff` (track width hiệu dụng) vẫn được hiệu chuẩn, dùng cho feedforward và dự đoán khi gyro lỗi.
 - Gyro MPU6050 trôi chậm (vài °/phút sau khi trừ bias), nên hướng tuyệt đối của leader vẫn trôi nhẹ trên đường dài. Follower bám tương đối nhờ §4.3 nên không bị ảnh hưởng.
+
+### 2.1 Trôi MPU6050 và calib (nguồn: [đợt 6](../raw/2026-11-20-answers-6.md))
+
+**Các thành phần sai số gyro Z** (đều có trong mô phỏng, `sim/world.py`):
+
+| Thành phần | Mô hình sim (mặc định) | Xử lý |
+|---|---|---|
+| Bias lúc bật nguồn (mỗi lần mỗi khác) | ngẫu nhiên ±2.5 °/s | **calib khi đứng yên**, bắt buộc trước ARM |
+| Trôi do nóng máy | bias đổi thêm ±0.3–0.8 °/s khi chip nóng 8 °C, τ = 90 s | ZUPT + **bù nhiệt độ** (học hệ số k) |
+| Bias random walk | 0.01 °/s/√s | ZUPT ở mỗi lần dừng |
+| Sai scale | 1 % | bài **quay 360°** → `imu.gyro_scale_z` |
+| Nhiễu trắng + rung motor | 0.05 °/s + 0.002 °/s mỗi mm/s | tích phân cho trung bình, DLPF |
+| Lượng tử | 1/131 °/s (±250 °/s) | không đáng kể |
+
+**Thuật toán** (`fw/control.py`: `ImuCalibrator`, `HeadingEstimator`):
+1. **Calib khi đứng yên:** lấy trung bình gyro trong `imu.calib_time_s` (2 s). Nếu encoder nhích, hoặc gyro dao động quá `imu.calib_max_spread_dps` (bị chạm, rung) thì làm lại, tối đa 5 lần rồi báo lỗi `IMU_NOT_STILL`.
+   - Tự chạy khi bật nguồn (`imu.auto_calib`), và chạy lại ngay trước mỗi lần chạy: coordinator có **bước 0 "Calib IMU"** cho cả 2 xe (`imu.recal_before_run`).
+   - Chưa calib thì: ARM bị từ chối (`imu_uncal`), và **không tích phân hướng khi đứng yên**, vì bias chưa biết.
+2. **ZUPT:** khi bánh phanh, encoder không nhích, và |ω| < `imu.still_gyro_dps` trong hơn 0.3 s, bias được lọc theo số đo (`imu.zupt_gain`) và hướng không bị tích phân. Xe dừng ở mỗi góc cua, nên bias được làm mới khoảng 10–20 s một lần.
+3. **Bù nhiệt:** mỗi lần đứng yên đủ lâu (và cứ 5 s khi đứng lâu), ghi một điểm (T_chip, bias). Hồi quy tuyến tính trên các điểm này cho ra hệ số k (°/s/°C). Khi đang chạy, bias được tính lại: `bias = bias_neo + k·(T − T_neo)`.
+   - k là hằng số riêng của từng chip. Robot tự học k trong lúc nằm chờ sau khi bật nguồn. Nút "Lưu k nhiệt" lưu k vào `imu.temp_coeff_dps_c` trên flash, nên từ lần bật sau đã bù đúng ngay từ đoạn đầu.
+4. **Không học bias bằng encoder khi đang chạy:** đường kính 2 bánh lệch 1 % đã làm `ω_enc` sai khoảng 0.7 °/s ở 150 mm/s, lớn hơn chính bias cần bám.
+
+**Kết quả mô phỏng** (rect/zigzag, 3 seed, chờ 60 s sau bật nguồn, mô hình gyro đầy đủ):
+
+| Cấu hình | Sai hướng max (tb) | Leader lệch điểm cuối max (tb) |
+|---|---|---|
+| Không calib, không ZUPT | 36° | 480 mm |
+| Chỉ calib 1 lần lúc bật nguồn | 26° | 480 mm |
+| Calib + ZUPT + bù nhiệt, **chưa** hiệu chuẩn scale | 4.3° (2.6°) | 66 mm (40) |
+| Như trên + **đã** hiệu chuẩn scale (quay 360°) | 1.7° (1.2°) | 33 mm (21) |
+| Riêng trôi nóng máy: không bù / bù với k đã lưu | 2.6° / 0.8–1.2° | 55 / 8 mm |
+
+Kết luận: **calib lúc đứng yên + ZUPT là bắt buộc. Bù nhiệt và hiệu chuẩn scale là 2 bước kế tiếp quan trọng nhất.** Mọi cấu hình đều chạy hết đường không va chạm, vì follower bám bằng ToF. Sai số hướng chủ yếu làm leader đi lệch so với bản vẽ.
+
+**Khuyến nghị khi dùng xe thật:** bật nguồn 1–2 phút trước khi chạy, để chip ấm lên và robot tự học k. Đặt xe nằm yên khi bật nguồn và khi bấm Start. Làm bài quay 360° một lần cho mỗi xe.
 
 ## 3. Leader: bám đường
 - Mỗi đoạn thẳng là một primitive `DRIVE_TO(s_end)` với profile hình thang (`a_max`, `v_cruise`). Tốc độ giảm về `v_corner` trong `approach_dist` cuối, rồi dừng bằng điều khiển vị trí.
@@ -92,6 +128,8 @@ v_cmd = clamp( v̂_L + kp_g·(ĝ − g*) + ki_g·∫(ĝ − g*) , 0 , v_max(s_F)
 - Khi follower quay tại `C`: đuôi leader phải ngoài `R_sw + margin`, tức là
   `exit_dist ≥ R_sw + axle_to_rear_L + margin`.
 - `g_hold − x_s − x_rear` phải nằm trong vùng đo hợp lệ của cảm biến.
+
+**Trước đoạn đầu tiên:** bước 0, calib IMU cho cả 2 xe (đứng yên, §2.1), rồi mới ARM.
 
 **Các bước cho góc `k`** (coordinator trên PC; mỗi bước là lệnh primitive và chờ `prim_done`):
 

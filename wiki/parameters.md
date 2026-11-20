@@ -78,7 +78,11 @@ Quy ước áp dụng: hình học và cảm biến áp dụng khi **idle**; h�
 | `imu.gyro_bias_z`, `imu.gyro_scale_z` | hiệu chuẩn | auto, 1.0 |
 | `imu.mount_sign_z` | +1/−1 tuỳ chiều gắn | +1 |
 | `imu.fusion_beta_straight`, `imu.fusion_beta_turn` | trọng số encoder trong fusion hướng | 0.05, 0.0 |
-| `imu.zupt_enable` | cập nhật bias khi đứng yên | true |
+| `imu.zupt_enable`, `imu.zupt_gain` | cập nhật bias khi đứng yên | true, 0.01 |
+| `imu.auto_calib`, `imu.require_calib`, `imu.recal_before_run` | calib khi bật nguồn / bắt buộc trước ARM / lại trước mỗi lần chạy | true, true, true |
+| `imu.calib_time_s`, `imu.calib_max_spread_dps` | thời gian calib, dao động tối đa cho phép | 2.0, 1.5 |
+| `imu.still_gyro_dps`, `imu.bias_max_dps` | ngưỡng đứng yên theo gyro, cảnh báo bias lớn | 2.0, 10 |
+| `imu.temp_comp`, `imu.temp_coeff_dps_c` | bù bias theo nhiệt độ chip, hệ số (robot tự học, "Lưu k nhiệt") | true, 0.0 |
 | `motion.turn_tol_deg` | sai số chấp nhận khi quay theo gyro | 1.0 |
 | `motion.turn_omega_max_dps` | | 90 |
 | `pid.heading.{kp,ki}` | giữ hướng khi đi thẳng | — |
