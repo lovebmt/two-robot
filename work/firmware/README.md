@@ -44,13 +44,13 @@ pio test -e native                        # 12 test lõi trên máy tính
 | Encoder trái A / B | 13 / **35** | **không dùng GPIO12** (xem cảnh báo dưới). 35 không có pull-up nội |
 | L298N ENA / IN1 / IN2 (motor trái) | 23 / 19 / 18 | **tháo jumper ENA** |
 | L298N ENB / IN3 / IN4 (motor phải) | 17 / 4 / 16 | **tháo jumper ENB** |
-| Đo pin (qua cầu chia) | 34 | đặt `power.vbat_divider` (vd. 30k/10k → 4.0); 0 = không đo |
+| Đo pin | — | **không dùng** (xe không có cầu chia). Muốn đo thì dùng chân ADC1 32–39 và đặt `power.vbat_divider` |
 | LED | 2 | LED onboard |
-| Còn trống | 25, 26, 5, 15 | 5, 15 là chân strapping, không dùng cho motor |
+| Còn trống | 25, 26, 34, 35*, 5, 15 | 34–39 chỉ input (không làm I2C/XSHUT được); 5, 15 là chân strapping, không dùng cho motor. *35 đang là encoder trái |
 
 ⚠ **Không dùng:**
 - **GPIO12** (strapping MTDI): bị kéo HIGH lúc reset thì flash nhận 1.8 V, ESP32 không boot và không nạp được. Triệu chứng đã gặp: `boot:0x33` + `invalid header: 0xffffffff`.
-- **GPIO34–39 cho I2C hoặc output**: các chân này chỉ là input.
+- **GPIO34–39 cho I2C hoặc output**: các chân này chỉ là input. **ToF SDA/SCL phải ở 21/22, không nối 34/35.** Chỉ chân GPIO1/INT của ToF (tín hiệu từ cảm biến ra) mới nối được vào 34–39, và firmware không cần chân này.
 - 6–11 (flash), 0/1/3 (boot/UART).
 - **Chân strapping 0, 2, 15 cho motor**: lúc cấp nguồn GPIO15/0 ở mức HIGH làm motor tự quay khoảng 0.3 s trước khi firmware chạy.
 

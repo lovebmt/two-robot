@@ -48,7 +48,7 @@ Mỗi xe một cột. Nếu 2 xe giống nhau thì chỉ cần ghi xe A.
 | Encoder trái A / B | 13 / 12 | 13 / **35** | GPIO12 strapping: HIGH lúc reset làm ESP32 không boot (đã thấy `boot:0x33`) |
 | L298N ENA / IN1 / IN2 | 15 / 2 / 0 | **23 / 19 / 18** | 15/2/0 là chân strapping: lúc cấp nguồn ENA=HIGH, IN2=HIGH → motor trái tự quay lùi |
 | L298N ENB / IN3 / IN4 | 17 / 4 / 16 | 17 / 4 / 16 | giữ nguyên |
-| Đo pin (ADC1) | (chưa nối) | 34 | |
+| Đo pin | không có | không dùng | xe không có cầu chia |
 | LED | | 2 | |
 
 ## 4. Ảnh / sơ đồ

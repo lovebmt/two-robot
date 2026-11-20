@@ -36,7 +36,7 @@ constexpr uint8_t TOF_R_ADDR = 0x29;  // mặc định
 constexpr uint8_t MPU_ADDR = 0x68;    // AD0 = GND
 
 // Khác
-constexpr uint8_t VBAT_ADC = 34;  // ADC1 (input-only, hợp với đo áp) qua cầu chia — power.vbat_divider
+constexpr uint8_t VBAT_ADC = 255;  // KHÔNG đo pin (xe này không có cầu chia). Muốn đo: chân ADC1 32–39 + power.vbat_divider
 constexpr uint8_t LED = 2;        // LED onboard DevKit
 
 // LEDC
@@ -48,7 +48,7 @@ constexpr uint8_t PWM_BITS = 10;
 constexpr uint8_t OUTPUTS[] = {MOTOR_L_EN, MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_EN, MOTOR_R_IN1, MOTOR_R_IN2,
                                TOF_L_XSHUT, TOF_R_XSHUT, I2C_SDA, I2C_SCL, LED};
 constexpr uint8_t ALL[] = {MOTOR_L_EN, MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_EN, MOTOR_R_IN1, MOTOR_R_IN2, ENC_L_A,
-                           ENC_L_B, ENC_R_A, ENC_R_B, I2C_SDA, I2C_SCL, TOF_L_XSHUT, TOF_R_XSHUT, VBAT_ADC, LED};
+                           ENC_L_B, ENC_R_A, ENC_R_B, I2C_SDA, I2C_SCL, TOF_L_XSHUT, TOF_R_XSHUT, LED};
 // Motor không được nằm trên chân strapping (0, 2, 5, 12, 15): mức lúc boot có thể làm motor tự quay
 constexpr uint8_t MOTOR[] = {MOTOR_L_EN, MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_EN, MOTOR_R_IN1, MOTOR_R_IN2};
 constexpr bool motorNotStrapping(int i = 0) {
@@ -72,6 +72,6 @@ static_assert(noneInputOnly(), "Chân output/I2C không được là 34–39 (in
 static_assert(noneForbidden(), "Không dùng 6–12 (flash + strapping MTDI), 0, 1, 3");
 static_assert(motorNotStrapping(), "Chân motor không được là chân strapping 0/2/5/12/15");
 static_assert(unique(), "Một chân bị gán 2 chức năng");
-static_assert(VBAT_ADC >= 32 && VBAT_ADC <= 39, "Đo pin phải dùng ADC1 (32–39)");
+static_assert(VBAT_ADC == 255 || (VBAT_ADC >= 32 && VBAT_ADC <= 39), "Đo pin phải dùng ADC1 (32–39)");
 
 }  // namespace pins

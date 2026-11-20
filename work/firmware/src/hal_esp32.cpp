@@ -159,7 +159,7 @@ void Esp32Hal::begin() {
   if (!imu.begin(Wire, pins::MPU_ADDR)) Serial.println("LỖI: MPU6050 không phản hồi ở 0x68 (kiểm tra SDA 21 / SCL 22, AD0)");
   i2cScan();
 
-  analogSetPinAttenuation(pins::VBAT_ADC, ADC_11db);
+  if (pins::VBAT_ADC != 255) analogSetPinAttenuation(pins::VBAT_ADC, ADC_11db);
   prefs.begin("tworobot", false);
   fs_ok_ = LittleFS.begin(true);
   if (fs_ok_ && !LittleFS.exists("/cfg")) LittleFS.mkdir("/cfg");
@@ -207,7 +207,7 @@ float Esp32Hal::readGyroZ() {
 }
 
 float Esp32Hal::readVbat(float divider) {
-  if (divider <= 0) return NAN;
+  if (divider <= 0 || pins::VBAT_ADC == 255) return NAN;  // không đo pin
   return analogReadMilliVolts(pins::VBAT_ADC) / 1000.0f * divider;
 }
 
