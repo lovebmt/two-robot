@@ -118,6 +118,7 @@ class ImuCalibrator:
         self.dur = cfg["imu.calib_time_s"]
         self.max_spread = math.radians(cfg["imu.calib_max_spread_dps"])
         self.restarts = 0
+        self.moved_restarts = 0
         self._reset()
 
     def _reset(self) -> None:
@@ -132,9 +133,13 @@ class ImuCalibrator:
         """Trả None khi chưa xong; dict {ok, bias, std, spread, ...} khi xong hoặc thất bại."""
         if moved or (self.n and max(self.hi, gz_raw) - min(self.lo, gz_raw) > self.max_spread):
             self.restarts += 1
+            self.moved_restarts += 1 if moved else 0
             self._reset()
             if self.restarts > self.MAX_RESTART:
-                return {"ok": False, "err": "IMU_NOT_STILL", "restarts": self.restarts}
+                # Bánh không hề nhích mà gyro vẫn dao động quá ngưỡng → gyro nhiễu (hỏng, rung từ bên ngoài),
+                # không phải bị chạm. Có thể nới imu.calib_max_spread_dps nếu chấp nhận gyro nhiễu.
+                err = "IMU_NOT_STILL" if self.moved_restarts else "IMU_NOISY"
+                return {"ok": False, "err": err, "restarts": self.restarts}
             return None
         self.n += 1
         self.s += gz_raw

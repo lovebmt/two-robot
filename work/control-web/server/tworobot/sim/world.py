@@ -26,6 +26,7 @@ DEFAULT_MISMATCH = {
     "gyro_warm_tau_s": 90.0,  # hằng số thời gian nóng máy
     "temp_rise_c": 8.0,       # chip nóng lên bao nhiêu °C sau khi bật nguồn
     "gyro_vib": 0.002,        # nhiễu rung motor, °/s trên mỗi mm/s tốc độ bánh
+    "gyro_noise_dps": 0.05,   # nhiễu trắng gyro (σ mỗi mẫu)
     "gyro_scale_err": 0.01,
     "slip_turn": 0.03,      # tỉ lệ trượt khi quay tại chỗ
     "tof_sigma": 3.0,       # mm
@@ -81,7 +82,7 @@ def physical_from_cfg(cfg: dict, mismatch: dict | None = None) -> Physical:
         fric_l=cfg["motor.ks_l_v"] * m["fric_scale"], fric_r=cfg["motor.ks_r_v"] * m["fric_scale"],
         tau=0.08,
         gyro_bias=math.radians(m["gyro_bias_dps"]), gyro_scale_err=m["gyro_scale_err"],
-        gyro_noise=math.radians(0.05),
+        gyro_noise=math.radians(m["gyro_noise_dps"]),
         gyro_rw=math.radians(m["gyro_rw_dps"]), gyro_warm=math.radians(m["gyro_warm_dps"]),
         gyro_warm_tau=m["gyro_warm_tau_s"], gyro_vib=math.radians(m["gyro_vib"]), temp_rise=m["temp_rise_c"],
         tof_x=cfg["range.x_mm"], tof_b=cfg["range.baseline_mm"], tof_sigma=m["tof_sigma"],

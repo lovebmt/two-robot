@@ -15,7 +15,10 @@ const PHYS = [
   ['gyro_warm_dps', 'Trôi nóng máy °/s', -2, 2, 0.05, 0.6],
   ['gyro_rw_dps', 'Bias random walk', 0, 0.05, 0.002, 0.01],
   ['gyro_scale_err', 'Sai scale gyro', -0.05, 0.05, 0.002, 0.01],
+  ['gyro_noise_dps', 'Nhiễu trắng gyro °/s', 0, 1, 0.01, 0.05],
   ['gyro_vib', 'Nhiễu rung motor', 0, 0.01, 0.0005, 0.002],
+  ['diam_err_l', 'Sai đường kính bánh trái', -0.05, 0.05, 0.002, 0],
+  ['diam_err_r', 'Sai đường kính bánh phải', -0.05, 0.05, 0.002, 0],
   ['tof_sigma', 'Nhiễu ToF mm', 0.5, 15, 0.5, 3.0],
 ];
 
