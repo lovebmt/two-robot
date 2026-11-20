@@ -110,7 +110,7 @@ struct Config {
   float start_align_dpsi_deg = 1.5f;  // ° Xe sau lệch góc quá mức này → tự ALIGN trước khi chạy
   float start_front_clear_mm = 250;  // mm Phía trước xe đầu phải trống ít nhất bấy nhiêu
   bool safety_allow_tune_while_running = true;  //  Cho chỉnh tham số live khi đang chạy
-  int32_t safety_link_timeout_ms = 500;  // ms Mất heartbeat PC → phanh
+  int32_t safety_link_timeout_ms = 1500;  // ms Mất heartbeat PC → phanh
 };
 
 struct ParamMeta {

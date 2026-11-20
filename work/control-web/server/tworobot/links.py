@@ -122,8 +122,11 @@ class NetLink(RobotLink):
                     tel["link"] = {"rtt_ms": round(self.rtt_ms, 1), "errors": self.errors}
                     self.on_message(tel)
             except (httpx.HTTPError, ValueError):
+                # Một gói WiFi bị kẹt: hỏi lại ngay — mỗi lần hỏi là heartbeat, chờ thêm chu kỳ dễ chạm LINK_LOST
                 self.online = False
                 self.errors += 1
+                await asyncio.sleep(0.01)
+                continue
             await asyncio.sleep(max(0.0, self.period - (time.perf_counter() - t0)))
 
     async def request(self, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:

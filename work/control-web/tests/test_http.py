@@ -113,7 +113,7 @@ def test_heartbeat_loss_stops_robot():
                     await asyncio.sleep(0.1)
                 r = (await c.post(f"{base}/api/cmd", json={"op": "arm"})).json()
                 assert r["ok"], r
-                await asyncio.sleep(1.0)  # không hỏi gì > link_timeout_ms (500 ms)
+                await asyncio.sleep(2.0)  # không hỏi gì > link_timeout_ms (1500 ms)
                 st = (await c.get(f"{base}/api/state", params={"since": 0})).json()
                 assert st["tel"]["state"] == "FAULT" and st["tel"]["fault"] == "LINK_LOST"
                 assert any(e.get("e") == "fault" and e.get("code") == "LINK_LOST" for e in st["events"])

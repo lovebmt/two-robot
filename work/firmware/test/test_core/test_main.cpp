@@ -216,7 +216,7 @@ void test_app_state_events_and_link_loss() {
   c["op"] = "arm";
   a.handleCmd(c.as<JsonObjectConst>(), r.to<JsonObject>());
   TEST_ASSERT_TRUE(r["ok"].as<bool>());
-  runTicks(a, h, 1.0f);  // không có request nào > 500 ms → LINK_LOST
+  runTicks(a, h, 2.0f);  // không có request nào > link_timeout (1500 ms) → LINK_LOST
   TEST_ASSERT_EQUAL_STRING("FAULT", a.state.c_str());
   TEST_ASSERT_EQUAL_STRING("LINK_LOST", a.fault.c_str());
 }
