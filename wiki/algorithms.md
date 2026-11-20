@@ -163,8 +163,46 @@ Ghi chú:
 | Thẳng 1 m | chạy 1000 mm theo encoder, người dùng nhập quãng đo thực và độ lệch ngang | `D` (scale), `ε` |
 | Gyro bias | đứng yên 5 s | `gyro_bias_z`, `σ` nhiễu |
 | Quay | 4×90° và 360° theo gyro, nhập góc thực (căn theo vạch sàn) | `gyro_scale`, `T_eff` |
-| ToF | tấm phẳng ở 100/200/300/500 mm | `offset`, `scale` từng cảm biến, `σ` |
+| ToF lệch 2 mắt | **quét ±40° trước mặt phẳng** (§6.1), nút "Calib ToF" | `range.offset_l/r_mm` |
+| ToF tuyệt đối (tuỳ chọn) | như trên + nhập khoảng cách tường `wall_mm` | offset tuyệt đối |
 | Bố trí | đặt follower thẳng sau leader ở gap đã biết | xác nhận `x_s`, `x_rear`, `Δψ` offset lắp |
+
+### 6.1 Hai mắt ToF lắp không thẳng hàng (nguồn: câu hỏi sau đợt 7)
+
+**Vấn đề:** `Δψ = atan2(d_r − d_l, b)` với `b` chỉ 60 mm. Một hằng số lệch `c` trong `d_r − d_l` sẽ làm Δψ lệch `atan(c/b)`:
+mắt nhô trước/sau 2 mm, hoặc 2 module VL53L0X có offset khác nhau vài mm (rất phổ biến), là đã lệch 2–5°.
+Follower khi đó "song song" với leader theo một góc sai, đi chéo dần, mất mép tấm phản xạ, và ALIGN ở góc cua căn sai.
+
+| Loại sai lệch lắp | Ảnh hưởng | Xử lý |
+|---|---|---|
+| Mắt nhô trước/sau khác nhau (Δx), offset riêng từng module | hằng số `c` trong `d_r − d_l` → **Δψ lệch, nặng nhất** | hiệu chuẩn quét tường → bù `range.offset_l/r_mm` |
+| Khoảng cách 2 mắt khác thiết kế | sai **tỉ lệ** Δψ (không lệch điểm 0) | bài hiệu chuẩn báo `b` hiệu dụng để kiểm tra; ít quan trọng |
+| Mắt quay lệch trái/phải vài độ | nhỏ (chùm rộng 25°), đổi vùng tấm bị chiếu | gá chắc, kiểm tra bằng mắt |
+| Mắt chúi xuống / nghiêng lên | chùm chạm sàn → số đo ngắn sai (sim 2D chưa mô phỏng) | đặt mắt cao ≥ 40 mm, hơi ngẩng; tấm phản xạ đủ cao |
+
+**Bài hiệu chuẩn `TOF_CAL`** (`fw/primitives.py`; đã calib gyro; chạy được khi xe IDLE; khoảng 25 s):
+1. Đặt xe trước một mặt phẳng **rộng** (tường/hộp ≥ 40 cm), cách 15–30 cm, gần vuông góc (±10°).
+2. Xe quay ±40° đi rồi về, ghi (góc gyro, d_l, d_r).
+3. Chùm 25° làm d̄ **phẳng** khi gần vuông góc và tăng vọt khi xoay quá nửa góc chùm. Đồ thị đối xứng quanh hướng vuông góc, nên **θ0 = trung điểm 2 mép đoạn phẳng**. Không dùng "điểm d̄ nhỏ nhất", vì đoạn đó phẳng nên điểm nhỏ nhất không rõ.
+4. Trong đoạn phẳng fit tuyến tính `d_r − d_l = c − b·(θ − θ0)`. Bù `off_r − off_l = −c` (chia đều 2 bên). Nếu nhập khoảng cách tường thì bù luôn offset tuyệt đối.
+
+**Kết quả mô phỏng:**
+- Độ chính xác: 30/30 lần thành công (xe đặt lệch ±9°, cách 150/250 mm). Sai `c` sau hiệu chuẩn: trung bình 0.66 mm, tối đa 1.5 mm, tức Δψ còn lệch trung bình 0.6°, tối đa 1.5°.
+- Ảnh hưởng lên cả lần chạy (rect + zigzag, 6 lần mỗi dòng):
+
+| Lắp đặt | Chạy xong | Va chạm | Lệch điểm cua max |
+|---|---|---|---|
+| Chuẩn | 6/6 | 0 | 14 mm |
+| Lệch vừa (c = −4 mm, Δψ lệch 3.8°), **chưa** calib | 4/6 | 0 | 62 mm |
+| Lệch vừa, **đã** calib | 6/6 | 0 | 34 mm |
+| Lệch nặng (c = 13.5 mm, Δψ lệch 12.7°), **chưa** calib | **0/6** (mất leader) | 0 | — |
+| Lệch nặng, **đã** calib | 6/6 | 0 | 33 mm |
+| Lệch nặng, đã calib, **baseline 90 mm** | 6/6 | 0 | 30 mm |
+
+**Khuyến nghị lắp đặt:**
+- Gá 2 module trên **cùng một thanh cứng** (in 3D/mica), mặt kính cùng một mặt phẳng, cùng độ cao, chùm song song.
+- **Baseline càng rộng càng tốt** (80–100 mm), vì sai số Δψ tỉ lệ nghịch với b. Khi đó tấm phản xạ đuôi cũng phải rộng hơn: ≥ b + 2 × dung sai ngang (vd. b = 90 cần tấm ≥ 150 mm).
+- Luôn chạy "Calib ToF" sau khi lắp hoặc tháo lắp cảm biến, rồi Save flash.
 
 ## 7. Kiểm chứng
 1. Unit test lõi trên `native`: kinematics, profile, dừng tại điểm, KF, gating, máy trạng thái primitive.

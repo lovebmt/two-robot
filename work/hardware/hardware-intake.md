@@ -31,7 +31,8 @@ Mỗi xe một cột. Nếu 2 xe giống nhau thì chỉ cần ghi xe A.
 | Tâm trục bánh tới mặt trước | | |
 | Tâm trục bánh tới mặt sau | | |
 | Tâm trục tới mắt cảm biến (dọc) | | |
-| Khoảng cách 2 mắt cảm biến (ngang) | | |
+| Khoảng cách 2 mắt cảm biến (ngang), khuyến nghị 80–100 mm | | |
+| 2 mắt gá chung 1 thanh cứng? Mặt kính cùng mặt phẳng? | | |
 | Chiều cao mắt cảm biến so với sàn | | |
 | Vị trí MPU6050 (so với tâm trục), chiều trục Z | | |
 | Vị trí caster (so với trục) | | |

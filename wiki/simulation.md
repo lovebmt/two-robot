@@ -61,7 +61,7 @@ Bước tích phân cố định **1 ms**. Các task của robot được lịch
 | Bánh và sàn | Lực kéo giới hạn bởi `μ(x,y)·N`. Vượt giới hạn thì trượt (encoder đếm theo góc bánh, không theo quãng thật). **Vùng ma sát** vẽ được trên lưới |
 | Thân xe | Rigid body 2D (khối lượng, quán tính), caster có lực cản và có thể kẹt ngắn |
 | Encoder | Tick lượng tử từ góc bánh, timestamp cạnh xung (cho đo chu kỳ) |
-| Gyro (MPU6050) | `ω_đo = (1+e_s)·ω + bias(t) + nhiễu trắng + rung motor`, lượng tử 1/131 °/s. `bias(t)` = bias bật nguồn (ngẫu nhiên ±2.5 °/s) + k·(T_chip − T₀) (nóng máy) + random walk. Có cảm biến nhiệt chip. Lỗi "chạm nhẹ". Xem [algorithms §2.1](algorithms.md#21-trôi-mpu6050-và-calib-nguồn-đợt-6) |
+| Gyro (MPU6050) | `ω_đo = (1+e_s)·ω + bias(t) + nhiễu trắng + rung motor`, lượng tử 1/131 °/s. `bias(t)` = bias bật nguồn (ngẫu nhiên ±2.5 °/s) + k·(T_chip − T₀) (nóng máy) + random walk. Có cảm biến nhiệt chip. Lỗi "chạm nhẹ". Nhiễu trắng chỉnh được. Xem [algorithms §2.1](algorithms.md#21-trôi-mpu6050-và-calib-nguồn-đợt-6) |
 | ToF200C | Chùm 25° được mô phỏng bằng **7 tia** chiếu vào polygon xe kia (thân và tấm phản xạ) và tường. Lấy khoảng nhỏ nhất. Nhiễu `σ(d)`, chu kỳ 33 ms, status lỗi khi góc tới quá xiên, ngoài tầm, hoặc tín hiệu yếu |
 | Va chạm | Polygon–polygon và polygon–tường. Ghi lại thành metric, tuỳ chọn dừng sim |
 | Mạng | Trễ (phân phối, jitter), mất gói % riêng từng kênh, đứt link theo lịch |

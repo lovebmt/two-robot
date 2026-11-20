@@ -41,3 +41,8 @@
 - Viết lại: protocol.md (HTTP API, polling /api/state, hộp thư sự kiện, heartbeat bằng request)
 - Cập nhật: architecture.md, requirements.md (F2, F7), web-ui.md, config-management.md, open-questions.md (Q12, Q25)
 - Cập nhật ngoài wiki: ops/decisions.md (D25, D26; D8 bị thay), ops/roadmap.md
+
+## [2026-11-20] query | ToF lắp không thẳng hàng; nhiễu IMU + lệch bánh
+- Code: sim sai lệch lắp ToF, TOF_CAL + endpoint/UI Calib ToF, thanh trượt nhiễu gyro / đường kính bánh, mã IMU_NOISY
+- Cập nhật: algorithms.md (§6.1 kèm bảng kết quả), simulation.md
+- Cập nhật ngoài wiki: ops/decisions.md (D27), ops/roadmap.md
