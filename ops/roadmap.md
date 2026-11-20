@@ -18,7 +18,7 @@ Thứ tự: M1 khung → M2 lõi + sim batch → M3 server + view trên sim → 
 - [x] (đợt 6) Mô hình trôi MPU6050 trong sim; calib gyro khi đứng yên + ZUPT + bù nhiệt; bước 0 calib IMU trong coordinator; UI hiển thị IMU, nút Calib IMU, Lưu k nhiệt
 - [x] (đợt 7) NetLink HTTP (poll 20 Hz, hộp thư sự kiện, ack đồng bộ), quét HTTP, robot HTTP ảo `tworobot-vrobot`, test end-to-end qua socket thật; cấm đường khép kín
 - [x] Hiệu chuẩn 2 mắt ToF (TOF_CAL, nút Calib ToF), sim sai lệch lắp ToF, thanh trượt nhiễu gyro / sai đường kính bánh
-- [ ] Wizard hiệu chuẩn scale gyro (quay 360° có mốc ngoài) và đi thẳng 1 m (đường kính bánh) trên web
+- [x] Wizard hiệu chuẩn trên web: đi thẳng, quay 360°, khoảng cách ToF đặt sẵn; bước kiểm tra trước khi chạy + nút Kiểm tra; sim đặt xe lệch
 - [ ] Firmware ESP32 (M4): HTTP server theo protocol.md, port `fw/` sang C++
 - [ ] Vẽ vùng ma sát trên UI; replay có kéo timeline
 - [ ] Unit test riêng cho từng primitive; kịch bản đổi tham số giữa lúc chạy

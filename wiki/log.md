@@ -42,6 +42,11 @@
 - Cập nhật: architecture.md, requirements.md (F2, F7), web-ui.md, config-management.md, open-questions.md (Q12, Q25)
 - Cập nhật ngoài wiki: ops/decisions.md (D25, D26; D8 bị thay), ops/roadmap.md
 
+## [2026-11-20] query | Đặt xe lệch lúc đầu; kiểm tra trước khi chạy; wizard hiệu chuẩn
+- Code: preflight (coordinator), CAL_DRIVE/CAL_TURN, SNAPSHOT chạy từ IDLE, calibration.py, API /api/run/check + /api/robots/{id}/cal/*, tab Hiệu chuẩn, đặt xe lệch trong sim
+- Cập nhật: algorithms.md (§5.1 kèm bảng ảnh hưởng đặt lệch, §6 wizard), web-ui.md, parameters (start.*)
+- Cập nhật ngoài wiki: ops/decisions.md (D28), ops/roadmap.md
+
 ## [2026-11-20] query | ToF lắp không thẳng hàng; nhiễu IMU + lệch bánh
 - Code: sim sai lệch lắp ToF, TOF_CAL + endpoint/UI Calib ToF, thanh trượt nhiễu gyro / đường kính bánh, mã IMU_NOISY
 - Cập nhật: algorithms.md (§6.1 kèm bảng kết quả), simulation.md

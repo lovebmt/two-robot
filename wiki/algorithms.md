@@ -129,7 +129,31 @@ v_cmd = clamp( v̂_L + kp_g·(ĝ − g*) + ki_g·∫(ĝ − g*) , 0 , v_max(s_F)
   `exit_dist ≥ R_sw + axle_to_rear_L + margin`.
 - `g_hold − x_s − x_rear` phải nằm trong vùng đo hợp lệ của cảm biến.
 
-**Trước đoạn đầu tiên:** bước 0, calib IMU cho cả 2 xe (đứng yên, §2.1), rồi mới ARM.
+**Trước đoạn đầu tiên:**
+1. Bước 0a: calib IMU cho cả 2 xe (đứng yên, §2.1).
+2. Bước 0b: **kiểm tra trước khi chạy** (§5.1).
+3. ARM. Nếu xe sau lệch góc nhỏ thì tự ALIGN.
+
+### 5.1 Đặt xe lúc đầu không chuẩn và bước kiểm tra trước khi chạy
+
+**Ảnh hưởng khi đặt lệch** (sim, rect + zigzag, 6 lần mỗi dòng, chưa bật kiểm tra):
+
+| Đặt lệch | Chạy xong | Ảnh hưởng | Tự xử lý được? |
+|---|---|---|---|
+| Xe sau lệch góc 3–8° | 6/6 | không đáng kể | **có**: Δψ từ ToF, ALIGN |
+| Xe sau gần hơn 60 mm / xa hơn 150 mm | 6/6 | xa thì gap dao động lúc đầu (RMSE 55 mm) | **có**: FOLLOW đưa gap về mục tiêu |
+| Xe sau lệch **ngang** 10 / 25 / 40 mm | 6/6 | lệch điểm cua 27 / 36 / 47 mm | **không**: lệch ngang không quan sát được |
+| Xe trước lệch **góc** 2° / 5° | 6/6 | leader lệch điểm cuối 94 / 223 mm | **không**: không có mốc tuyệt đối |
+
+**Bước kiểm tra** (`coordinator.preflight`; nút "✓ Kiểm tra" chạy thử không cần Start; không đạt thì không ARM và báo cần chỉnh gì):
+- Mỗi xe: đang kết nối, không FAULT/ESTOP, pin đủ, IMU đã calib.
+- Xe sau SNAPSHOT: **2 mắt đều thấy** đuôi xe trước. Lỗi phân loại: không thấy gì / chỉ 1 mắt (lệch ngang) / 2 mắt chênh nhiều.
+- Gap ∈ `g_target ± start.gap_tol_mm` (40). Báo cần đẩy lên hay lùi ra bao nhiêu mm.
+- |Δψ| ≤ `start.max_dpsi_deg` (6°). Nếu > `start.align_dpsi_deg` (1.5°) thì tự ALIGN sau khi ARM.
+- Phía trước xe đầu trống ≥ `start.front_clear_mm` (250).
+
+**Giới hạn (đã kiểm chứng bằng sim):** chùm ToF 25° ở cự ly khoảng 15 cm toả ra khoảng ±35 mm, nên **lệch ngang dưới khoảng 70 mm KHÔNG phát hiện được**. Lệch 30–60 mm vẫn qua kiểm tra nhưng làm lệch điểm cua 31–39 mm. Góc lệch tuyệt đối của xe trước cũng không đo được.
+→ **Phải đặt xe bằng dụng cụ:** vạch kẻ sàn hoặc thước chữ L căn mép 2 xe thẳng hàng, xe trước căn theo vạch hướng đi đầu tiên.
 
 **Các bước cho góc `k`** (coordinator trên PC; mỗi bước là lệnh primitive và chờ `prim_done`):
 
@@ -160,10 +184,11 @@ Ghi chú:
 |---|---|---|
 | Chiều motor/encoder | quay từng bánh tiến 1 s | `invert_*` |
 | Vùng chết | tăng PWM từng bước tới khi bánh quay, mỗi bánh mỗi chiều | `ks`, `kv` |
-| Thẳng 1 m | chạy 1000 mm theo encoder, người dùng nhập quãng đo thực và độ lệch ngang | `D` (scale), `ε` |
+| Thẳng 1 m | **wizard**: xe chạy `CAL_DRIVE` 1000 mm (giữ hướng gyro), người dùng đo quãng thật → `D_mới = D_cũ × thật / encoder` | `wheel.diameter_mm` |
 | Gyro bias | đứng yên 5 s | `gyro_bias_z`, `σ` nhiễu |
-| Quay | 4×90° và 360° theo gyro, nhập góc thực (căn theo vạch sàn) | `gyro_scale`, `T_eff` |
+| Quay | **wizard**: `CAL_TURN` 360° (góc cộng dồn), người dùng đo góc thật → `scale_mới = cũ × thật / gyro`; `T_eff = (cung phải − cung trái) / góc thật` | `imu.gyro_scale_z`, `wheel.track_eff_mm` |
 | ToF lệch 2 mắt | **quét ±40° trước mặt phẳng** (§6.1), nút "Calib ToF" | `range.offset_l/r_mm` |
+| ToF khoảng cách (đặt sẵn) | đặt xe sau cách đuôi xe trước đúng X mm (vd. 100), nhập X → dời đều 2 offset (giữ chênh lệch) hoặc đặt riêng từng mắt | `range.offset_l/r_mm` |
 | ToF tuyệt đối (tuỳ chọn) | như trên + nhập khoảng cách tường `wall_mm` | offset tuyệt đối |
 | Bố trí | đặt follower thẳng sau leader ở gap đã biết | xác nhận `x_s`, `x_rear`, `Δψ` offset lắp |
 

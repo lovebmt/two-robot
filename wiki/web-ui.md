@@ -35,7 +35,11 @@ Frontend Vite + TS + Canvas, giao tiếp với server qua REST và WS. Mỗi l�
 - Đồ thị: gap (ước lượng, đo, mục tiêu), `v_L`/`v_F`, `Δψ`. Có nút Record log và download.
 - Chế độ **Jog**: joystick hoặc phím WASD cho xe đang chọn.
 
-### Calibrate
+### Hiệu chuẩn (tab riêng)
+Chọn robot rồi làm theo thứ tự: **1. IMU**, **2. Đi thẳng** (nhập quãng lệnh → Chạy → nhập quãng đo thật → Tính & lưu), **3. Quay** (360° → nhập góc thật), **4. ToF quét tường**, **5. Khoảng cách ToF** (đặt xe sau cách đuôi xe trước X mm → Đo → Tính & lưu).
+Robot ảo: ô "số đo thật" được điền sẵn từ mô phỏng. Mỗi bước kiểm tra giá trị hợp lý (vd. tỉ lệ 0.8–1.2) trước khi lưu flash.
+
+### Calibrate (mô tả cũ)
 Wizard cho từng bài trong [algorithms §6](algorithms.md#6-hiệu-chuẩn) và [motor-control §3](motor-control.md#3-hiệu-chuẩn-trên-web-wizard). Mỗi bài: hướng dẫn, Run, nhập số đo thực, xem biểu đồ và giá trị đề xuất, rồi Apply và Save vào flash.
 Có thêm nút "Xuất mô hình motor sang sim" để đưa `K`, `τ`, LUT của xe thật vào kịch bản sim.
 

@@ -113,6 +113,14 @@ Quy ước áp dụng: hình học và cảm biến áp dụng khi **idle**; h�
 | `corner.step_timeout_ms` | timeout mỗi bước | 8000 |
 | `gap.lost_timeout_ms` | mất leader trên đoạn thẳng | 400 |
 
+## Kiểm tra trước khi chạy (chung 2 xe)
+| Khoá | Mô tả | Mặc định |
+|---|---|---|
+| `start.check_enable` | bắt buộc kiểm tra trước khi chạy | true |
+| `start.gap_tol_mm` | gap lúc xuất phát được lệch | 40 |
+| `start.max_dpsi_deg`, `start.align_dpsi_deg` | lệch góc tối đa / ngưỡng tự ALIGN | 6, 1.5 |
+| `start.front_clear_mm` | phía trước xe đầu phải trống | 250 |
+
 ## Bộ điều khiển và bộ lọc
 `pid.wheel.{kp,ki}`, `pid.straight.{kp,ki}` (đồng bộ 2 bánh), `pid.pos.kp` (dừng tại điểm),
 `follow.{kp_g, ki_g, k_psi, k_edge}`, `kf.{q_a, r_relay_v, gate_chi2}`, `filt.dpsi_alpha`.

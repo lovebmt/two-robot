@@ -20,7 +20,11 @@ Thứ tự thao tác trên UI:
 4. **Cấu hình** → sửa tham số. Apply chỉ ghi RAM, Save ghi flash (file `.simstate/<id>/config.json` với robot ảo).
 5. Panel **Mô phỏng**: dừng/chạy, tốc độ ×0.25–×8, gây lỗi (che ToF, đẩy xe, mất link, caster kẹt), thanh trượt vật lý (lệch motor, ma sát, trượt, bias gyro, nhiễu ToF), ghi log và replay.
 
-Có thể mở thẳng một tab bằng URL: `/#map`, `/#run`, `/#config`, `/#devices`.
+Có thể mở thẳng một tab bằng URL: `/#map`, `/#run`, `/#config`, `/#calib`, `/#devices`.
+
+**Trước khi chạy xe thật:** tab **Hiệu chuẩn** cho từng xe: IMU → Đi thẳng → Quay → ToF quét tường → Khoảng cách ToF.
+Ở tab Chạy, bấm **✓ Kiểm tra** để xem xe đã đặt đúng chưa. Start cũng tự kiểm tra và từ chối chạy nếu không đạt.
+Robot ảo: ô "Đặt xe lệch ± mm / ± °" trong khung Mô phỏng giả lập người đặt xe không chuẩn.
 
 ## Robot thật: HTTP qua LAN
 Robot thật (ESP32) giao tiếp với server **chỉ bằng HTTP**: lệnh `POST /api/cmd`, trạng thái `GET /api/state` hỏi 20 Hz, kèm hộp thư sự kiện. Đặc tả đầy đủ ở [wiki/protocol.md](../../wiki/protocol.md).
