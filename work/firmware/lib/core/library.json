@@ -1,0 +1,10 @@
+{
+  "name": "core",
+  "version": "0.2.0",
+  "description": "Lõi thuật toán two-robot (C++ thuần, không phụ thuộc Arduino) — port từ tworobot/fw (Python)",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": {
+    "bblanchon/ArduinoJson": "^7.2.0"
+  }
+}
