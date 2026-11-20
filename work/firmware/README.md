@@ -42,11 +42,11 @@ pio test -e native                        # 12 test lõi trên máy tính
 | ToF trái XSHUT | 33 | firmware đổi sang 0x30 lúc boot |
 | Encoder phải A / B | 14 / 27 | |
 | Encoder trái A / B | 13 / **35** | **không dùng GPIO12** (xem cảnh báo dưới). 35 không có pull-up nội |
-| L298N ENA / IN1 / IN2 (motor trái) | 25 / 26 / 18 | **tháo jumper ENA** |
+| L298N ENA / IN1 / IN2 (motor trái) | 23 / 19 / 18 | **tháo jumper ENA** |
 | L298N ENB / IN3 / IN4 (motor phải) | 17 / 4 / 16 | **tháo jumper ENB** |
 | Đo pin (qua cầu chia) | 34 | đặt `power.vbat_divider` (vd. 30k/10k → 4.0); 0 = không đo |
 | LED | 2 | LED onboard |
-| Còn trống | 5, 15, 19, 23 | 5, 15 là chân strapping, chỉ dùng làm output, không dùng cho motor |
+| Còn trống | 25, 26, 5, 15 | 5, 15 là chân strapping, không dùng cho motor |
 
 ⚠ **Không dùng:**
 - **GPIO12** (strapping MTDI): bị kéo HIGH lúc reset thì flash nhận 1.8 V, ESP32 không boot và không nạp được. Triệu chứng đã gặp: `boot:0x33` + `invalid header: 0xffffffff`.

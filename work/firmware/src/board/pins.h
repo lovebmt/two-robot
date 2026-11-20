@@ -10,11 +10,11 @@
 
 namespace pins {
 
-// L298N — chốt 2026-11-20: giữ IN3/IN4/ENB người dùng đã nối (4/16/17), chuyển 3 dây khỏi chân STRAPPING
-// (15/2/0 làm motor trái tự quay lùi lúc cấp nguồn) sang 25/26/18: không strapping, không phát xung lúc boot.
+// L298N — chốt 2026-11-20: cả 6 chân cùng một phía header DevKit 30 chân (23, 19, 18 … 17, 16, 4),
+// không chân strapping (0/2/5/12/15 làm motor tự quay lúc cấp nguồn), không chân flash (6–11).
 // Tuỳ chọn: 10 kΩ từ ENA, ENB xuống GND để EN chắc chắn = 0 trong lúc bootloader (chân đang thả nổi).
-constexpr uint8_t MOTOR_L_EN = 25;   // ENA (PWM) — tháo jumper ENA
-constexpr uint8_t MOTOR_L_IN1 = 26;  // IN1
+constexpr uint8_t MOTOR_L_EN = 23;   // ENA (PWM) — tháo jumper ENA
+constexpr uint8_t MOTOR_L_IN1 = 19;  // IN1
 constexpr uint8_t MOTOR_L_IN2 = 18;  // IN2
 constexpr uint8_t MOTOR_R_EN = 17;   // ENB (PWM) — tháo jumper ENB
 constexpr uint8_t MOTOR_R_IN1 = 4;   // IN3
