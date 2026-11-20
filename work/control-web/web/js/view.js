@@ -35,6 +35,8 @@ let dirty = false;
 let lastPanel = 0;
 let physRobots = '';
 let wheelRobot = null;
+let lastChecksKey = '';
+let checkedKey = null; // đường đã "Kiểm tra" đạt → Start không đặt lại xe ảo (giữ đúng vị trí đã kiểm tra)
 
 function roleColor(role) {
   return role === 'leader' ? cssVar('--leader') : role === 'follower' ? cssVar('--follower') : cssVar('--muted');
@@ -98,6 +100,7 @@ function renderPanels(f) {
   badge.textContent = c.state || 'IDLE';
   badge.className = `badge ${c.state}`;
   $('coordSeg').textContent = c.phase === 'CALIB_IMU' ? 'Đang calib IMU: giữ 2 xe đứng yên…'
+    : c.phase === 'CHECK' ? 'Đang kiểm tra vị trí 2 xe…'
     : c.n_segments ? `Đoạn ${c.seg + 1}/${c.n_segments} · ${c.n_corners} góc cua` : 'Chưa chạy';
   const steps = c.steps || [];
   $('stepper').innerHTML = steps.map((s, k) => {
@@ -106,6 +109,12 @@ function renderPanels(f) {
     return `<li class="${cls}">${s}</li>`;
   }).join('');
   $('coordErr').textContent = c.error || '';
+  const checks = c.checks || [];
+  const key = JSON.stringify(checks);
+  if (key !== lastChecksKey) {
+    lastChecksKey = key;
+    $('checkList').innerHTML = checks.map((x) => `<li class="${x.level}"><b>${x.name}</b> — ${x.detail}</li>`).join('');
+  }
 
   $('robotCards').innerHTML = f.robots.length ? f.robots.map((r) => {
     const t = r.truth, e = r.est;
@@ -162,7 +171,7 @@ function imuLine(r) {
 }
 
 // Hiệu chuẩn 2 mắt ToF: xe quay ±40° trước mặt phẳng, đo lệch lắp đặt → hỏi rồi Apply + Save.
-async function calibTof(id, source) {
+export async function calibTof(id, source) {
   if (source !== 'SIM' && !confirm('Đặt xe trước một mặt phẳng rộng (tường/hộp ≥ 40 cm), cách 15–30 cm, '
     + 'mặt xe gần vuông góc (±10°), không vật cản 2 bên. Xe sẽ tự quay ±40° trong ~25 s. Bắt đầu?')) return;
   toast('Đang hiệu chuẩn ToF (~25 s)…');
@@ -269,7 +278,10 @@ async function loadLogs() {
 
 export async function startRun() {
   if (store.points.length < 2) { toast('Vẽ đường ở tab Bản đồ trước', 'err'); return false; }
-  const r = await guard(() => api('POST', '/api/run/start', { grid: store.grid, points: store.points }));
+  const key = JSON.stringify([store.grid, store.points]);
+  const place = checkedKey !== key;
+  checkedKey = null;
+  const r = await guard(() => api('POST', '/api/run/start', { grid: store.grid, points: store.points, place }));
   if (r) {
     trails.clear();
     Object.values(charts).forEach((c) => c.clear());
@@ -294,6 +306,20 @@ export function initView() {
       { key: 'ef', label: 'sai hướng F', color: '--chart-2' }] }),
   };
   $('runStart').onclick = () => startRun();
+  $('runCheck').onclick = async () => {
+    if (store.points.length < 2) { toast('Vẽ đường ở tab Bản đồ trước', 'err'); return; }
+    toast('Đang kiểm tra vị trí 2 xe…');
+    const r = await guard(() => api('POST', '/api/run/check', { grid: store.grid, points: store.points }));
+    if (!r) return;
+    $('checkList').innerHTML = r.checks.map((x) => `<li class="${x.level}"><b>${x.name}</b> — ${x.detail}</li>`).join('');
+    lastChecksKey = JSON.stringify(r.checks);
+    checkedKey = r.ok ? JSON.stringify([store.grid, store.points]) : null;
+    toast(r.ok ? 'Kiểm tra ĐẠT — bấm Start để chạy' : 'Kiểm tra KHÔNG đạt — xem danh sách', r.ok ? 'ok' : 'err');
+  };
+  for (const id of ['placeMm', 'placeDeg']) {
+    $(id).onchange = () => guard(() => api('POST', '/api/sim/control',
+      { place_noise_mm: Number($('placeMm').value) || 0, place_noise_deg: Number($('placeDeg').value) || 0 }));
+  }
   $('runPause').onclick = () => guard(() => api('POST', '/api/run/pause'));
   $('runResume').onclick = () => guard(() => api('POST', '/api/run/resume'));
   $('runStop').onclick = () => guard(() => api('POST', '/api/run/stop'), 'Đã dừng');

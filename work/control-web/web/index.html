@@ -13,6 +13,7 @@
       <button class="tab" data-tab="devices" role="tab">Thiết bị</button>
       <button class="tab" data-tab="config" role="tab">Cấu hình</button>
       <button class="tab" data-tab="map" role="tab">Bản đồ &amp; Đường</button>
+      <button class="tab" data-tab="calib" role="tab">Hiệu chuẩn</button>
       <button class="tab" data-tab="run" role="tab">Chạy / Xem</button>
     </nav>
     <div class="status">
@@ -117,12 +118,57 @@
       </div>
     </section>
 
+    <!-- ============================== CALIB -->
+    <section id="tab-calib" class="page">
+      <div class="card">
+        <div class="card-h"><div class="seg" id="calTargets"></div>
+          <span class="muted small">Làm theo thứ tự: IMU → Đi thẳng → Quay → ToF quét tường → Khoảng cách ToF. Mỗi bước tự lưu flash khi bấm "Tính &amp; lưu".</span></div>
+      </div>
+      <div class="cal-grid">
+        <div class="card">
+          <div class="card-h"><h2>1. IMU (gyro)</h2></div>
+          <p class="small muted">Để xe nằm yên trên sàn. Xe đo bias gyro trong 2 s.</p>
+          <button class="btn primary" data-cal="imu">Calib IMU</button>
+          <div class="cal-out" id="calOut-imu"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>2. Đi thẳng → đường kính bánh</h2></div>
+          <p class="small muted">Đánh dấu vị trí trục bánh trên sàn. Xe chạy thẳng quãng đặt sẵn; đo quãng thật bằng thước rồi nhập.</p>
+          <div class="row gap"><label>Cho xe đi <input type="number" id="calDriveMm" class="num" value="1000"> mm</label>
+            <button class="btn primary" data-cal="drive">Chạy</button></div>
+          <div class="cal-out" id="calOut-drive"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>3. Quay → hệ số gyro, track</h2></div>
+          <p class="small muted">Căn mép xe theo một vạch trên sàn. Nên quay 360° (hoặc 720°) rồi đo góc thật = 360 ± độ lệch so với vạch (quay lố → nhập lớn hơn 360).</p>
+          <div class="row gap"><label>Quay <input type="number" id="calTurnDeg" class="num" value="360"> °</label>
+            <button class="btn primary" data-cal="turn">Quay</button></div>
+          <div class="cal-out" id="calOut-turn"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>4. ToF quét tường → lệch 2 mắt</h2></div>
+          <p class="small muted">Đặt xe trước tường/hộp phẳng ≥ 40 cm, cách 15–30 cm, gần vuông góc. Xe tự quay ±40° (~25 s).</p>
+          <button class="btn primary" data-cal="tofwall">Quét tường</button>
+          <div class="cal-out" id="calOut-tofwall"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>5. Khoảng cách ToF (đặt sẵn)</h2></div>
+          <p class="small muted">Đặt xe này ngay sau đuôi xe kia, thẳng hàng, mặt kính 2 mắt ToF cách mặt đuôi xe trước đúng khoảng dưới đây (dùng thước/căn bằng khối gỗ).</p>
+          <div class="row gap wrap"><label>Khoảng cách <input type="number" id="calGapMm" class="num" value="100"> mm</label>
+            <label class="chk"><input type="checkbox" id="calGapKeep" checked> Giữ chênh lệch 2 mắt (đã làm bước 4)</label>
+            <button class="btn primary" data-cal="gap">Đo</button></div>
+          <div class="cal-out" id="calOut-gap"></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ============================== RUN / VIEW -->
     <section id="tab-run" class="page">
       <div class="run-layout">
         <div class="card canvas-card run-main">
           <div class="card-h">
             <div class="row gap wrap">
+              <button class="btn" id="runCheck" title="Kiểm tra vị trí 2 xe trước khi chạy (không chạy)">✓ Kiểm tra</button>
               <button class="btn primary" id="runStart">▶ Start</button>
               <button class="btn" id="runPause">Pause</button>
               <button class="btn" id="runResume">Resume</button>
@@ -150,6 +196,7 @@
             <div id="coordSeg" class="muted small"></div>
             <ol id="stepper" class="stepper"></ol>
             <div id="coordErr" class="err"></div>
+            <ul id="checkList" class="checks"></ul>
           </div>
           <div class="card" id="robotCards"></div>
           <div class="card" id="simPanel">
@@ -164,6 +211,11 @@
               <select id="replayFile"><option value="">Replay…</option></select>
               <button class="btn" id="replayBtn">Phát</button>
               <button class="btn" id="replayStop">Dừng</button>
+            </div>
+            <div class="row gap wrap small">
+              <span class="muted">Đặt xe lệch:</span>
+              <label>± <input type="number" id="placeMm" class="num" value="0" min="0" max="100"> mm</label>
+              <label>± <input type="number" id="placeDeg" class="num" value="0" min="0" max="20"> °</label>
             </div>
             <details>
               <summary>Gây lỗi</summary>

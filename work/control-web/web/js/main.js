@@ -1,5 +1,6 @@
 // Điểm vào: tabs, WebSocket, khởi tạo các trang.
 import { api, connectWS, guard, toast } from './api.js';
+import { initCalib } from './calib.js';
 import { initConfig } from './config.js';
 import { initDevices, refreshRobots } from './devices.js';
 import { initMap } from './mapedit.js';
@@ -26,6 +27,7 @@ async function boot() {
   initConfig();
   initMap();
   initView();
+  initCalib();
 
   document.querySelectorAll('.tab').forEach((b) => { b.onclick = () => showTab(b.dataset.tab); });
   document.getElementById('estopTop').onclick = () => guard(() => api('POST', '/api/run/estop'), 'E-STOP');
@@ -43,7 +45,7 @@ async function boot() {
     if (!up) toast('Mất kết nối server, đang thử lại…', 'err');
   });
 
-  const TABS = ['devices', 'config', 'map', 'run'];
+  const TABS = ['devices', 'config', 'map', 'calib', 'run'];
   let start = st.robots.length ? 'run' : 'devices';
   try { start = localStorage.getItem(TAB_KEY) || start; } catch { /* bỏ qua */ }
   const hash = location.hash.slice(1);
