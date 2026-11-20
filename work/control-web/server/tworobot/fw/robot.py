@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import math
+from collections import deque
 from typing import Callable
 
 from .. import params as P
@@ -65,6 +66,16 @@ class VirtualFirmware:
         self.imu_info: dict = {}
         self._calib_prev_state = "IDLE"
         self._enc_still_t = 0.0
+        # Hộp thư sự kiện cho giao tiếp HTTP: PC lấy về qua GET /api/state?since=<eseq>
+        self.outbox: deque[dict] = deque(maxlen=64)
+        self._eseq = 0
+        self._ack_capture: list[dict] | None = None
+
+    def _event(self, msg: dict) -> None:
+        self._eseq += 1
+        msg["eseq"] = self._eseq
+        self.outbox.append(msg)
+        self.emit(msg)
 
     # ------------------------------------------------------------ control
     def tick(self, dt: float) -> None:
@@ -176,7 +187,7 @@ class VirtualFirmware:
                 self.flags.add("IMU_BIAS_HIGH")
         else:
             self.imu_ok = False
-        self.emit({"t": "evt", "e": "calib_done", "ok": res["ok"], "err": res.get("err"),
+        self._event({"t": "evt", "e": "calib_done", "ok": res["ok"], "err": res.get("err"),
                    "result": out, "ts": self.hal.now_ms()})
 
     # ------------------------------------------------------------ helpers
@@ -184,12 +195,12 @@ class VirtualFirmware:
         if self.state in ("FAULT", "ESTOP"):
             return
         if self.prim is not None:
-            self.emit({"t": "evt", "e": "prim_done", "id": self.prim.id, "prim": self.prim.name,
+            self._event({"t": "evt", "e": "prim_done", "id": self.prim.id, "prim": self.prim.name,
                        "ok": False, "err": code, "result": {}})
             self.prim = None
         self.fault = code
         self.state = "FAULT"
-        self.emit({"t": "evt", "e": "fault", "code": code, "ts": self.hal.now_ms()})
+        self._event({"t": "evt", "e": "fault", "code": code, "ts": self.hal.now_ms()})
 
     def _finish_prim(self) -> None:
         p = self.prim
@@ -197,7 +208,7 @@ class VirtualFirmware:
         self.kf.active = False if p.name == "FOLLOW" else self.kf.active
         if self.state == "RUNNING":
             self.state = "ARMED"
-        self.emit({"t": "evt", "e": "prim_done", "id": p.id, "prim": p.name, "ok": p.ok,
+        self._event({"t": "evt", "e": "prim_done", "id": p.id, "prim": p.name, "ok": p.ok,
                    "err": p.err, "result": p.result, "ts": self.hal.now_ms()})
 
     def _set_pose(self, x: float, y: float, yaw_deg: float, s: float) -> None:
@@ -212,7 +223,23 @@ class VirtualFirmware:
         if err:
             out["err"] = err
         out.update(extra)
-        self.emit(out)
+        if self._ack_capture is not None:  # gọi qua HTTP: ack trả về trong response
+            self._ack_capture.append(out)
+        else:
+            self.emit(out)
+
+    def handle_cmd(self, cmd: dict) -> dict:
+        """Lệnh qua HTTP (POST /api/cmd): chạy như lệnh WS, trả ack/nack đồng bộ."""
+        self._ack_capture = []
+        try:
+            self.handle_ws({"t": "cmd", **cmd})
+            acks = self._ack_capture
+        finally:
+            self._ack_capture = None
+        if not acks:
+            return {"ok": False, "err": "no_ack"}
+        a = acks[-1]
+        return {"ok": a["t"] == "ack", "err": a.get("err"), "state": self.state}
 
     # ------------------------------------------------------------ telemetry
     def telemetry(self) -> dict:
@@ -271,10 +298,24 @@ class VirtualFirmware:
                 "state": self.state, "cfg_rev": self.params.rev, "schema_ver": P.SCHEMA["schema_ver"]}
 
     def handle_request(self, method: str, path: str, body: dict | None = None) -> tuple[int, dict]:
+        """HTTP API (wiki/protocol.md §2). Mọi request từ PC đều tính là heartbeat."""
         body = body or {}
+        self.last_hb_ms = self.hal.now_ms()
+        self.link_watch = True
         running = self.state in ("RUNNING", "PAUSED", "JOG")
         if method == "GET" and path == "/api/info":
             return 200, self.info()
+        if method == "GET" and path == "/api/state":
+            since = int(body.get("since", 0) or 0)
+            events = [e for e in self.outbox if e["eseq"] > since]
+            lost = bool(self.outbox) and since < self.outbox[0]["eseq"] - 1
+            return 200, {"tel": self.telemetry(), "events": events, "eseq": self._eseq, "events_lost": lost}
+        if method == "POST" and path == "/api/cmd":
+            res = self.handle_cmd(body)
+            return (200 if res["ok"] else 409), res
+        if method == "POST" and path == "/api/relay":
+            self.handle_ws({"t": "relay", **body})
+            return 200, {"ok": True}
         if path == "/api/config":
             if method == "GET":
                 ps = self.params
@@ -379,7 +420,7 @@ class VirtualFirmware:
                 return self._ack(msg, False, "unknown_prim")
             if self.prim is not None:
                 old = self.prim
-                self.emit({"t": "evt", "e": "prim_done", "id": old.id, "prim": old.name, "ok": False,
+                self._event({"t": "evt", "e": "prim_done", "id": old.id, "prim": old.name, "ok": False,
                            "err": "preempted", "result": {}, "ts": now})
             args = {k: v for k, v in msg.items() if k not in ("t", "op", "id", "prim", "seq")}
             p = cls(int(msg.get("id", 0)), args)

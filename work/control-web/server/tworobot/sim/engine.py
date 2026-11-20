@@ -28,6 +28,7 @@ class SimRobot:
     mismatch: dict = field(default_factory=dict)
     link_alive: bool = True
     link_down_until: float = 0.0
+    auto_hb: bool = True  # SimLink: engine bơm heartbeat. Robot HTTP ảo: heartbeat từ request thật.
     ctrl_acc: float = 0.0
     tof_acc: float = 0.0
     collisions: int = 0
@@ -132,7 +133,7 @@ class SimEngine:
             r.ctrl_acc += dt
             while r.ctrl_acc >= CONTROL_DT - 1e-9:
                 r.ctrl_acc -= CONTROL_DT
-                if r.link_alive:
+                if r.link_alive and r.auto_hb:
                     r.fw.last_hb_ms = r.hal.now_ms()  # heartbeat của SimLink (theo thời gian sim)
                 r.fw.tick(CONTROL_DT)
             r.tof_acc += dt
