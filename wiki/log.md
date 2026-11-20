@@ -19,3 +19,9 @@
 - Tạo: motor-control.md, simulation.md, config-management.md
 - Cập nhật: requirements.md (C5–C7, F23–F29, N9–N10), architecture.md (cấu trúc lib, 12 V), algorithms.md, protocol.md, parameters.md (hw.*, motor LUT/adapt), web-ui.md, open-questions.md, index.md
 - Cập nhật ngoài wiki: ops/roadmap.md (sim-first), ops/decisions.md (D14–D18), hardware-intake.md, README.md
+
+## [2026-11-20] ingest | 2026-11-20-answers-4
+- Chốt: GPIO cố định trong code (pins.h). Kích thước/khoảng cách/hệ số là tham số động, firmware xử lý lúc chạy
+- Viết lại: config-management.md (thêm §3 firmware xử lý tham số động: ParamService, Derived, swap ở ranh giới chu kỳ, onParams bumpless, live/idle)
+- Cập nhật: parameters.md (bỏ hw.pins, thêm power.*), requirements.md (C7, F29, F30), architecture.md, web-ui.md, open-questions.md
+- Cập nhật ngoài wiki: ops/decisions.md (D17 sửa, D19), ops/roadmap.md, hardware-intake.md, README.md

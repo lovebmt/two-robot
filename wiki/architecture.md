@@ -60,7 +60,8 @@ Thông số cụ thể và GPIO sẽ được điền vào [hardware-intake.md](
 - Gắn gần tâm trục bánh, trục Z thẳng đứng, có đệm mút chống rung động cơ.
 - **Bus I²C:** MPU6050 (`0x68`) và 2 ToF (`0x29`/`0x30`) dùng chung bus 400 kHz được. Tuy vậy nên tách **IMU ra bus I²C thứ 2** (ESP32 có 2 controller) để đọc gyro 200 Hz không bị chặn bởi ToF.
 
-### 2.4 Ràng buộc GPIO của ESP32 (để chọn chân khi có phần cứng)
+### 2.4 Ràng buộc GPIO của ESP32
+GPIO **cố định trong code** tại `work/firmware/src/board/pins.h` (D19). File này có `static_assert` để chặn lỗi chọn chân lúc biên dịch: chân flash 6–11, chân input-only bị dùng làm output, chân trùng nhau.
 - Tránh chân **6–11** (flash). Hạn chế chân strapping **0, 2, 5, 12, 15** (12 HIGH lúc boot sẽ treo).
 - **34–39 chỉ là input**, không có pull-up nội. Dùng được cho encoder hoặc ECHO nếu có pull-up/chia áp ngoài.
 - ADC2 không dùng được khi bật WiFi. Đo pin bằng ADC1 (32–39).
@@ -73,15 +74,17 @@ Thông số cụ thể và GPIO sẽ được điền vào [hardware-intake.md](
 ```
 work/firmware/
   lib/core/     C++17 thuần: kinematics, motor ctrl (FF LUT, PI, bão hoà), fusion, KF, follow
-  lib/app/      primitive, máy trạng thái, safety, config (codegen từ schema), scheduler
+  lib/app/      primitive, máy trạng thái, safety, scheduler,
+                params/ (Config codegen, validate, Derived, ParamService, double-buffer swap)
   lib/proto/    encode/decode message, dispatcher lệnh (không phụ thuộc transport)
   lib/hal_api/  interface IMotor/IEncoder/IImu/IRange/IClock/IBattery/IStorage/ITransport
+  src/board/pins.h  GPIO, địa chỉ I²C, port cố định (compile-time)
   src/hal_esp32/  LEDC, PCNT, Wire (2 bus), VL53L0X, MPU6050, LittleFS, AsyncTCP/UDP
   src/main.cpp    tạo HAL ESP32 và FreeRTOS task, gọi lib/app
 work/sim/
   hal_sim/  world/  main.cpp      (CMake, dùng lại lib/*)
 ```
-- Cấu hình động trên web và lưu flash (LittleFS): xem [config-management.md](config-management.md).
+- **Tham số động:** kích thước, khoảng cách, hệ số đều đọc từ snapshot `Config + Derived` lúc chạy. Snapshot được đổi ở ranh giới chu kỳ điều khiển. Chi tiết ở [config-management §3](config-management.md#3-firmware-xử-lý-tham-số-động).
 
 | Task | Tần số | Core | Việc |
 |---|---|---|---|

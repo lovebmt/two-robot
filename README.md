@@ -3,7 +3,7 @@
 Hai xe vi sai 3 bánh chạy ESP32 DevKit: 2 bánh động cơ GA25-370 12 V có encoder, driver L298N, 1 bánh nhỏ phía trước để cân bằng.
 Mỗi xe có 2 cảm biến ToF200C (VL53L0X) ở đầu xe và 1 IMU MPU6050.
 Thuật toán được phát triển trước trên **mô phỏng 2 robot ảo** dùng chính code firmware. **Cùng một view** hiển thị sim, xe thật realtime và replay.
-Mọi kích thước và tham số (kể cả GPIO) **nhập trên web, đẩy xuống ESP32 và lưu flash**. Một **Web Control chạy trên PC** dò tìm 2 xe trong mạng LAN.
+GPIO cố định trong code (`pins.h`). Kích thước xe, khoảng cách và các hệ số **nhập trên web, đẩy xuống ESP32**. Firmware áp dụng chúng lúc chạy và lưu flash. Một **Web Control chạy trên PC** dò tìm 2 xe trong mạng LAN.
 Người dùng chọn xe nào là **đầu (leader)**, xe nào là **đuôi (follower)**, vẽ đường đi trên lưới (chỉ góc 90°) rồi đặt khoảng cách giữa 2 xe.
 Mọi liên lạc giữa 2 xe đi qua PC.
 - **Đoạn thẳng:** follower tự bám leader bằng bộ lọc kết hợp **đường biết trước + encoder + gyro + 2 ToF** (relay trạng thái leader qua PC chỉ dùng làm phụ trợ).

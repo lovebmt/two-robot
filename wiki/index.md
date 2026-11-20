@@ -6,9 +6,9 @@
 - [algorithms.md](algorithms.md): điều khiển bánh, fusion gyro + encoder, KF gap bằng ToF, luật FOLLOW, quy trình góc cua 10 bước, hiệu chuẩn
 - [motor-control.md](motor-control.md): motor mạnh yếu và ma sát khác nhau, giải pháp phân tầng L0–L7, wizard hiệu chuẩn
 - [simulation.md](simulation.md): robot ảo cùng code và cùng giao thức, mô hình vật lý, chế độ interactive/batch/replay, view chung SIM/REAL, kịch bản và metric
-- [config-management.md](config-management.md): schema duy nhất + codegen, lưu flash LittleFS, live/idle/reboot, luồng Apply/Save trên web
+- [config-management.md](config-management.md): GPIO cố định trong code và tham số động, schema + codegen, **firmware xử lý tham số lúc chạy** (ParamService, Derived, swap, bumpless), lưu flash, luồng Apply/Save
 - [web-ui.md](web-ui.md): các màn hình, planner, validator
-- [parameters.md](parameters.md): toàn bộ khoá cấu hình (kể cả GPIO) và giá trị mặc định
+- [parameters.md](parameters.md): toàn bộ tham số động (không có GPIO) và giá trị mặc định
 - [open-questions.md](open-questions.md): câu hỏi đã chốt và còn mở
 
 Liên quan: [../ops/roadmap.md](../ops/roadmap.md), [../ops/decisions.md](../ops/decisions.md), [../work/hardware/hardware-intake.md](../work/hardware/hardware-intake.md)

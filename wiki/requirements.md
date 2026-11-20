@@ -12,7 +12,7 @@ Những điểm còn mở được đánh dấu **[GĐ]** và liệt kê ở [op
 | C4 | Đường chỉ gồm đoạn ngang/dọc theo lưới, **góc cua đúng 90°**. Không có góc khác và không quay đầu 180° |
 | C5 | Phần cứng có sẵn: **ESP32 DevKit thường (WROOM)**, driver **L298N**, 2 động cơ **GA25-370 12 V có encoder Hall** mỗi xe. GPIO sẽ được cung cấp sau ([hardware-intake](../work/hardware/hardware-intake.md)) |
 | C6 | Thuật toán phải chạy được **hoàn toàn trên PC (mô phỏng 2 xe)** trước khi chạy trên xe. **Cùng một view** dùng cho sim, xe thật realtime và replay |
-| C7 | Mọi kích thước và tham số (kể cả GPIO) **nhập động trên web, gửi xuống ESP32, lưu flash**. Không cần nạp lại firmware |
+| C7 | **GPIO cố định trong code** (`pins.h`). Kích thước xe, khoảng cách, hệ số điều khiển/lọc, hiệu chuẩn thì **nhập trên web, gửi xuống ESP32, firmware áp dụng lúc chạy, lưu flash**. Không cần nạp lại firmware khi chỉnh |
 
 ## 1. Phạm vi
 | Thành phần | Mô tả |
@@ -67,7 +67,8 @@ Ngoài phạm vi v1: tránh vật cản lạ (chỉ dừng khẩn cấp), địn
 
 ### 2.7 Cấu hình động ([config-management.md](config-management.md))
 - **F28** Form cấu hình trên web sinh tự động từ một schema chung. Có Apply (RAM), Save (flash), Revert, Diff, Export/Import, Factory reset.
-- **F29** Chỉnh nhanh hệ số bằng slider khi đang chạy (chỉ ghi RAM). Firmware luôn validate lại. Có safe mode khi cấu hình GPIO sai.
+- **F29** Firmware nhận tham số lúc chạy: validate, tính lại các giá trị suy ra, áp dụng ở ranh giới chu kỳ điều khiển (không giật, không lẫn cũ với mới). Hệ số chỉnh được bằng slider khi đang chạy (RAM). Tham số hình học chỉ đổi khi xe đứng yên.
+- **F30** Telemetry mang `cfg_rev`, để view và log biết tham số nào đang có hiệu lực ở từng thời điểm.
 
 ## 3. Yêu cầu phi chức năng
 | Mã | Yêu cầu | Mục tiêu v1 |

@@ -10,7 +10,7 @@ Frontend Vite + TS + Canvas, giao tiếp với server qua REST và WS. Mỗi l�
 - Nút kết nối và ngắt kết nối. Có cảnh báo khi fw 2 xe khác nhau.
 
 ### Config
-- Hai tab, mỗi xe một tab, có nút "Copy sang xe kia". **Form sinh tự động từ schema** ([config-management.md](config-management.md)), theo nhóm trong [parameters.md](parameters.md). Có nút Apply / Save / Revert / Diff / Export / Import / Factory reset. Ô chưa lưu có viền vàng, ô khác với xe có viền tím. Nhóm `hw.*` có nút Reboot.
+- Hai tab, mỗi xe một tab, có nút "Copy sang xe kia". **Form sinh tự động từ schema** ([config-management.md](config-management.md)), theo nhóm trong [parameters.md](parameters.md). Có nút Apply / Save / Revert / Diff / Export / Import / Factory reset. Ô chưa lưu có viền vàng, ô khác với xe có viền tím. Khoá `idle` bị khoá khi xe đang chạy. Có panel chỉ đọc hiển thị các giá trị `derived` mà xe đã tính.
 - **Hình xem trước xe (vẽ từ tham số):** thân hộp, 2 bánh, caster, 2 mắt cảm biến và chùm của chúng, tấm phản xạ, vòng quét `R_sw`. Hình cập nhật khi đổi số.
 - Hiển thị các giá trị suy ra: `mm_per_tick`, `R_sw`, `g_hold_min`, `exit_dist_min`, `seg_min`.
 - Nút **Push to robot** (PUT `/api/config`) và **Pull**. Có so sánh khác biệt giữa bản trên PC và bản trên xe.

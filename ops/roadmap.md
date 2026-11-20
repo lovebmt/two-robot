@@ -20,7 +20,9 @@ Thứ tự: M1 khung → M2 lõi + sim batch → M3 server + view trên sim → 
 ## M2 — Lõi thuật toán và sim batch (chưa cần UI)
 - [ ] `lib/core`: kinematics, profile, dừng tại điểm, **motor control L1–L7** (LUT FF, PI, bão hoà, thích nghi, kick tốc độ thấp)
 - [ ] fusion gyro + encoder, quay vòng kín theo gyro, mô hình 2 ToF, KF gap, luật FOLLOW
-- [ ] `lib/app`: primitive (DRIVE_TO, TURN, FOLLOW, SNAPSHOT, REACQUIRE, ALIGN, HOLD), safety, config load/validate
+- [ ] `lib/app`: primitive (DRIVE_TO, TURN, FOLLOW, SNAPSHOT, REACQUIRE, ALIGN, HOLD), safety
+- [ ] `lib/app/params`: ParamService (patch → validate → Derived → pending → swap ở đầu chu kỳ), `onParams(ChangeSet)` bumpless, live/idle
+- [ ] Unit test và kịch bản sim **đổi tham số giữa lúc chạy** (gain, gap.target): không giật, không lẫn snapshot
 - [ ] `world`: motor DC lệch từng bánh, L298N và pin, ma sát theo vùng, trượt, caster, encoder, gyro, ToF ray-cast, va chạm
 - [ ] Scheduler deterministic (bước 1 ms, task đúng tần số), seed
 - [ ] `sim run` batch: kịch bản YAML, metric, pass/fail. Ở mốc này coordinator góc cua viết tạm bằng script trong sim
@@ -39,11 +41,11 @@ Thứ tự: M1 khung → M2 lõi + sim batch → M3 server + view trên sim → 
 
 ## M4a — Phần cứng (song song M2/M3)
 - [ ] Đi dây: 3S, buck 5 V, GND chung, tháo jumper ENA/ENB, kiểm tra mức điện áp encoder. Gắn tấm phản xạ, gắn MPU6050 có đệm
-- [ ] Ghi số đo vào [intake](../work/hardware/hardware-intake.md)
+- [ ] Ghi số đo vào [intake](../work/hardware/hardware-intake.md). Chép GPIO vào `src/board/pins.h`
 
 ## M4 — Firmware HAL ESP32 (1 xe)
 - [ ] `hal_esp32`: LEDC, PCNT (có timestamp cạnh xung), 2× VL53L0X (XSHUT), MPU6050 (bus 2), ADC pin, LittleFS
-- [ ] WiFi + AP portal, transport thật cho `lib/proto`. Safe mode GPIO
+- [ ] WiFi + AP portal, transport thật cho `lib/proto`. ParamService trên FreeRTOS, LittleFS save/load
 - [ ] Wizard hiệu chuẩn: chiều motor, quét PWM, step response, đi thẳng, quay, ToF. **Xuất mô hình motor sang sim**
 - [ ] Xe thật hiện lên **view chung** (badge REAL)
 
@@ -70,4 +72,4 @@ Chế độ MIXED (leader thật + follower ảo), chạy song song các bước
 | Tốc độ thấp bị giật (ma sát tĩnh) | Đo chu kỳ xung, điều khiển vị trí + kick, chọn tần số PWM |
 | Rung motor làm nhiễu gyro | Đệm mút, DLPF, ZUPT |
 | WiFi trễ hoặc mất gói | Vòng nhanh nằm trên xe, UDP stream, WS có ACK, timeout an toàn |
-| Cấu hình GPIO sai làm xe treo khi boot | Firmware validate, safe mode sau 3 lần crash |
+| Đổi tham số khi đang chạy làm xe giật hoặc mất ổn định | Snapshot bất biến mỗi chu kỳ, bumpless, khoá `idle`, validate ở firmware, test trong sim trước |

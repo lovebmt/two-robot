@@ -7,7 +7,7 @@
 | Q3 | Liên lạc giữa 2 xe | **Qua PC**, không có ESP-NOW |
 | Q4 | Loại cảm biến khoảng cách | **ToF200C** ×2, **VL53L0X** (I²C), xác nhận ở đợt 3 |
 | Q15a | Điện áp motor | **GA25-370 12 V**, nên dùng pin 3S |
-| Q23 | Kích thước và tham số nhập ở đâu | **Nhập động trên web, lưu flash ESP32** ([config-management](config-management.md)) |
+| Q23 | Kích thước và tham số nhập ở đâu | **Nhập trên web, firmware áp dụng lúc chạy, lưu flash**. **GPIO cố định trong code** (đợt 4) ([config-management](config-management.md)) |
 | Q24 | Có mô phỏng không | **Có**: sim 2 xe đầy đủ, view chung cho sim, xe thật và replay ([simulation](simulation.md)) |
 | Q5 | IMU | **Có MPU6050** (đợt 2 sửa lại đợt 1) |
 | Q7 | Loại góc cua | **Chỉ 90°**, không vẽ được góc khác |

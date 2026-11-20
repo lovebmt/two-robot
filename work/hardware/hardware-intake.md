@@ -1,6 +1,7 @@
 # Hardware intake (điền khi có phần cứng)
 
-> Mọi số liệu ở đây (kể cả GPIO) cuối cùng được **nhập trên web và lưu flash** ([config-management](../../wiki/config-management.md)). File này chỉ để ghi lại số đo gốc và đối chiếu.
+> **GPIO (§3)** được chép vào `work/firmware/src/board/pins.h` (cố định trong code).
+> **Kích thước và thông số (§1–2)** được nhập trên web và lưu flash ([config-management](../../wiki/config-management.md)). File này chỉ để ghi lại số đo gốc và đối chiếu.
 
 Mỗi xe một cột. Nếu 2 xe giống nhau thì chỉ cần ghi xe A.
 
