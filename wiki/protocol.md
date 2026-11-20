@@ -23,7 +23,7 @@ PC cũng duyệt mDNS `_tworobot._tcp`. Nếu không thấy xe nào sau 5 s, PC 
 | Method | Path | Mô tả |
 |---|---|---|
 | GET | `/api/info` | id, fw, role, ip, mac, bat, uptime |
-| GET/PUT | `/api/config` | cấu hình đầy đủ ([parameters.md](parameters.md)), lưu NVS |
+| GET/PUT | `/api/config` | cấu hình đầy đủ ([parameters.md](parameters.md)). Apply vào RAM hoặc lưu flash, xem đầy đủ API ở [config-management §6](config-management.md#6-api-bổ-sung-protocolmd) |
 | PUT | `/api/role` | `{"role":"leader"\|"follower"}` |
 | PUT | `/api/path` | đường đi (xem §5). Xe trả về `{path_id, crc}` |
 | POST | `/api/identify` | nháy LED và lắc bánh |
@@ -45,6 +45,7 @@ Khung chung: `{"t": <type>, "seq": <u32>, "ts": <ms clock xe hoặc PC>, ...}`. 
 {"t":"cmd","op":"estop"}                              // gửi lặp lại 3 lần
 {"t":"cmd","op":"jog","v":100,"w":0}                  // chạy tay, hết hạn sau 300 ms
 {"t":"sync","pc_ts":123456}                           // time sync
+{"t":"cfg_set","key":"pid.wheel.kp","value":1.2}      // chỉnh nhanh, chỉ ghi RAM
 ```
 **Xe → PC**
 ```json
