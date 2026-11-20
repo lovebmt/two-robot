@@ -64,6 +64,11 @@ class App {
   std::string calib_prev_state_ = "IDLE";
   float enc_still_t_ = 0;
   float dir_t_[2] = {0, 0};  // thời gian bánh quay ngược chiều lệnh khi duty lớn
+  // Thử motor thô (op "motor_test"): duty cố định 1 bánh, không PI → kiểm tra dây motor/encoder
+  char test_side_ = 0;
+  float test_duty_ = 0, test_psi0_ = 0;
+  uint32_t test_until_ = 0;
+  int32_t test_tl0_ = 0, test_tr0_ = 0;
   bool has_last_ticks_ = false;
   int32_t last_tl_ = 0, last_tr_ = 0;
   uint32_t last_hb_ms_ = 0;

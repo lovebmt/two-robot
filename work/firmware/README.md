@@ -59,6 +59,10 @@ Encoder: cấp **VCC 3.3 V** để tín hiệu ra 3.3 V. Cấp 5 V thì tín hi�
 GND chung giữa L298N, ESP32, encoder, cảm biến. ESP32 nên cấp bằng buck 5 V riêng. Motor 12 V dùng pin 3S.
 Lúc boot, log in kết quả quét từng bus I2C (MPU: `0x68`; ToF: `0x29 0x30`) và trạng thái từng cảm biến.
 
+## Thử motor thô (chẩn đoán dây)
+`POST /api/cmd {"op":"motor_test","side":"l"|"r","duty":0.4,"ms":500}`: cấp duty cố định cho 1 bánh (không qua PI, bánh kia phanh, |duty| ≤ 0.8, ≤ 2 s).
+Kết quả trong sự kiện `motor_test_done`: tick/mm 2 encoder, góc gyro. Dùng để biết motor nào quay, encoder nào đếm, chiều có khớp không.
+
 ## Console serial (USB, 115200)
 `pio device monitor`, gõ:
 - `status`: số đo 2 ToF, hướng/bias/nhiệt độ gyro, tick encoder, tốc độ bánh, trạng thái.

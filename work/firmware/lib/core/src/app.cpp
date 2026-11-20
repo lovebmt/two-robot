@@ -1,5 +1,6 @@
 #include "app.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -74,6 +75,27 @@ void App::tick(float dt) {
   float duty_l, duty_r;
   bool b;
   drive.command(cmd.v, cmd.w, cmd.brake, c, vbat_, dt, duty_l, duty_r, b);
+  if (state == "TEST") {  // thử motor thô: 1 bánh duty cố định, bánh kia phanh
+    if (now < test_until_) {
+      const float d = test_duty_;
+      hal.setMotor('l', test_side_ == 'l' ? (c.motor_invert_l ? -d : d) : 0.f, test_side_ != 'l');
+      hal.setMotor('r', test_side_ == 'r' ? (c.motor_invert_r ? -d : d) : 0.f, test_side_ != 'r');
+      return;
+    }
+    JsonDocument e;
+    e["t"] = "evt"; e["e"] = "motor_test_done"; e["ok"] = true;
+    JsonObject r = e["result"].to<JsonObject>();
+    r["side"] = test_side_ == 'l' ? "l" : "r";
+    r["duty"] = test_duty_;
+    r["ticks_l"] = tl - test_tl0_;
+    r["ticks_r"] = tr - test_tr0_;
+    r["mm_l"] = (tl - test_tl0_) * der.mm_per_tick_l;
+    r["mm_r"] = (tr - test_tr0_) * der.mm_per_tick_r;
+    r["yaw_deg"] = rad2deg(wrap(heading.psi - test_psi0_));
+    event(e);
+    test_side_ = 0;
+    state = "IDLE";
+  }
   hal.setMotor('l', c.motor_invert_l ? -duty_l : duty_l, b);
   hal.setMotor('r', c.motor_invert_r ? -duty_r : duty_r, b);
   // An toàn: duty lớn mà bánh quay NGƯỢC chiều lệnh → motor/encoder đấu ngược → PI phản hồi dương.
@@ -289,7 +311,7 @@ void App::handleCmd(JsonObjectConst cmd, JsonObject out) {
   const uint32_t now = hal.nowMs();
   out["ok"] = true;
   if (!std::strcmp(op, "estop")) {
-    prim_.reset(); imu_cal_.reset(); paused = false; state = "ESTOP";
+    prim_.reset(); imu_cal_.reset(); paused = false; test_side_ = 0; state = "ESTOP";
   } else if (!std::strcmp(op, "reset")) {
     if (state == "ESTOP" || state == "FAULT") { state = "IDLE"; fault.clear(); paused = false; prim_.reset(); }
   } else if (state == "ESTOP") {
@@ -310,8 +332,24 @@ void App::handleCmd(JsonObjectConst cmd, JsonObject out) {
   } else if (!std::strcmp(op, "resume")) {
     paused = false; last_hb_ms_ = now;
   } else if (!std::strcmp(op, "stop")) {
-    prim_.reset(); imu_cal_.reset(); paused = false;
+    prim_.reset(); imu_cal_.reset(); paused = false; test_side_ = 0;
+    if (state == "TEST") state = "IDLE";
     if (state != "FAULT") state = "IDLE";
+  } else if (!std::strcmp(op, "motor_test")) {
+    const char* side = cmd["side"] | "";
+    const float duty = clampf(cmd["duty"] | 0.4f, -0.8f, 0.8f);
+    const uint32_t ms = std::min<uint32_t>(cmd["ms"] | 500u, 2000u);
+    if (state != "IDLE") { out["ok"] = false; out["err"] = "state:" + state; }
+    else if (std::strcmp(side, "l") && std::strcmp(side, "r")) { out["ok"] = false; out["err"] = "side phải là l|r"; }
+    else {
+      test_side_ = side[0];
+      test_duty_ = duty;
+      test_until_ = now + ms;
+      test_tl0_ = last_tl_;
+      test_tr0_ = last_tr_;
+      test_psi0_ = heading.psi;
+      state = "TEST";
+    }
   } else if (!std::strcmp(op, "calib_imu")) {
     if (!startCalib_()) { out["ok"] = false; out["err"] = "state:" + state; }
   } else if (!std::strcmp(op, "set_s")) {
