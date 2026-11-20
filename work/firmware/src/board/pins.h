@@ -1,7 +1,7 @@
 #pragma once
 // GPIO CỐ ĐỊNH TRONG CODE (D19). Bảng chân theo dây thật của người dùng (2026-11-20), đã sửa 2 chỗ:
 //   • 2 ToF KHÔNG dùng 34/35 cho I2C (34–39 chỉ là input, không kéo SDA/SCL xuống được)
-//     → 2 ToF dùng CHUNG bus I2C 21/22 với MPU6050 (địa chỉ 0x68 / 0x29 / 0x30, Wire có mutex).
+//     → 2 ToF có bus I2C RIÊNG trên 25/26 (cạnh XSHUT 32/33); MPU6050 giữ bus 21/22.
 //   • Encoder trái KHÔNG dùng GPIO12 (strapping MTDI: HIGH lúc reset → flash 1.8 V → không boot,
 //     đã thấy log boot:0x33 + "invalid header") → chuyển sang GPIO35.
 // ⚠ Encoder: cấp VCC 3.3 V (không 5 V). GPIO35 không có pull-up nội: encoder phải có pull-up
@@ -26,9 +26,12 @@ constexpr uint8_t ENC_L_B = 35;  // (trước là 12 — strapping, KHÔNG dùng
 constexpr uint8_t ENC_R_A = 14;
 constexpr uint8_t ENC_R_B = 27;
 
-// I2C chung: MPU6050 + 2× ToF200C (VL53L0X)
-constexpr uint8_t I2C_SDA = 21;
-constexpr uint8_t I2C_SCL = 22;
+// I2C bus 0 (Wire): MPU6050
+constexpr uint8_t I2C_IMU_SDA = 21;
+constexpr uint8_t I2C_IMU_SCL = 22;
+// I2C bus 1 (Wire1): 2× ToF200C (VL53L0X) — bus riêng, đọc gyro 100 Hz không phải chờ ToF
+constexpr uint8_t I2C_TOF_SDA = 25;
+constexpr uint8_t I2C_TOF_SCL = 26;
 constexpr uint8_t TOF_L_XSHUT = 33;
 constexpr uint8_t TOF_R_XSHUT = 32;
 constexpr uint8_t TOF_L_ADDR = 0x30;  // đổi địa chỉ lúc boot qua XSHUT
@@ -46,9 +49,10 @@ constexpr uint8_t PWM_BITS = 10;
 
 // ---- kiểm tra lúc biên dịch ----
 constexpr uint8_t OUTPUTS[] = {MOTOR_L_EN, MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_EN, MOTOR_R_IN1, MOTOR_R_IN2,
-                               TOF_L_XSHUT, TOF_R_XSHUT, I2C_SDA, I2C_SCL, LED};
+                               TOF_L_XSHUT, TOF_R_XSHUT, I2C_IMU_SDA, I2C_IMU_SCL, I2C_TOF_SDA, I2C_TOF_SCL, LED};
 constexpr uint8_t ALL[] = {MOTOR_L_EN, MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_EN, MOTOR_R_IN1, MOTOR_R_IN2, ENC_L_A,
-                           ENC_L_B, ENC_R_A, ENC_R_B, I2C_SDA, I2C_SCL, TOF_L_XSHUT, TOF_R_XSHUT, LED};
+                           ENC_L_B, ENC_R_A, ENC_R_B, I2C_IMU_SDA, I2C_IMU_SCL, I2C_TOF_SDA, I2C_TOF_SCL,
+                           TOF_L_XSHUT, TOF_R_XSHUT, LED};
 // Motor không được nằm trên chân strapping (0, 2, 5, 12, 15): mức lúc boot có thể làm motor tự quay
 constexpr uint8_t MOTOR[] = {MOTOR_L_EN, MOTOR_L_IN1, MOTOR_L_IN2, MOTOR_R_EN, MOTOR_R_IN1, MOTOR_R_IN2};
 constexpr bool motorNotStrapping(int i = 0) {

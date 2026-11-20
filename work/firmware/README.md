@@ -16,7 +16,7 @@ lib/core/src/        C++17 thuần, KHÔNG phụ thuộc Arduino → test đư�
   hal.h              interface phần cứng
 src/
   board/pins.h       GPIO CỐ ĐỊNH (⚠ kiểm tra theo dây thật)
-  hal_esp32.*        L298N (LEDC), encoder (PCNT x4), MPU6050 + 2× VL53L0X chung 1 bus I2C (XSHUT), LittleFS, NVS
+  hal_esp32.*        L298N (LEDC), encoder (PCNT x4), MPU6050 (I2C 21/22), 2× VL53L0X (I2C 25/26 + XSHUT), LittleFS, NVS
   net.*              WiFi STA / AP cài WiFi, WebServer cổng 80
   main.cpp           task: control 100 Hz (core 1), range ~30 Hz (core 1), http (core 0)
 test/test_core/      test native: params, KF, ToF, App; ĐỐI CHIẾU với Python (test/vectors/*.json)
@@ -37,7 +37,8 @@ pio test -e native                        # 12 test lõi trên máy tính
 ## Đi dây (theo `src/board/pins.h`, bảng đã chốt với dây thật 2026-11-20)
 | Chức năng | GPIO | Ghi chú |
 |---|---|---|
-| **I2C chung** SDA / SCL | **21 / 22** | MPU6050 **và** cả 2 ToF cùng nối vào đây (địa chỉ 0x68 / 0x29 / 0x30) |
+| I2C MPU6050 SDA / SCL | **21 / 22** | bus 0 (Wire), địa chỉ 0x68 |
+| I2C 2 ToF SDA / SCL | **25 / 26** | bus 1 (Wire1), riêng cho ToF; 2 ToF nối chung bus này (0x29 / 0x30) |
 | ToF phải XSHUT | 32 | giữ địa chỉ 0x29 |
 | ToF trái XSHUT | 33 | firmware đổi sang 0x30 lúc boot |
 | Encoder phải A / B | 14 / 27 | |
@@ -46,17 +47,17 @@ pio test -e native                        # 12 test lõi trên máy tính
 | L298N ENB / IN3 / IN4 (motor phải) | 17 / 4 / 16 | **tháo jumper ENB** |
 | Đo pin | — | **không dùng** (xe không có cầu chia). Muốn đo thì dùng chân ADC1 32–39 và đặt `power.vbat_divider` |
 | LED | 2 | LED onboard |
-| Còn trống | 25, 26, 34, 35*, 5, 15 | 34–39 chỉ input (không làm I2C/XSHUT được); 5, 15 là chân strapping, không dùng cho motor. *35 đang là encoder trái |
+| Còn trống | 34, 5, 15 | 34–39 chỉ input (không làm I2C/XSHUT được); 5, 15 là chân strapping, không dùng cho motor |
 
 ⚠ **Không dùng:**
 - **GPIO12** (strapping MTDI): bị kéo HIGH lúc reset thì flash nhận 1.8 V, ESP32 không boot và không nạp được. Triệu chứng đã gặp: `boot:0x33` + `invalid header: 0xffffffff`.
-- **GPIO34–39 cho I2C hoặc output**: các chân này chỉ là input. **ToF SDA/SCL phải ở 21/22, không nối 34/35.** Chỉ chân GPIO1/INT của ToF (tín hiệu từ cảm biến ra) mới nối được vào 34–39, và firmware không cần chân này.
+- **GPIO34–39 cho I2C hoặc output**: các chân này chỉ là input. **ToF SDA/SCL phải ở 25/26, không nối 34/35.** Chỉ chân GPIO1/INT của ToF (tín hiệu từ cảm biến ra) mới nối được vào 34–39, và firmware không cần chân này.
 - 6–11 (flash), 0/1/3 (boot/UART).
 - **Chân strapping 0, 2, 15 cho motor**: lúc cấp nguồn GPIO15/0 ở mức HIGH làm motor tự quay khoảng 0.3 s trước khi firmware chạy.
 
 Encoder: cấp **VCC 3.3 V** để tín hiệu ra 3.3 V. Cấp 5 V thì tín hiệu 5 V có thể hỏng ESP32.
 GND chung giữa L298N, ESP32, encoder, cảm biến. ESP32 nên cấp bằng buck 5 V riêng. Motor 12 V dùng pin 3S.
-Lúc boot, log in kết quả quét I2C (`I2C (SDA 21, SCL 22): 0x29 0x30 0x68`) và trạng thái từng cảm biến.
+Lúc boot, log in kết quả quét từng bus I2C (MPU: `0x68`; ToF: `0x29 0x30`) và trạng thái từng cảm biến.
 
 ## Chạy lần đầu (mỗi xe)
 1. Nạp firmware. Mở monitor: thấy `AP "TwoRobot-xxxxxx"`.

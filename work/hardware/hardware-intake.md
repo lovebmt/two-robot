@@ -42,8 +42,8 @@ Mỗi xe một cột. Nếu 2 xe giống nhau thì chỉ cần ghi xe A.
 | Chức năng | Người dùng nối | Chốt | Lý do sửa |
 |---|---|---|---|
 | MPU6050 SDA / SCL | 21 / 22 | 21 / 22 | |
-| ToF phải: SDA/SCL + XSHUT | 34/35 + 32 | **21/22** + 32 | 34/35 chỉ là input, không làm I2C được → dùng chung bus với MPU |
-| ToF trái: SDA/SCL + XSHUT | 34/35 + 33 | **21/22** + 33 | như trên |
+| ToF phải: SDA/SCL + XSHUT | 34/35 + 32 | **25/26** + 32 | 34/35 chỉ là input, không làm I2C được → bus I2C riêng 25/26 |
+| ToF trái: SDA/SCL + XSHUT | 34/35 + 33 | **25/26** + 33 | như trên |
 | Encoder phải A / B | 14 / 27 | 14 / 27 | |
 | Encoder trái A / B | 13 / 12 | 13 / **35** | GPIO12 strapping: HIGH lúc reset làm ESP32 không boot (đã thấy `boot:0x33`) |
 | L298N ENA / IN1 / IN2 | 15 / 2 / 0 | **23 / 19 / 18** | 15/2/0 là chân strapping: lúc cấp nguồn ENA=HIGH, IN2=HIGH → motor trái tự quay lùi |
