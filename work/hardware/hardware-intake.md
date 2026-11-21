@@ -60,3 +60,8 @@ Cấu hình đầy đủ đang nạp trên xe A: [robots/robot-198a2c.config.jso
 ## Motor (2026-11-21)
 - GA25-370 12V **280 RPM**, mua hshop 2026-04-20. Quay tay (0b) đo được hộp số **≈ 1:20.24** (gần chuẩn 1:20.4; không phải 1:34 mặc định), encoder 11 PPR × 4 → **890.5 tick/vòng bánh**.
 - Bằng chứng: lệnh đi thẳng 100/1000 mm ra thật 161/1610 mm = 34/21.3.
+
+## Thân xe (2026-11-21)
+- Vuông **199 × 199 mm**. Mép sau → tâm trục bánh **168 mm** ⇒ tâm trục → mép trước **31 mm** (bánh chủ động ở đầu, bánh đa hướng ở sau).
+- Bán kính quét khi quay tại chỗ ≈ **195 mm** (đuôi xe văng rộng).
+- `range.x_mm` tạm = 31 (mặt kính ToF ngang mép trước) — cần đo lại nếu ToF lùi/nhô.
