@@ -10,7 +10,7 @@
     "wheel_width_mm": 26,
     "range.baseline_mm": 124,
     "motor": "GA25-370 12V 280RPM (hshop, mua 2026-04-20); quay tay đo được hộp số ≈ 1:20.24 → 890.5 tick/vòng bánh",
-    "body": "thân vuông 199 × 199 mm; mép sau → tâm trục 168 mm (→ tâm trục → mép trước 31 mm); ToF tạm coi ngang mép trước (range.x 31)"
+    "body": "thân vuông 199 × 199 mm; mép sau → tâm trục 168 mm (→ tâm trục → mép trước 31 mm); mặt kính ToF sát mép trước (range.x 31, đã xác nhận)"
   },
   "note": "Cấu hình đầy đủ xuất từ robot. Khôi phục: PUT /api/robots/198a2c/config {patch: params, persist: true} hoặc nhập lại trên tab Cấu hình.",
   "params": {

@@ -64,4 +64,4 @@ Cấu hình đầy đủ đang nạp trên xe A: [robots/robot-198a2c.config.jso
 ## Thân xe (2026-11-21)
 - Vuông **199 × 199 mm**. Mép sau → tâm trục bánh **168 mm** ⇒ tâm trục → mép trước **31 mm** (bánh chủ động ở đầu, bánh đa hướng ở sau).
 - Bán kính quét khi quay tại chỗ ≈ **195 mm** (đuôi xe văng rộng).
-- `range.x_mm` tạm = 31 (mặt kính ToF ngang mép trước) — cần đo lại nếu ToF lùi/nhô.
+- `range.x_mm` = 31: mặt kính ToF sát mép trước (người dùng xác nhận 2026-11-21).
