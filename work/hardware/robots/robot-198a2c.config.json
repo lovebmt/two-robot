@@ -2,13 +2,14 @@
   "robot_id": "198a2c",
   "name": "Robot-198a2c",
   "saved_at": "2026-11-21",
-  "cfg_rev": 10,
-  "crc": "27aebe48",
+  "cfg_rev": 14,
+  "crc": "837cc663",
   "measured": {
     "wheel.diameter_mm": 69,
     "wheel.track_mm": 141,
     "wheel_width_mm": 26,
-    "range.baseline_mm": 124
+    "range.baseline_mm": 124,
+    "motor": "GA25-370 12V 280RPM (hshop, mua 2026-04-20) → hộp số 1:21.3, encoder 11 PPR → 937 tick/vòng bánh"
   },
   "note": "Cấu hình đầy đủ xuất từ robot. Khôi phục: PUT /api/robots/198a2c/config {patch: params, persist: true} hoặc nhập lại trên tab Cấu hình.",
   "params": {
@@ -17,12 +18,12 @@
     "body.axle_to_front_mm": 120,
     "body.axle_to_rear_mm": 40,
     "body.plate_width_mm": 120,
-    "wheel.diameter_mm": 67.889,
+    "wheel.diameter_mm": 69,
     "wheel.track_mm": 141,
     "wheel.track_eff_mm": 151,
     "wheel.diam_eps": 0,
     "enc.ppr_motor": 11,
-    "enc.gear_ratio": 34,
+    "enc.gear_ratio": 21.3,
     "enc.invert_l": false,
     "enc.invert_r": true,
     "motor.ks_l_v": 3.84,
@@ -42,8 +43,8 @@
     "power.vbat_divider": 0,
     "range.x_mm": 120,
     "range.baseline_mm": 124,
-    "range.offset_l_mm": -30.03,
-    "range.offset_r_mm": -30.03,
+    "range.offset_l_mm": -6.78,
+    "range.offset_r_mm": 6.78,
     "range.min_valid_mm": 30,
     "range.max_valid_mm": 1200,
     "range.min_signal_mcps": 0.5,
@@ -109,6 +110,7 @@
     "2026-11-20 rev 4: motor.invert_r = true, enc.invert_r = true (motor phải và encoder phải đều đấu ngược; sửa dây kênh B L298N)",
     "2026-11-20 rev 6: chỉnh trên UI — range.offset_l_mm: 0 → -30.03, range.offset_r_mm: 0 → -30.03",
     "2026-11-20 rev 7: safety.link_timeout_ms 500 → 1500 (CAL_TURN báo LINK_LOST khi WiFi giật lúc xe quay)",
-    "2026-11-21 rev 10: CAL_KS đo trên sàn — motor.ks_l/r 1.2 → 3.84/4.27 V, kbreak_l/r 0 → 5.79/5.44 V (xe kẹt vài mm trước đích do ma sát tĩnh > trần PI ~4.5 V)"
+    "2026-11-21 rev 10: CAL_KS đo trên sàn — motor.ks_l/r 1.2 → 3.84/4.27 V, kbreak_l/r 0 → 5.79/5.44 V (xe kẹt vài mm trước đích do ma sát tĩnh > trần PI ~4.5 V)",
+    "2026-11-21 rev 14: enc.gear_ratio 34 → 21.3 (motor GA25-370 12V 280RPM; đi thẳng 1000 mm ra thật 1610 = 34/21.3), wheel.diameter_mm 55.1 → 69 (số đo thật)"
   ]
 }
