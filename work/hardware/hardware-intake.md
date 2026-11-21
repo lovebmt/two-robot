@@ -65,3 +65,7 @@ Cấu hình đầy đủ đang nạp trên xe A: [robots/robot-198a2c.config.jso
 - Vuông **199 × 199 mm**. Tâm trục bánh → mặt sau/tấm đuôi **68 mm** ⇒ tâm trục → mép trước **131 mm** (sửa 2026-11-21; số 168 trước đó là nhầm).
 - Bán kính quét khi quay tại chỗ ≈ **164 mm** (đầu xe văng xa nhất).
 - `range.x_mm` = 131: mặt kính ToF sát mép trước (người dùng xác nhận 2026-11-21).
+
+## Robot 995a70 (2026-11-21)
+- ESP32-D0WD-V3, MAC 70:4b:ca:99:5a:70, IP 192.168.1.2 (WiFi Fuvitech từ `secrets.h`).
+- Cấu hình **clone từ 198a2c rev 22**; kích thước thân dùng chung. Số hiệu chuẩn riêng (hộp số/encoder, vùng chết, đường kính bánh, gyro/track, offset ToF, chiều motor) cần đo lại trên xe này.
