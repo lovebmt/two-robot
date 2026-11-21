@@ -293,6 +293,21 @@ void test_api_contract_matches_python() {
 }
 
 
+void test_pause_in_idle_does_not_stick() {
+  FakeHal h;
+  App a(h, "t", "t");
+  a.begin();
+  JsonDocument c, r;
+  c["op"] = "pause";
+  a.handleCmd(c.as<JsonObjectConst>(), r.to<JsonObject>());
+  TEST_ASSERT_FALSE(a.paused);
+  a.paused = true;  // cờ sót từ firmware cũ
+  JsonDocument c2, r2;
+  c2["op"] = "reset";
+  a.handleCmd(c2.as<JsonObjectConst>(), r2.to<JsonObject>());
+  TEST_ASSERT_FALSE(a.paused);
+}
+
 // Bánh kẹt ma sát tĩnh (lệnh 15 mm/s, đo 0): phải đẩy vượt trần PI cũ (~4.5 V); kbreak cấp ngay từ đầu
 static float stallVolts(const Config& c, float seconds) {
   WheelController wc('l');
@@ -327,5 +342,6 @@ int main(int, char**) {
   RUN_TEST(test_app_unknown_route_and_config);
   RUN_TEST(test_api_contract_matches_python);
   RUN_TEST(test_wheel_stall_boost_and_kbreak);
+  RUN_TEST(test_pause_in_idle_does_not_stick);
   return UNITY_END();
 }

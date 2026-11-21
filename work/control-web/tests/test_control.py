@@ -27,3 +27,17 @@ def test_kbreak_kicks_from_standstill():
     wc = WheelController("l")
     duty = wc.update(15.0, 15.0, 12.0, cfg, 0.01)  # đang chạy: về vùng chết động ks
     assert duty * (12.0 - cfg["power.l298n_vdrop_v"]) < 2.0
+
+
+def test_pause_flag_cannot_stick_in_idle():
+    """Điều phối báo lỗi lúc xe còn IDLE rồi gửi pause → trước đây cờ pause kẹt, xe từ chối path ('đang chạy')."""
+    from tworobot.sim.engine import SimEngine
+    eng = SimEngine(3000, 2000, seed=1)
+    r = eng.add_robot("a", "a", 500, 500, 0.0)
+    eng.advance(3.0)  # chờ auto-calib IMU xong
+    assert r.fw.state == "IDLE"
+    r.fw.handle_cmd({"op": "pause"})
+    assert not r.fw.paused  # IDLE: pause bị bỏ qua
+    r.fw.paused = True      # cờ còn sót từ firmware cũ
+    r.fw.handle_cmd({"op": "reset"})
+    assert not r.fw.paused

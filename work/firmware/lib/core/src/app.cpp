@@ -8,7 +8,7 @@
 
 namespace tr {
 
-const char* FW_VERSION = "0.2.8-esp32";
+const char* FW_VERSION = "0.2.9-esp32";
 
 App::App(Hal& h, const std::string& id_, const std::string& name_) : hal(h), params(h), id(id_), name(name_) {}
 
@@ -334,6 +334,7 @@ void App::handleCmd(JsonObjectConst cmd, JsonObject out) {
     prim_.reset(); imu_cal_.reset(); paused = false; test_side_ = 0; state = "ESTOP";
   } else if (!std::strcmp(op, "reset")) {
     if (state == "ESTOP" || state == "FAULT") { state = "IDLE"; fault.clear(); paused = false; prim_.reset(); }
+    else if (state == "IDLE") paused = false;  // pause còn sót (điều phối báo lỗi khi xe chưa ARM) → xe từ chối path mãi
   } else if (state == "ESTOP") {
     out["ok"] = false; out["err"] = "estop";
   } else if (!std::strcmp(op, "arm")) {
@@ -348,7 +349,7 @@ void App::handleCmd(JsonObjectConst cmd, JsonObject out) {
   } else if (!std::strcmp(op, "prim")) {
     startPrim_(cmd, out);
   } else if (!std::strcmp(op, "pause")) {
-    paused = true;
+    if (state != "IDLE") paused = true;  // IDLE: không có gì để tạm dừng — bỏ qua, tránh kẹt cờ
   } else if (!std::strcmp(op, "resume")) {
     paused = false; last_hb_ms_ = now;
   } else if (!std::strcmp(op, "stop")) {

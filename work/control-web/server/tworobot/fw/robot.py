@@ -415,6 +415,8 @@ class VirtualFirmware:
         if op == "reset":
             if self.state in ("ESTOP", "FAULT"):
                 self.state, self.fault, self.paused, self.prim = "IDLE", None, False, None
+            elif self.state == "IDLE":
+                self.paused = False  # pause còn sót → xe từ chối path mãi
             self._ack(msg)
             return
         if self.state == "ESTOP":
@@ -461,7 +463,8 @@ class VirtualFirmware:
                 self._finish_prim()
             return
         if op == "pause":
-            self.paused = True
+            if self.state != "IDLE":  # IDLE: không có gì để tạm dừng — bỏ qua, tránh kẹt cờ
+                self.paused = True
             return self._ack(msg)
         if op == "resume":
             self.paused = False

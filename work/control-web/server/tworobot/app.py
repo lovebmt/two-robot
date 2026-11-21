@@ -557,6 +557,14 @@ def plan(body: dict = Body(...)):
     return _plan(body)
 
 
+def _clear_stale_coord() -> None:
+    """Lần thử mới: bỏ kết quả kiểm tra / lỗi của lần trước để UI không hiện số cũ."""
+    if S.coord.state != "RUNNING":
+        S.coord.checks, S.coord.error = [], None
+        if S.coord.state == "FAULT":
+            S.coord.state = "IDLE"
+
+
 def _run_robots(body: dict) -> tuple[RobotSession, RobotSession | None]:
     """Xe tham gia: chế độ 1 xe → (leader, None); 2 xe → (leader, follower)."""
     L, F = S.reg.by_role("leader"), S.reg.by_role("follower")
@@ -573,6 +581,7 @@ def _run_robots(body: dict) -> tuple[RobotSession, RobotSession | None]:
 async def run_start(body: dict = Body(...)):
     if S.coord.state == "RUNNING":
         raise HTTPException(409, "đang chạy")
+    _clear_stale_coord()
     res = _plan(body)
     if not res["ok"]:
         raise HTTPException(400, {"errors": res["errors"]})
@@ -599,6 +608,7 @@ async def run_check(body: dict = Body(...)):
     """Chạy thử bước 'Kiểm tra trước khi chạy' (không chạy đường). Robot ảo: đặt vào vị trí xuất phát trước."""
     if S.coord.state == "RUNNING":
         raise HTTPException(409, "đang chạy")
+    _clear_stale_coord()
     res = _plan(body)
     if not res["ok"]:
         raise HTTPException(400, {"errors": res["errors"]})
