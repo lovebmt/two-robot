@@ -1,6 +1,8 @@
 """Chế độ 1 xe bám tấm phẳng (FOLLOW_PLATE): xe trước (đóng vai tấm cầm tay) đi tới/lùi, xe sau giữ khoảng."""
 import math
 
+import pytest
+
 from tworobot.sim.engine import SimEngine
 
 
@@ -44,3 +46,30 @@ def test_backs_off_when_plate_too_close_and_waits_when_lost():
     assert abs(b.body.v) < 1.0
     b.fw.handle_cmd({"op": "stop"})
     assert b.fw.state == "IDLE"
+
+
+
+def _drive_arc(eng, robot, v, w, seconds):
+    """Tấm đi theo cung tròn (giống tay cầm tấm đi vòng): giữ lệnh JOG liên tục."""
+    for _ in range(int(seconds / 0.2)):
+        robot.fw.handle_cmd({"op": "jog", "v": v, "w": w})
+        eng.advance(0.2)
+
+
+@pytest.mark.parametrize("w", [0.35, -0.35])
+def test_follows_plate_around_a_curve(w):
+    """Tấm cua 90° (trái/phải) theo cung bán kính ~290 mm → xe bám vẫn thấy tấm, hướng bám theo, giữ khoảng."""
+    eng, a, b = _pair(200)
+    assert b.fw.handle_cmd({"op": "prim", "id": 1, "prim": "FOLLOW_PLATE", "d_target": 200})["ok"]
+    eng.advance(0.5)
+    lost = 0
+    for _ in range(int(4.5 / 0.2)):  # 0.35 rad/s × 4.5 s ≈ 90°
+        a.fw.handle_cmd({"op": "jog", "v": 100, "w": w})
+        eng.advance(0.2)
+        lost += bool(getattr(b.fw.prim, "lost", False))
+    _drive_arc(eng, a, 100, 0.0, 2.0)  # ra khỏi cua, đi thẳng
+    eng.advance(3.0)
+    assert lost == 0, f"mất tấm {lost} lần trong cua"
+    assert abs(_face_gap(a, b) - 200) < 40, _face_gap(a, b)
+    # Không kiểm hướng: ToF sim lấy điểm gần nhất trong nón 25° nên gần như không thấy góc nghiêng của tấm
+    # (tấm nghiêng 50° đo ra < 10°); xe thật đo góc tốt hơn — chỉnh follow.plate_k_psi / plate_k_edge trên xe.

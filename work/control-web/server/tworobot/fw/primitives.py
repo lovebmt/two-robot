@@ -252,17 +252,25 @@ class FollowPlate(Prim):
             return
         cfg = fw.params.active
         kf = fw.kf
+        # Tấm cầm tay xoay nhiều: tự tính Δψ khi 2 mắt cùng thấy, cho phép tới plate_max_dpsi_deg
+        # (rangeproc chỉ nhận |dl−dr| ≤ range.max_diff ≈ 18° — dành cho đuôi xe trước)
+        rho, dps, pair = m.rho, 0.0, False
+        if m.dl is not None and m.dr is not None:
+            dps = math.atan2(m.dr - m.dl, cfg["range.baseline_mm"])
+            if abs(dps) < math.radians(cfg["follow.plate_max_dpsi_deg"]):
+                pair = True
+                rho = cfg["range.x_mm"] + 0.5 * (m.dl + m.dr) * math.cos(dps) + fw.range_rear()
         if self.lost:  # (bắt) lại tấm: khởi tạo KF theo số đo
-            kf.reset(m.rho, 0.0, cfg["range.sigma_mm"])
+            kf.reset(rho, 0.0, cfg["range.sigma_mm"])
             self.integ = self.v_prev = 0.0
             self.have_dpsi, self.lost = False, False
-        elif not kf.update_g(m.rho, cfg["range.sigma_mm"], cfg["follow.kf_gate_chi2"]):
+        elif not kf.update_g(rho, cfg["range.sigma_mm"], cfg["follow.kf_gate_chi2"]):
             if kf.rejects < 8:
                 return
-            kf.reset(m.rho, kf.vL, cfg["range.sigma_mm"])
+            kf.reset(rho, kf.vL, cfg["range.sigma_mm"])
         self.last_valid_ms = m.t_ms
-        if m.dpsi is not None:
-            self.dpsi_f = m.dpsi if not self.have_dpsi else self.dpsi_f + 0.4 * (m.dpsi - self.dpsi_f)
+        if pair:
+            self.dpsi_f = dps if not self.have_dpsi else self.dpsi_f + 0.5 * (dps - self.dpsi_f)
             self.have_dpsi, self.last_dpsi_ms, self.edge = True, m.t_ms, 0
         else:
             self.edge = m.edge
@@ -287,10 +295,15 @@ class FollowPlate(Prim):
         self.v_prev = v
         self.dpsi_f -= fw.heading.w * dt
         if self.have_dpsi and now - self.last_dpsi_ms < 250:
-            w = cfg["follow.k_psi"] * self.dpsi_f
+            w = cfg["follow.plate_k_psi"] * self.dpsi_f
+            self.hold = fw.heading.psi
+        elif self.edge:  # 1 mắt mất tấm: xoay hẳn về phía mắt còn thấy
+            w = cfg["follow.plate_k_edge"] * self.edge
             self.hold = fw.heading.psi
         else:
-            w = _heading_hold(fw, self.hold, self.hint, dt) + cfg["follow.k_edge"] * self.edge
+            w = _heading_hold(fw, self.hold, self.hint, dt)
+        wmax = math.radians(cfg["motion.turn_rate_dps"])
+        w = clamp(w, -wmax, wmax)
         if abs(v) < 1.0 and abs(w) < 0.05:
             return BRAKE
         return v, w, False

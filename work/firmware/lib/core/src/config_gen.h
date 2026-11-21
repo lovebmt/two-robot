@@ -86,6 +86,9 @@ struct Config {
   float follow_ki_g = 0.1f;  // 1/s² Bám gap: Ki
   float follow_k_psi = 2.0f;  // 1/s Căn song song theo Δψ
   float follow_k_edge = 0.15f;  // rad/s Lái khi 1 chùm mất mép tấm
+  float follow_plate_k_psi = 3.0f;  // 1/s Bám tấm: xoay theo góc tấm (Δψ) — lớn = bám cua nhanh, quá lớn = lắc
+  float follow_plate_k_edge = 0.8f;  // rad/s Bám tấm: tốc độ xoay về phía mắt còn thấy tấm khi 1 mắt mất tấm
+  float follow_plate_max_dpsi_deg = 50;  // ° Bám tấm: góc tấm lớn nhất còn tin (2 mắt cùng trúng tấm)
   float follow_kf_q_a = 300;  // mm/s² KF: nhiễu gia tốc leader
   float follow_kf_gate_chi2 = 9;  //  KF: ngưỡng gating
   int32_t follow_lost_timeout_ms = 500;  // ms Mất leader quá thời gian này → dừng

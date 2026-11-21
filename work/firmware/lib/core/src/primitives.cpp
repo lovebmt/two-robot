@@ -217,16 +217,27 @@ class FollowPlate : public Prim {
   void onRange(App& a, const RangeMeas& m) override {
     if (!m.valid) return;
     const Config& c = a.params.active();
+    // Tấm cầm tay xoay nhiều: tự tính Δψ khi 2 mắt cùng thấy, cho phép tới plate_max_dpsi_deg
+    // (rangeproc chỉ nhận |dl−dr| ≤ range.max_diff ≈ 18° — dành cho đuôi xe trước)
+    float rho = m.rho, dps = 0;
+    bool pair = false;
+    if (m.has_dl && m.has_dr) {
+      dps = std::atan2(m.dr - m.dl, c.range_baseline_mm);
+      if (std::fabs(dps) < deg2rad(c.follow_plate_max_dpsi_deg)) {
+        pair = true;
+        rho = c.range_x_mm + 0.5f * (m.dl + m.dr) * std::cos(dps) + a.rangeRear();
+      }
+    }
     if (lost) {  // (bắt) lại tấm: khởi tạo KF theo số đo
-      a.kf.reset(m.rho, 0, c.range_sigma_mm);
+      a.kf.reset(rho, 0, c.range_sigma_mm);
       integ = 0; v_prev = 0; have_dpsi = false; lost = false;
-    } else if (!a.kf.updateG(m.rho, c.range_sigma_mm, c.follow_kf_gate_chi2)) {
+    } else if (!a.kf.updateG(rho, c.range_sigma_mm, c.follow_kf_gate_chi2)) {
       if (a.kf.rejects < 8) return;
-      a.kf.reset(m.rho, a.kf.vL, c.range_sigma_mm);
+      a.kf.reset(rho, a.kf.vL, c.range_sigma_mm);
     }
     last_valid = m.t_ms;
-    if (m.has_dpsi) {
-      dpsi_f = have_dpsi ? dpsi_f + 0.4f * (m.dpsi - dpsi_f) : m.dpsi;
+    if (pair) {
+      dpsi_f = have_dpsi ? dpsi_f + 0.5f * (dps - dpsi_f) : dps;
       have_dpsi = true; last_dpsi = m.t_ms; edge = 0;
     } else {
       edge = m.edge;
@@ -253,11 +264,16 @@ class FollowPlate : public Prim {
     dpsi_f -= a.heading.w * dt;
     float w;
     if (have_dpsi && now - last_dpsi < 250) {
-      w = c.follow_k_psi * dpsi_f;
+      w = c.follow_plate_k_psi * dpsi_f;
+      hold = a.heading.psi;
+    } else if (edge) {  // 1 mắt mất tấm: xoay hẳn về phía mắt còn thấy
+      w = c.follow_plate_k_edge * edge;
       hold = a.heading.psi;
     } else {
-      w = headingHold(a, hold, hint, dt) + c.follow_k_edge * edge;
+      w = headingHold(a, hold, hint, dt);
     }
+    const float wmax = deg2rad(c.motion_turn_rate_dps);
+    w = clampf(w, -wmax, wmax);
     result["lost"] = false;
     if (std::fabs(v) < 1.f && std::fabs(w) < 0.05f) return BRAKE;
     return {v, w, false};
