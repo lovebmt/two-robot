@@ -60,7 +60,7 @@ struct Config {
   float range_offset_r_mm = 0;  // mm Offset hiệu chuẩn ToF phải
   float range_min_valid_mm = 30;  // mm Khoảng đo hợp lệ tối thiểu
   float range_max_valid_mm = 1200;  // mm Khoảng đo hợp lệ tối đa
-  float range_min_signal_mcps = 0.5f;  // MCPS Cường độ tín hiệu phản hồi tối thiểu để tin số đo ToF (loại số ma khi phía trước trống)
+  float range_min_signal_mcps = 1.5f;  // MCPS Cường độ tín hiệu phản hồi tối thiểu để tin số đo ToF (loại số ma khi phía trước trống)
   float range_max_diff_mm = 40;  // mm |d_l - d_r| tối đa còn tin
   float range_sigma_mm = 6;  // mm Độ lệch chuẩn nhiễu ToF (cho KF)
   float imu_gyro_scale_z = 1.0f;  //  Hệ số scale gyro Z

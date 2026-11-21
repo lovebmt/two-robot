@@ -2,8 +2,8 @@
   "robot_id": "198a2c",
   "name": "Robot-198a2c",
   "saved_at": "2026-11-21",
-  "cfg_rev": 21,
-  "crc": "7b4012b0",
+  "cfg_rev": 22,
+  "crc": "b8c6d33e",
   "measured": {
     "wheel.diameter_mm": 69,
     "wheel.track_mm": 141,
@@ -48,7 +48,7 @@
     "range.offset_r_mm": 6.78,
     "range.min_valid_mm": 30,
     "range.max_valid_mm": 1200,
-    "range.min_signal_mcps": 0.5,
+    "range.min_signal_mcps": 1.5,
     "range.max_diff_mm": 40,
     "range.sigma_mm": 6,
     "imu.gyro_scale_z": 1.00758,
@@ -116,6 +116,7 @@
     "2026-11-21 rev 18: hiệu chuẩn trên UI — enc.gear_ratio 21.3 → 20.239 (0b quay tay), wheel.diameter_mm 69 → 66.862 (2. đi thẳng), motor.ks_l/r 3.84/4.27 → 3.45/3.28 V, kbreak_l/r 5.79/5.44 → 4.49/5.23 V (1b đo lại)",
     "2026-11-21 rev 19: body 199×199, axle_to_rear 168, axle_to_front 31, range.x_mm 120 → 31 (tạm: mặt kính ToF ngang mép trước)",
     "2026-11-21 rev 20: body.plate_width_mm 120 → 199 (tấm đuôi = cả mặt sau xe)",
-    "2026-11-21 rev 21: sửa tâm trục → mặt sau 168 → 68 mm ⇒ axle_to_front 31 → 131, range.x_mm 31 → 131"
+    "2026-11-21 rev 21: sửa tâm trục → mặt sau 168 → 68 mm ⇒ axle_to_front 31 → 131, range.x_mm 31 → 131",
+    "2026-11-21 rev 22: range.min_signal_mcps 0.5 → 1.5 (phía trước trống vẫn báo vật 19–145 mm: số ma tín hiệu 0.66–1.13 MCPS)"
   ]
 }
