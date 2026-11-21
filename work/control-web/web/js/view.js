@@ -279,7 +279,7 @@ async function loadLogs() {
 
 export async function startRun() {
   if (store.mode === 'follow') {  // 1 xe bám tấm phẳng cầm tay: không cần đường vẽ
-    const r = await guard(() => api('POST', '/api/follow/start', {}));
+    const r = await guard(() => api('POST', '/api/follow/start', { rid: store.rid }));
     if (r) {
       trails.clear();
       Object.values(charts).forEach((c) => c.clear());
@@ -288,10 +288,10 @@ export async function startRun() {
     return !!r;
   }
   if (store.points.length < 2) { toast('Vẽ đường ở tab Bản đồ trước', 'err'); return false; }
-  const key = JSON.stringify([store.grid, store.points, store.mode]);
+  const key = JSON.stringify([store.grid, store.points, store.mode, store.rid]);
   const place = checkedKey !== key;
   checkedKey = null;
-  const r = await guard(() => api('POST', '/api/run/start', { grid: store.grid, points: store.points, mode: store.mode, place }));
+  const r = await guard(() => api('POST', '/api/run/start', { grid: store.grid, points: store.points, mode: store.mode, rid: store.rid, place }));
   if (r) {
     trails.clear();
     Object.values(charts).forEach((c) => c.clear());
@@ -318,7 +318,7 @@ export function initView() {
   $('runStart').onclick = () => startRun();
   $('runCheck').onclick = async () => {
     if (store.mode === 'follow') {
-      const r = (store.frame?.robots || []).find((x) => x.role === 'follower') || (store.frame?.robots || [])[0];
+      const r = (store.frame?.robots || []).find((x) => x.id === store.rid) || (store.frame?.robots || [])[0];
       const t = r?.tof || {};
       const eye = (k) => (t[k] && t[k].st === 0 ? `${t[k].mm} mm` : 'không thấy');
       $('checkList').innerHTML = r ? `<li class="${t.l?.st === 0 && t.r?.st === 0 ? 'ok' : 'warn'}"><b>${r.name}: ToF thấy tấm</b> — trái ${eye('l')} · phải ${eye('r')}</li>`
@@ -327,11 +327,11 @@ export function initView() {
     }
     if (store.points.length < 2) { toast('Vẽ đường ở tab Bản đồ trước', 'err'); return; }
     toast(store.mode === 'solo' ? 'Đang kiểm tra xe…' : 'Đang kiểm tra vị trí 2 xe…');
-    const r = await guard(() => api('POST', '/api/run/check', { grid: store.grid, points: store.points, mode: store.mode }));
+    const r = await guard(() => api('POST', '/api/run/check', { grid: store.grid, points: store.points, mode: store.mode, rid: store.rid }));
     if (!r) return;
     $('checkList').innerHTML = r.checks.map((x) => `<li class="${x.level}"><b>${x.name}</b> — ${x.detail}</li>`).join('');
     lastChecksKey = JSON.stringify(r.checks);
-    checkedKey = r.ok ? JSON.stringify([store.grid, store.points, store.mode]) : null;
+    checkedKey = r.ok ? JSON.stringify([store.grid, store.points, store.mode, store.rid]) : null;
     toast(r.ok ? 'Kiểm tra ĐẠT — bấm Start để chạy' : 'Kiểm tra KHÔNG đạt — xem danh sách', r.ok ? 'ok' : 'err');
   };
   for (const id of ['placeMm', 'placeDeg']) {

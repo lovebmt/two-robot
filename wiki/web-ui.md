@@ -64,7 +64,10 @@ Có thêm nút "Xuất mô hình motor sang sim" để đưa `K`, `τ`, LUT củ
 | Vòng `R_sw` tại góc không chạm đoạn khác | cảnh báo |
 
 ## Chế độ 1 xe (D30)
-Ô chọn **2 xe / 1 xe** ở tab Bản đồ và thanh nút tab Chạy (đồng bộ, lưu cùng bản vẽ). **1 xe**: chỉ xe gán vai trò *leader* chạy; mỗi góc xe dừng hẳn → quay 90° → đi tiếp. Kiểm tra trước khi chạy chỉ xét kết nối, pin, IMU, phía trước trống. Không có ràng buộc khoảng thoát góc / chỗ đặt follower nên vẽ được sát mép bản đồ và đoạn ngắn hơn. Vị trí dựa encoder + gyro nên sai số cộng dồn — hiệu chuẩn bước 2 (Đi thẳng) và 3 (Quay) trước.
+Ô chọn **2 xe / 1 xe** ở tab Bản đồ và thanh nút tab Chạy (đồng bộ, lưu cùng bản vẽ). **1 xe**: chọn xe ở ô **chọn xe** (hiện cạnh ô chế độ, ở tab Bản đồ và tab Chạy) — xe nào cũng chạy được, **không phụ thuộc vai trò**; mỗi góc xe dừng hẳn → quay 90° → đi tiếp. Kiểm tra trước khi chạy chỉ xét kết nối, pin, IMU, phía trước trống. Không có ràng buộc khoảng thoát góc / chỗ đặt follower nên vẽ được sát mép bản đồ và đoạn ngắn hơn. Vị trí dựa encoder + gyro nên sai số cộng dồn — hiệu chuẩn bước 2 (Đi thẳng) và 3 (Quay) trước.
 
 ## Chế độ 1 xe bám tấm (D31)
-Ô chọn chế độ → **1 xe bám tấm (follower)**, nhập **Giữ … mm** (mặt kính ToF → tấm). Xe bám: xe vai trò follower, hoặc xe duy nhất đang kết nối. **Kiểm tra** hiện 2 mắt ToF có thấy tấm không. **Start** → xe giữ khoảng cách: tấm ra xa thì tiến, lại gần thì lùi, xoay tấm thì xe xoay theo cho song song; bỏ tấm đi thì xe đứng chờ. **Stop** để dừng. Không cần vẽ đường.
+Ô chọn chế độ → **1 xe bám tấm (follower)**, nhập **Giữ … mm** (mặt kính ToF → tấm). Xe bám: chọn ở ô **chọn xe** — xe nào cũng bám được, **không phụ thuộc vai trò**. **Kiểm tra** hiện 2 mắt ToF có thấy tấm không. **Start** → xe giữ khoảng cách: tấm ra xa thì tiến, lại gần thì lùi, xoay tấm thì xe xoay theo cho song song; bỏ tấm đi thì xe đứng chờ. **Stop** để dừng. Không cần vẽ đường.
+
+## Vai trò leader/follower (2026-11-21)
+Vai trò (tab Thiết bị) **chỉ dùng cho chế độ 2 xe**. Chế độ 1 xe theo đường và bám tấm chọn xe trực tiếp (`rid`); firmware nhận đường có `"solo": true` ở bất kỳ vai trò nào (kể cả chưa có) và đặt xe ở điểm đầu đường.

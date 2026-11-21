@@ -525,11 +525,27 @@ def _solo(body: dict) -> bool:
     return body.get("mode") in ("solo", "follow")
 
 
+def _pick_robot(body: dict, required: bool = True) -> RobotSession | None:
+    """Chế độ 1 xe / bám tấm: xe do người dùng chọn (`rid`), KHÔNG dựa vào vai trò.
+    Không gửi rid mà chỉ có 1 xe đang kết nối → dùng xe đó."""
+    rid = body.get("rid")
+    if rid:
+        return _sess(rid)
+    if len(S.reg.sessions) == 1:
+        return next(iter(S.reg.sessions.values()))
+    if required:
+        raise HTTPException(400, {"errors": ["chọn xe chạy (ô chọn xe ở tab Bản đồ / Chạy)"]})
+    return None
+
+
 def _plan(body: dict) -> dict:
     grid = body.get("grid") or S.grid
     S.grid = {"cell_mm": float(grid["cell_mm"]), "cols": int(grid["cols"]), "rows": int(grid["rows"])}
     solo = _solo(body)
-    L, F = S.reg.by_role("leader"), S.reg.by_role("follower")
+    if solo:  # 1 xe: kích thước lấy từ xe được chọn, không phụ thuộc vai trò
+        L, F = _pick_robot(body, required=False), None
+    else:
+        L, F = S.reg.by_role("leader"), S.reg.by_role("follower")
     cl, cf = S.reg.cfg_params(L), S.reg.cfg_params(F)
     form, ferr, fwarn = P.formation(cl, cf, S.shared)
     res = plan_path(body.get("points", []), S.grid, form, S.shared, {"rear": cf["body.axle_to_rear_mm"]}, solo=solo)
@@ -538,7 +554,7 @@ def _plan(body: dict) -> dict:
     res["errors"] = list(ferr.values()) + res["errors"]
     res["warnings"] = fwarn + res["warnings"]
     if solo and L is None:
-        res["warnings"].insert(0, "chế độ 1 xe: chưa gán xe nào làm leader — đang dùng kích thước mặc định")
+        res["warnings"].insert(0, "chế độ 1 xe: chưa chọn xe — đang dùng kích thước mặc định")
     elif not solo and (L is None or F is None):
         res["warnings"].insert(0, "chưa gán đủ vai trò leader/follower — đang dùng kích thước mặc định")
     res["ok"] = not res["errors"]
@@ -568,11 +584,9 @@ def _clear_stale_coord() -> None:
 
 def _run_robots(body: dict) -> tuple[RobotSession, RobotSession | None]:
     """Xe tham gia: chế độ 1 xe → (leader, None); 2 xe → (leader, follower)."""
+    if _solo(body):  # 1 xe: xe được chọn, vai trò không liên quan
+        return _pick_robot(body), None
     L, F = S.reg.by_role("leader"), S.reg.by_role("follower")
-    if _solo(body):
-        if L is None:
-            raise HTTPException(400, {"errors": ["chế độ 1 xe: gán xe chạy làm leader (tab Thiết bị)"]})
-        return L, None
     if L is None or F is None:
         raise HTTPException(400, {"errors": ["cần gán 1 leader và 1 follower (hoặc chọn chế độ 1 xe)"]})
     return L, F
@@ -764,15 +778,8 @@ FOLLOW_PLATE: dict = {}  # rid → {"d_target", "v_max"}
 
 
 def _plate_robot(body: dict) -> RobotSession:
-    """Xe bám: theo rid gửi lên; không có thì xe vai trò follower; không có nữa thì xe duy nhất."""
-    if body.get("rid"):
-        return _sess(body["rid"])
-    f = S.reg.by_role("follower")
-    if f is not None:
-        return f
-    if len(S.reg.sessions) == 1:
-        return next(iter(S.reg.sessions.values()))
-    raise HTTPException(400, {"errors": ["chế độ bám tấm: gán xe bám làm follower (tab Thiết bị)"]})
+    """Xe bám tấm: xe do người dùng chọn (rid) — vai trò không liên quan."""
+    return _pick_robot(body)
 
 
 @app.post("/api/follow/start")

@@ -31,13 +31,38 @@ async function boot() {
 
   // Chế độ chạy 2 xe / 1 xe: các ô chọn ở tab Bản đồ và tab Chạy đồng bộ với nhau
   const modeSel = document.querySelectorAll('[data-mode-select]');
-  document.body.classList.toggle('mode-follow', store.mode === 'follow');
+  const applyModeClass = () => {
+    document.body.classList.toggle('mode-follow', store.mode === 'follow');
+    document.body.classList.toggle('mode-single', store.mode !== 'pair');  // 1 xe / bám tấm: hiện ô chọn xe
+  };
+  applyModeClass();
+
+  // Ô chọn xe (chế độ 1 xe / bám tấm): mọi xe đều chạy được, không theo vai trò
+  const robotSel = document.querySelectorAll('[data-robot-select]');
+  const renderRobotSel = () => {
+    const rs = store.robots || [];
+    if (!rs.some((r) => r.id === store.rid)) store.rid = rs[0]?.id ?? null;
+    const opts = rs.map((r) => `<option value="${r.id}">${r.name}${r.online === false ? ' (offline)' : ''}</option>`).join('')
+      || '<option value="">(chưa có xe)</option>';
+    robotSel.forEach((el) => { el.innerHTML = opts; el.value = store.rid ?? ''; });
+  };
+  robotSel.forEach((el) => {
+    el.onchange = () => {
+      store.rid = el.value || null;
+      robotSel.forEach((o) => { o.value = el.value; });
+      saveProject();
+      validate();
+    };
+  });
+  on('robots', renderRobotSel);
+  renderRobotSel();
+
   modeSel.forEach((el) => {
     el.value = store.mode;
     el.onchange = () => {
       store.mode = el.value;
       modeSel.forEach((o) => { o.value = store.mode; });
-      document.body.classList.toggle('mode-follow', store.mode === 'follow');
+      applyModeClass();
       saveProject();
       validate();
       toast(store.mode === 'solo' ? 'Chế độ 1 xe: chỉ xe leader chạy theo đường'

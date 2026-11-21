@@ -41,3 +41,25 @@ def test_pause_flag_cannot_stick_in_idle():
     r.fw.paused = True      # cờ còn sót từ firmware cũ
     r.fw.handle_cmd({"op": "reset"})
     assert not r.fw.paused
+
+
+def test_solo_path_runs_on_any_robot_regardless_of_role():
+    """Chế độ 1 xe: đường 'solo' nạp được vào xe có vai trò follower hoặc chưa có vai trò; xe đặt ở điểm đầu."""
+    from tworobot import params as P
+    from tworobot.planner import plan_path
+    from tworobot.sim.engine import SimEngine
+    form, _, _ = P.formation(P.defaults(), P.defaults(), P.shared_defaults())
+    grid = {"cell_mm": 100, "cols": 30, "rows": 20}
+    solo = plan_path([[1, 3], [10, 3]], grid, form, P.shared_defaults(), solo=True)["path"]
+    pair = plan_path([[5, 3], [10, 3]], grid, form, P.shared_defaults())["path"]
+    eng = SimEngine(3000, 2000, seed=1)
+    r = eng.add_robot("a", "a", 500, 500, 0.0)
+    eng.advance(3.0)
+    for role in (None, "follower", "leader"):
+        r.fw.role = role
+        code, res = r.fw.handle_request("PUT", "/api/path", solo)
+        assert code == 200 and res["ok"], (role, res)
+        assert abs(r.fw.odo.x - solo["start"]["x"]) < 1e-6 and r.fw.odo.s == 0.0, role
+    r.fw.role = None  # đường 2 xe vẫn bắt buộc có vai trò
+    code, res = r.fw.handle_request("PUT", "/api/path", pair)
+    assert code == 400

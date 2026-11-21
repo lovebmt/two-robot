@@ -69,3 +69,7 @@
 ## [2026-11-21] query | Luồng tham số RAM ↔ flash ↔ Web Control
 - Cập nhật: config-management.md (thêm §7 luồng thực tế đối chiếu code, §7.1 hai loại tham số + chỗ dễ nhầm tham số chung, §7.2 primitive chép tham số; gạch ý "web hỏi chiều đồng bộ" ở §5 vì chưa làm)
 - Cập nhật: index.md (mô tả config-management)
+
+## [2026-11-21] query | Chọn xe cho chế độ 1 xe / bám tấm, không theo vai trò
+- Code: firmware + fw sim nhận path `solo` không cần vai trò (fw 0.3.5); server `_pick_robot(rid)` cho plan/check/start/follow; UI ô chọn xe (tab Bản đồ + Chạy) chỉ hiện ở chế độ 1 xe / bám tấm; test C++ + Python
+- Cập nhật: web-ui.md (mục 1 xe, bám tấm, vai trò chỉ cho 2 xe)

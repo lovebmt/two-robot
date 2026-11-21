@@ -380,11 +380,13 @@ class VirtualFirmware:
     def _load_path(self, path: dict, running: bool) -> tuple[int, dict]:
         if running:
             return 409, {"ok": False, "err": "đang chạy"}
-        if self.role not in ("leader", "follower"):
+        # Đường "solo" (chế độ 1 xe): xe nào cũng chạy được, đặt ở điểm đầu như leader — không cần vai trò
+        solo = bool(path.get("solo"))
+        if not solo and self.role not in ("leader", "follower"):
             return 400, {"ok": False, "err": "chưa có vai trò"}
         self.path = path
         self.formation = dict(path.get("formation", {}))
-        if self.role == "leader":
+        if solo or self.role == "leader":
             st, s0 = path["start"], 0.0
         else:
             st, s0 = path["follower"]["start"], float(path["follower"]["start_s"])

@@ -308,6 +308,28 @@ void test_pause_in_idle_does_not_stick() {
   TEST_ASSERT_FALSE(a.paused);
 }
 
+void test_solo_path_ignores_role() {
+  FakeHal h;
+  App a(h, "t", "t");
+  a.begin();
+  a.role = "follower";
+  JsonDocument p, out;
+  p["solo"] = true;
+  p["path_id"] = 7;
+  p["start"]["x"] = 120.f; p["start"]["y"] = 40.f; p["start"]["yaw_deg"] = 0.f;
+  p["follower"]["start"]["x"] = -300.f; p["follower"]["start"]["y"] = 40.f; p["follower"]["start"]["yaw_deg"] = 0.f;
+  p["follower"]["start_s"] = -400.f;
+  TEST_ASSERT_EQUAL(200, a.handleRequest("PUT", "/api/path", p.as<JsonObjectConst>(), out));
+  TEST_ASSERT_FLOAT_WITHIN(1e-3, 120.f, a.odo.x);  // đặt ở điểm đầu như leader
+  TEST_ASSERT_FLOAT_WITHIN(1e-3, 0.f, a.odo.s);
+  a.role.clear();
+  JsonDocument out2;
+  TEST_ASSERT_EQUAL(200, a.handleRequest("PUT", "/api/path", p.as<JsonObjectConst>(), out2));  // không vai trò vẫn được
+  p["solo"] = false;
+  JsonDocument out3;
+  TEST_ASSERT_EQUAL(400, a.handleRequest("PUT", "/api/path", p.as<JsonObjectConst>(), out3));  // 2 xe: cần vai trò
+}
+
 // Bánh kẹt ma sát tĩnh (lệnh 15 mm/s, đo 0): phải đẩy vượt trần PI cũ (~4.5 V); kbreak cấp ngay từ đầu
 static float stallVolts(const Config& c, float seconds) {
   WheelController wc('l');
@@ -343,5 +365,6 @@ int main(int, char**) {
   RUN_TEST(test_api_contract_matches_python);
   RUN_TEST(test_wheel_stall_boost_and_kbreak);
   RUN_TEST(test_pause_in_idle_does_not_stick);
+  RUN_TEST(test_solo_path_ignores_role);
   return UNITY_END();
 }

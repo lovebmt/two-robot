@@ -8,7 +8,7 @@
 
 namespace tr {
 
-const char* FW_VERSION = "0.3.4-esp32";
+const char* FW_VERSION = "0.3.5-esp32";
 
 App::App(Hal& h, const std::string& id_, const std::string& name_) : hal(h), params(h), id(id_), name(name_) {}
 
@@ -399,14 +399,17 @@ void App::configView_(JsonObject o) {
 
 int App::loadPath_(JsonObjectConst p, JsonDocument& out) {
   if (running_()) { out["ok"] = false; out["err"] = "đang chạy"; return 409; }
-  if (role != "leader" && role != "follower") { out["ok"] = false; out["err"] = "chưa có vai trò"; return 400; }
-  JsonObjectConst st = role == "leader" ? p["start"].as<JsonObjectConst>() : p["follower"]["start"].as<JsonObjectConst>();
+  // Đường "solo" (chế độ 1 xe): xe nào cũng chạy được, đặt ở điểm đầu như leader — không cần vai trò
+  const bool solo = p["solo"] | false;
+  if (!solo && role != "leader" && role != "follower") { out["ok"] = false; out["err"] = "chưa có vai trò"; return 400; }
+  const bool lead = solo || role == "leader";
+  JsonObjectConst st = lead ? p["start"].as<JsonObjectConst>() : p["follower"]["start"].as<JsonObjectConst>();
   if (st.isNull()) { out["ok"] = false; out["err"] = "path thiếu start"; return 400; }
   has_path_ = true;
   path_id_ = p["path_id"] | 0;
   path_crc_ = p["crc32"] | "";
   leader_rear_ = p["formation"]["leader_rear_mm"] | -1.f;
-  const float s0 = role == "leader" ? 0.f : (p["follower"]["start_s"] | 0.f);
+  const float s0 = lead ? 0.f : (p["follower"]["start_s"] | 0.f);
   odo.reset(st["x"] | 0.f, st["y"] | 0.f, s0);
   heading.psi = deg2rad(st["yaw_deg"] | 0.f);
   kf.active = false;

@@ -64,7 +64,7 @@ function changed() {
 
 export async function validate() {
   try {
-    store.plan = await api('POST', '/api/plan', { grid: store.grid, points: store.points, mode: store.mode });
+    store.plan = await api('POST', '/api/plan', { grid: store.grid, points: store.points, mode: store.mode, rid: store.rid });
   } catch (e) {
     store.plan = { ok: false, errors: [e.message], warnings: [] };
   }

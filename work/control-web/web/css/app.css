@@ -227,3 +227,6 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 /* Chế độ bám tấm: ô khoảng cách chỉ hiện khi chọn "1 xe bám tấm" */
 .follow-only { display: none; }
 body.mode-follow .follow-only { display: inline-flex; align-items: center; gap: 4px; }
+/* Ô chọn xe: chỉ hiện ở chế độ 1 xe / bám tấm */
+.single-only { display: none; }
+body.mode-single .single-only { display: inline-block; }
