@@ -39,6 +39,8 @@ class App {
   void snapshot(std::string& telJson, std::deque<Ev>& events, uint32_t& eseq);
   // Heartbeat từ HTTP (ghi 32-bit nguyên tử, không cần khoá)
   float vbat() const { return vbat_; }
+  // Khoảng tâm trục → mặt đuôi mục tiêu dùng khi đổi số đo ToF thành gap tâm–tâm (rho)
+  float rangeRear() const { return leader_rear_ >= 0 ? leader_rear_ : params.active().body_axle_to_rear_mm; }
   void touchLink(uint32_t now) { last_hb_ms_ = now; link_watch_ = true; }
 
   // ---- dùng bởi primitive ----

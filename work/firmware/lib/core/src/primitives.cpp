@@ -193,6 +193,77 @@ class Follow : public Prim {
   }
 };
 
+// ---------------------------------------------------------------- FOLLOW_PLATE
+// Chế độ 1 xe bám tấm phẳng cầm tay (không cần path/ARM). Giữ khoảng mặt kính ToF → tấm = d_target:
+// tấm xa thì tiến, gần thì lùi (≤ v_back), căn song song theo Δψ. Mất tấm → phanh và CHỜ (không báo lỗi);
+// thấy lại → bám tiếp. Chạy tới khi PC gửi stop. Vùng chết ±hold_band quanh đích để không giật tới-lui.
+class FollowPlate : public Prim {
+ public:
+  FollowPlate() { name = "FOLLOW_PLATE"; standalone = true; }
+  float g_t = 0, v_max = 0, v_back = 0, band = 0, integ = 0, v_prev = 0, dpsi_f = 0, hold = 0, hint = 0;
+  bool have_dpsi = false, lost = true;
+  int edge = 0;
+  uint32_t last_valid = 0, last_dpsi = 0;
+  void start(App& a) override {
+    const Config& c = a.params.active();
+    g_t = c.range_x_mm + argf("d_target", 200.f) + a.rangeRear();  // đổi sang gap tâm–tâm như rangeproc
+    v_max = argf("v_max", 0) > 0 ? argf("v_max", 0) : c.motion_v_cruise;
+    v_back = argf("v_back", 80.f);
+    band = argf("hold_band", 10.f);
+    hold = a.heading.psi;
+    last_dpsi = 0;
+    lost = true;
+  }
+  void onRange(App& a, const RangeMeas& m) override {
+    if (!m.valid) return;
+    const Config& c = a.params.active();
+    if (lost) {  // (bắt) lại tấm: khởi tạo KF theo số đo
+      a.kf.reset(m.rho, 0, c.range_sigma_mm);
+      integ = 0; v_prev = 0; have_dpsi = false; lost = false;
+    } else if (!a.kf.updateG(m.rho, c.range_sigma_mm, c.follow_kf_gate_chi2)) {
+      if (a.kf.rejects < 8) return;
+      a.kf.reset(m.rho, a.kf.vL, c.range_sigma_mm);
+    }
+    last_valid = m.t_ms;
+    if (m.has_dpsi) {
+      dpsi_f = have_dpsi ? dpsi_f + 0.4f * (m.dpsi - dpsi_f) : m.dpsi;
+      have_dpsi = true; last_dpsi = m.t_ms; edge = 0;
+    } else {
+      edge = m.edge;
+    }
+  }
+  Cmd update(App& a, float dt) override {
+    const Config& c = a.params.active();
+    const uint32_t now = a.hal.nowMs();
+    if (lost || now - last_valid > static_cast<uint32_t>(c.follow_lost_timeout_ms)) {
+      lost = true;
+      hold = a.heading.psi;
+      result["lost"] = true;
+      return BRAKE;
+    }
+    a.kf.predict(a.drive.vMeas(), dt, c.follow_kf_q_a);
+    const float e = a.kf.g - g_t;  // > 0: tấm xa hơn đích → tiến
+    integ = std::fabs(e) < 4 * band ? clampf(integ + c.follow_ki_g * e * dt, -40.f, 40.f) : 0.f;
+    float v = a.kf.vL + c.follow_kp_g * e + integ;
+    if (std::fabs(e) < band && std::fabs(a.kf.vL) < 15.f) { v = 0; integ = 0; }
+    v = clampf(v, -v_back, v_max);
+    const float acc = c.motion_a_max;
+    v = clampf(v, v_prev - acc * dt, v_prev + acc * dt);
+    v_prev = v;
+    dpsi_f -= a.heading.w * dt;
+    float w;
+    if (have_dpsi && now - last_dpsi < 250) {
+      w = c.follow_k_psi * dpsi_f;
+      hold = a.heading.psi;
+    } else {
+      w = headingHold(a, hold, hint, dt) + c.follow_k_edge * edge;
+    }
+    result["lost"] = false;
+    if (std::fabs(v) < 1.f && std::fabs(w) < 0.05f) return BRAKE;
+    return {v, w, false};
+  }
+};
+
 // ---------------------------------------------------------------- SNAPSHOT
 class Snapshot : public Prim {
  public:
@@ -587,6 +658,7 @@ class CalKs : public Prim {
 
 std::unique_ptr<Prim> makePrim(const char* n) {
   if (!std::strcmp(n, "CAL_KS")) return std::unique_ptr<Prim>(new CalKs());
+  if (!std::strcmp(n, "FOLLOW_PLATE")) return std::unique_ptr<Prim>(new FollowPlate());
   if (!std::strcmp(n, "DRIVE_TO")) return std::unique_ptr<Prim>(new DriveTo());
   if (!std::strcmp(n, "TURN")) return std::unique_ptr<Prim>(new Turn());
   if (!std::strcmp(n, "HOLD")) return std::unique_ptr<Prim>(new Hold());
@@ -602,7 +674,9 @@ std::unique_ptr<Prim> makePrim(const char* n) {
 
 // Follow cần biết g_target cho telemetry
 float followTarget(const Prim* p) {
-  return p && !std::strcmp(p->name, "FOLLOW") ? static_cast<const Follow*>(p)->gTarget() : -1.f;
+  if (p && !std::strcmp(p->name, "FOLLOW")) return static_cast<const Follow*>(p)->gTarget();
+  if (p && !std::strcmp(p->name, "FOLLOW_PLATE")) return static_cast<const FollowPlate*>(p)->g_t;
+  return -1.f;
 }
 
 }  // namespace tr

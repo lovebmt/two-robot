@@ -278,6 +278,16 @@ async function loadLogs() {
 }
 
 export async function startRun() {
+  if (store.mode === 'follow') {  // 1 xe bám tấm phẳng cầm tay: không cần đường vẽ
+    const d = Number($('followDist').value) || 200;
+    const r = await guard(() => api('POST', '/api/follow/start', { d_target: d }));
+    if (r) {
+      trails.clear();
+      Object.values(charts).forEach((c) => c.clear());
+      toast(`Đang bám tấm: giữ ${d} mm. Cầm tấm phẳng trước 2 mắt ToF; bấm Stop để dừng`, 'ok');
+    }
+    return !!r;
+  }
   if (store.points.length < 2) { toast('Vẽ đường ở tab Bản đồ trước', 'err'); return false; }
   const key = JSON.stringify([store.grid, store.points, store.mode]);
   const place = checkedKey !== key;
@@ -308,6 +318,14 @@ export function initView() {
   };
   $('runStart').onclick = () => startRun();
   $('runCheck').onclick = async () => {
+    if (store.mode === 'follow') {
+      const r = (store.frame?.robots || []).find((x) => x.role === 'follower') || (store.frame?.robots || [])[0];
+      const t = r?.tof || {};
+      const eye = (k) => (t[k] && t[k].st === 0 ? `${t[k].mm} mm` : 'không thấy');
+      $('checkList').innerHTML = r ? `<li class="${t.l?.st === 0 && t.r?.st === 0 ? 'ok' : 'warn'}"><b>${r.name}: ToF thấy tấm</b> — trái ${eye('l')} · phải ${eye('r')}</li>`
+        + `<li class="${r.imu?.ok ? 'ok' : 'err'}"><b>IMU đã calib</b> — ${r.imu?.ok ? 'ok' : 'chưa: để xe đứng yên vài giây'}</li>` : '<li class="err">Chưa có robot</li>';
+      return;
+    }
     if (store.points.length < 2) { toast('Vẽ đường ở tab Bản đồ trước', 'err'); return; }
     toast(store.mode === 'solo' ? 'Đang kiểm tra xe…' : 'Đang kiểm tra vị trí 2 xe…');
     const r = await guard(() => api('POST', '/api/run/check', { grid: store.grid, points: store.points, mode: store.mode }));

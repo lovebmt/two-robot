@@ -38,7 +38,7 @@ export function loadProject() {
     if (p && p.grid && Array.isArray(p.points)) {
       store.grid = p.grid;
       store.points = p.points;
-      if (p.mode === 'solo' || p.mode === 'pair') store.mode = p.mode;
+      if (['solo', 'pair', 'follow'].includes(p.mode)) store.mode = p.mode;
     }
   } catch { /* bỏ qua */ }
 }

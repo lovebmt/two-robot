@@ -31,14 +31,18 @@ async function boot() {
 
   // Chế độ chạy 2 xe / 1 xe: các ô chọn ở tab Bản đồ và tab Chạy đồng bộ với nhau
   const modeSel = document.querySelectorAll('[data-mode-select]');
+  document.body.classList.toggle('mode-follow', store.mode === 'follow');
   modeSel.forEach((el) => {
     el.value = store.mode;
     el.onchange = () => {
       store.mode = el.value;
       modeSel.forEach((o) => { o.value = store.mode; });
+      document.body.classList.toggle('mode-follow', store.mode === 'follow');
       saveProject();
       validate();
-      toast(store.mode === 'solo' ? 'Chế độ 1 xe: chỉ xe leader chạy theo đường' : 'Chế độ 2 xe: leader + follower');
+      toast(store.mode === 'solo' ? 'Chế độ 1 xe: chỉ xe leader chạy theo đường'
+        : store.mode === 'follow' ? 'Bám tấm: xe follower giữ khoảng cách tới tấm phẳng cầm tay (không cần vẽ đường)'
+          : 'Chế độ 2 xe: leader + follower');
     };
   });
 

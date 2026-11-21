@@ -223,3 +223,7 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   .charts { grid-template-columns: 1fr; }
   .cfg-form { columns: 1; }
 }
+
+/* Chế độ bám tấm: ô khoảng cách chỉ hiện khi chọn "1 xe bám tấm" */
+.follow-only { display: none; }
+body.mode-follow .follow-only { display: inline-flex; align-items: center; gap: 4px; }

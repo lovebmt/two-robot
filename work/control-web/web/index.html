@@ -102,6 +102,7 @@
               <select id="mapMode" class="mode-select" data-mode-select title="1 xe: chỉ xe leader chạy theo đường vẽ">
                 <option value="pair">2 xe</option>
                 <option value="solo">1 xe</option>
+                <option value="follow">Bám tấm</option>
               </select>
               <button class="btn" id="mapUndo">Undo</button>
               <button class="btn" id="mapClear">Xoá</button>
@@ -256,7 +257,9 @@
               <select id="runMode" class="mode-select" data-mode-select title="1 xe: chỉ xe leader chạy theo đường vẽ, dừng-quay ở mỗi góc">
                 <option value="pair">2 xe (leader + follower)</option>
                 <option value="solo">1 xe (chỉ leader)</option>
+                <option value="follow">1 xe bám tấm (follower)</option>
               </select>
+              <label class="follow-only" title="Khoảng cách từ mặt kính ToF tới tấm phẳng mà xe sẽ giữ">Giữ <input type="number" id="followDist" class="num" value="200" min="40" max="1000" step="10"> mm</label>
               <button class="btn" id="runCheck" title="Kiểm tra trước khi chạy (không chạy)">✓ Kiểm tra</button>
               <button class="btn primary" id="runStart">▶ Start</button>
               <button class="btn" id="runPause">Pause</button>

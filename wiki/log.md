@@ -60,3 +60,8 @@
 - Code: planner `solo`, coordinator `_run_solo` + `preflight_solo`, API `mode` cho /api/plan, /api/run/start, /api/run/check; UI chọn 2 xe/1 xe (tab Bản đồ + Chạy); sim batch `--solo`; test planner + sim
 - Sửa kèm: firmware 0.2.6 — LINK_LOST giả (trừ không dấu khi heartbeat mới hơn `now`), log chẩn đoán WiFi/heartbeat/reset; `safety.link_timeout_ms` 500 → 1500
 - Cập nhật ngoài wiki: ops/decisions.md (D30)
+
+## [2026-11-21] query | Hiệu chuẩn thực tế xe 198a2c, ma sát tĩnh, chế độ bám tấm
+- Code: ToF lọc theo range status + tín hiệu (`range.min_signal_mcps` mặc định 1.5); CAL_KS + kbreak + tăng điện áp khi kẹt + ω quay tối thiểu + chấp nhận dừng khi kẹt (fw 0.2.8); cờ pause kẹt khi IDLE (fw 0.2.9); `FOLLOW_PLATE` + API /api/follow/start|stop + UI "1 xe bám tấm" (fw 0.3.0)
+- Phần cứng: GA25-370 12V 280RPM → hộp số ≈ 1:20.24 (không phải 1:34); thân 199×199, tâm trục → mặt sau 68 mm
+- Cập nhật ngoài wiki: ops/decisions.md (D31), work/hardware (robot-198a2c rev 22, hardware-intake.md)

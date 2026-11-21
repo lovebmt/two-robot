@@ -8,7 +8,7 @@
 
 namespace tr {
 
-const char* FW_VERSION = "0.2.9-esp32";
+const char* FW_VERSION = "0.3.0-esp32";
 
 App::App(Hal& h, const std::string& id_, const std::string& name_) : hal(h), params(h), id(id_), name(name_) {}
 
@@ -178,7 +178,7 @@ void App::raiseFault(const char* code) {
 
 void App::finishPrim_() {
   std::unique_ptr<Prim> p = std::move(prim_);
-  if (!std::strcmp(p->name, "FOLLOW")) kf.active = false;
+  if (!std::strcmp(p->name, "FOLLOW") || !std::strcmp(p->name, "FOLLOW_PLATE")) kf.active = false;
   if (state == "RUNNING") state = p->from_idle ? "IDLE" : "ARMED";
   JsonDocument e;
   e["t"] = "evt"; e["e"] = "prim_done"; e["id"] = p->id; e["prim"] = p->name; e["ok"] = p->ok;
@@ -353,7 +353,7 @@ void App::handleCmd(JsonObjectConst cmd, JsonObject out) {
   } else if (!std::strcmp(op, "resume")) {
     paused = false; last_hb_ms_ = now;
   } else if (!std::strcmp(op, "stop")) {
-    prim_.reset(); imu_cal_.reset(); paused = false; test_side_ = 0;
+    prim_.reset(); imu_cal_.reset(); paused = false; test_side_ = 0; kf.active = false;
     if (state == "TEST") state = "IDLE";
     if (state != "FAULT") state = "IDLE";
   } else if (!std::strcmp(op, "motor_test")) {

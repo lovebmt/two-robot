@@ -520,8 +520,9 @@ async def put_shared(body: dict = Body(...)):
 
 # ---------------------------------------------------------------- plan / run
 def _solo(body: dict) -> bool:
-    """mode: "solo" (1 xe = leader chạy một mình theo đường vẽ) | "pair" (leader + follower)."""
-    return body.get("mode") == "solo"
+    """mode: "solo" (1 xe = leader chạy một mình theo đường vẽ) | "pair" (leader + follower) |
+    "follow" (1 xe bám tấm cầm tay — không dùng đường; bản đồ kiểm tra như 1 xe)."""
+    return body.get("mode") in ("solo", "follow")
 
 
 def _plan(body: dict) -> dict:
@@ -758,6 +759,61 @@ async def cal_apply(rid: str, kind: str, body: dict = Body(...)):
     return {"ok": True, "patch": patch, "info": info, "saved": True, "cfg_rev": r.get("cfg_rev")}
 
 
+# ---------------------------------------------------------------- 1 xe bám tấm phẳng cầm tay
+FOLLOW_PLATE: dict = {}  # rid → {"d_target", "v_max"}
+
+
+def _plate_robot(body: dict) -> RobotSession:
+    """Xe bám: theo rid gửi lên; không có thì xe vai trò follower; không có nữa thì xe duy nhất."""
+    if body.get("rid"):
+        return _sess(body["rid"])
+    f = S.reg.by_role("follower")
+    if f is not None:
+        return f
+    if len(S.reg.sessions) == 1:
+        return next(iter(S.reg.sessions.values()))
+    raise HTTPException(400, {"errors": ["chế độ bám tấm: gán xe bám làm follower (tab Thiết bị)"]})
+
+
+@app.post("/api/follow/start")
+async def follow_start(body: dict = Body(default={})):
+    """Chạy FOLLOW_PLATE từ IDLE (không cần path/ARM): giữ mặt kính ToF → tấm = d_target mm. Dừng bằng /api/follow/stop."""
+    if S.coord.state == "RUNNING":
+        raise HTTPException(409, "đang chạy đường")
+    s = _plate_robot(body)
+    d = float(body.get("d_target", 200))
+    if not 40 <= d <= 1000:
+        raise HTTPException(400, {"errors": ["khoảng cách bám phải trong 40–1000 mm"]})
+    args = {"d_target": d, "v_max": float(body.get("v_max") or S.shared["motion.v_cruise"]),
+            "v_back": float(body.get("v_back", 80))}
+    await s.link.send({"t": "cmd", "op": "reset"})
+    if not ((s.last_tel or {}).get("imu") or {}).get("ok"):
+        raise HTTPException(400, {"errors": [f"{s.name}: IMU chưa calib — để xe đứng yên vài giây rồi thử lại"]})
+    if S.sim is not None:
+        S.sim.running = True
+    res = await _req(s, "POST", "/api/cmd", {"op": "prim", "id": 800000 + int(time.time()) % 100000,
+                                            "prim": "FOLLOW_PLATE", **args})
+    if not res.get("ok", True):
+        raise HTTPException(400, {"errors": [f"{s.name} từ chối: {res.get('err')}"]})
+    FOLLOW_PLATE[s.id] = args
+    S.note(f"{s.name}: bám tấm phẳng, giữ {d:.0f} mm (mặt kính ToF → tấm)")
+    return {"ok": True, "rid": s.id, **args}
+
+
+@app.post("/api/follow/stop")
+async def follow_stop(body: dict = Body(default={})):
+    ids = [body["rid"]] if body.get("rid") else list(FOLLOW_PLATE) or list(S.reg.sessions)
+    for rid in ids:
+        if rid in S.reg.sessions:
+            try:
+                await S.reg.sessions[rid].link.send({"t": "cmd", "op": "stop"})
+            except LinkError:
+                pass
+        FOLLOW_PLATE.pop(rid, None)
+    S.note("Dừng bám tấm")
+    return {"ok": True}
+
+
 @app.post("/api/run/{action}")
 async def run_action(action: str):
     if action == "pause":
@@ -766,6 +822,8 @@ async def run_action(action: str):
         await S.coord.resume()
     elif action == "stop":
         await S.coord.stop()
+        if FOLLOW_PLATE:  # đang bám tấm (không qua điều phối)
+            await follow_stop({})
     elif action == "estop":
         for s in S.reg.sessions.values():
             try:

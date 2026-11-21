@@ -161,10 +161,13 @@ class VirtualFirmware:
             self._tel_acc -= self.TEL_PERIOD
             self.emit(self.telemetry())
 
+    def range_rear(self) -> float:
+        """Khoảng tâm trục → mặt đuôi mục tiêu khi đổi số đo ToF thành gap tâm–tâm (rho)."""
+        return self.formation.get("leader_rear_mm", self.params.active["body.axle_to_rear_mm"])
+
     def on_range(self, l_mm: float, l_st: int, r_mm: float, r_st: int) -> None:
         self.raw_tof = {"l": (l_mm, l_st), "r": (r_mm, r_st)}
-        m = self.rangep.process(l_mm, l_st, r_mm, r_st, self.params.active,
-                                self.formation.get("leader_rear_mm", self.params.active["body.axle_to_rear_mm"]))
+        m = self.rangep.process(l_mm, l_st, r_mm, r_st, self.params.active, self.range_rear())
         m.t_ms = self.hal.now_ms()
         self.meas = m
         if self.prim is not None and self.state == "RUNNING" and not self.paused:
@@ -225,7 +228,7 @@ class VirtualFirmware:
     def _finish_prim(self) -> None:
         p = self.prim
         self.prim = None
-        self.kf.active = False if p.name == "FOLLOW" else self.kf.active
+        self.kf.active = False if p.name in ("FOLLOW", "FOLLOW_PLATE") else self.kf.active
         if self.state == "RUNNING":
             self.state = "IDLE" if getattr(p, "from_idle", False) else "ARMED"
         self._event({"t": "evt", "e": "prim_done", "id": p.id, "prim": p.name, "ok": p.ok,
@@ -294,7 +297,8 @@ class VirtualFirmware:
                     "r": {"mm": self.raw_tof["r"][0], "st": self.raw_tof["r"][1]}},
             "gap": {"est": self.kf.g if self.kf.active else None,
                     "meas": m.rho if (m and m.valid) else None,
-                    "target": self.prim.g_t if (self.prim is not None and self.prim.name == "FOLLOW") else None,
+                    "target": self.prim.g_t if (self.prim is not None and self.prim.name in ("FOLLOW", "FOLLOW_PLATE"))
+                    else None,
                     "vL": self.kf.vL if self.kf.active else None},
             "dpsi": m.dpsi if (m and m.dpsi is not None) else None,
             "prim": {"id": self.prim.id, "name": self.prim.name} if self.prim else None,
@@ -472,6 +476,7 @@ class VirtualFirmware:
             return self._ack(msg)
         if op == "stop":
             self.prim, self.paused, self.imu_cal = None, False, None
+            self.kf.active = False
             if self.state != "FAULT":
                 self.state = "IDLE"
             return self._ack(msg)

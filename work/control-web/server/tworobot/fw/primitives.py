@@ -226,6 +226,76 @@ class Follow(Prim):
         return v, w, False
 
 
+class FollowPlate(Prim):
+    """Chế độ 1 xe bám tấm phẳng cầm tay (không cần path/ARM). Giữ mặt kính ToF → tấm = d_target: tấm xa thì tiến,
+    gần thì lùi (≤ v_back), căn song song theo Δψ. Mất tấm → phanh và CHỜ (không lỗi); thấy lại → bám tiếp.
+    Chạy tới khi PC gửi stop. Vùng chết ±hold_band quanh đích để không giật tới-lui."""
+    name = "FOLLOW_PLATE"
+    standalone = True
+
+    def start(self, fw):
+        cfg = fw.params.active
+        a = self.args
+        self.g_t = cfg["range.x_mm"] + float(a.get("d_target", 200.0)) + fw.range_rear()
+        self.v_max = float(a.get("v_max") or cfg["motion.v_cruise"])
+        self.v_back = float(a.get("v_back", 80.0))
+        self.band = float(a.get("hold_band", 10.0))
+        self.integ = self.v_prev = self.dpsi_f = 0.0
+        self.have_dpsi, self.lost, self.edge = False, True, 0
+        self.hold = fw.heading.psi
+        self.hint = [0.0]
+        self.last_valid_ms = 0
+        self.last_dpsi_ms = -10_000
+
+    def on_range(self, fw, m):
+        if not m.valid:
+            return
+        cfg = fw.params.active
+        kf = fw.kf
+        if self.lost:  # (bắt) lại tấm: khởi tạo KF theo số đo
+            kf.reset(m.rho, 0.0, cfg["range.sigma_mm"])
+            self.integ = self.v_prev = 0.0
+            self.have_dpsi, self.lost = False, False
+        elif not kf.update_g(m.rho, cfg["range.sigma_mm"], cfg["follow.kf_gate_chi2"]):
+            if kf.rejects < 8:
+                return
+            kf.reset(m.rho, kf.vL, cfg["range.sigma_mm"])
+        self.last_valid_ms = m.t_ms
+        if m.dpsi is not None:
+            self.dpsi_f = m.dpsi if not self.have_dpsi else self.dpsi_f + 0.4 * (m.dpsi - self.dpsi_f)
+            self.have_dpsi, self.last_dpsi_ms, self.edge = True, m.t_ms, 0
+        else:
+            self.edge = m.edge
+
+    def update(self, fw, dt):
+        cfg = fw.params.active
+        now = fw.hal.now_ms()
+        if self.lost or now - self.last_valid_ms > cfg["follow.lost_timeout_ms"]:
+            self.lost = True
+            self.hold = fw.heading.psi
+            return BRAKE
+        kf = fw.kf
+        kf.predict(fw.drive.v_meas, dt, cfg["follow.kf_q_a"])
+        e = kf.g - self.g_t  # > 0: tấm xa hơn đích → tiến
+        self.integ = clamp(self.integ + cfg["follow.ki_g"] * e * dt, -40.0, 40.0) if abs(e) < 4 * self.band else 0.0
+        v = kf.vL + cfg["follow.kp_g"] * e + self.integ
+        if abs(e) < self.band and abs(kf.vL) < 15.0:
+            v, self.integ = 0.0, 0.0
+        v = clamp(v, -self.v_back, self.v_max)
+        a = cfg["motion.a_max"]
+        v = clamp(v, self.v_prev - a * dt, self.v_prev + a * dt)
+        self.v_prev = v
+        self.dpsi_f -= fw.heading.w * dt
+        if self.have_dpsi and now - self.last_dpsi_ms < 250:
+            w = cfg["follow.k_psi"] * self.dpsi_f
+            self.hold = fw.heading.psi
+        else:
+            w = _heading_hold(fw, self.hold, self.hint, dt) + cfg["follow.k_edge"] * self.edge
+        if abs(v) < 1.0 and abs(w) < 0.05:
+            return BRAKE
+        return v, w, False
+
+
 class Snapshot(Prim):
     """Đứng yên, lấy trung bình N mẫu ToF → ρ, Δψ (mốc neo ở góc cua; kiểm tra trước khi chạy;
     calib khoảng cách). Trả cả số đo trung bình từng mắt (đã bù offset) và offset đang dùng."""
@@ -642,5 +712,6 @@ class CalKs(Prim):
 
 
 PRIMS: dict[str, type[Prim]] = {
-    c.name: c for c in (DriveTo, Turn, Hold, Follow, Snapshot, Align, Reacquire, TofCal, CalDrive, CalTurn, CalKs)
+    c.name: c for c in (DriveTo, Turn, Hold, Follow, Snapshot, Align, Reacquire, TofCal, CalDrive, CalTurn, CalKs,
+                                 FollowPlate)
 }
