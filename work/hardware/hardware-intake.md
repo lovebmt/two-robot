@@ -62,6 +62,6 @@ Cấu hình đầy đủ đang nạp trên xe A: [robots/robot-198a2c.config.jso
 - Bằng chứng: lệnh đi thẳng 100/1000 mm ra thật 161/1610 mm = 34/21.3.
 
 ## Thân xe (2026-11-21)
-- Vuông **199 × 199 mm**. Mép sau → tâm trục bánh **168 mm** ⇒ tâm trục → mép trước **31 mm** (bánh chủ động ở đầu, bánh đa hướng ở sau).
-- Bán kính quét khi quay tại chỗ ≈ **195 mm** (đuôi xe văng rộng).
-- `range.x_mm` = 31: mặt kính ToF sát mép trước (người dùng xác nhận 2026-11-21).
+- Vuông **199 × 199 mm**. Tâm trục bánh → mặt sau/tấm đuôi **68 mm** ⇒ tâm trục → mép trước **131 mm** (sửa 2026-11-21; số 168 trước đó là nhầm).
+- Bán kính quét khi quay tại chỗ ≈ **164 mm** (đầu xe văng xa nhất).
+- `range.x_mm` = 131: mặt kính ToF sát mép trước (người dùng xác nhận 2026-11-21).

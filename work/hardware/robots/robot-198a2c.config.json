@@ -2,22 +2,22 @@
   "robot_id": "198a2c",
   "name": "Robot-198a2c",
   "saved_at": "2026-11-21",
-  "cfg_rev": 20,
-  "crc": "7f46e7cc",
+  "cfg_rev": 21,
+  "crc": "7b4012b0",
   "measured": {
     "wheel.diameter_mm": 69,
     "wheel.track_mm": 141,
     "wheel_width_mm": 26,
     "range.baseline_mm": 124,
     "motor": "GA25-370 12V 280RPM (hshop, mua 2026-04-20); quay tay đo được hộp số ≈ 1:20.24 → 890.5 tick/vòng bánh",
-    "body": "thân vuông 199 × 199 mm; mép sau → tâm trục 168 mm (→ tâm trục → mép trước 31 mm); mặt kính ToF sát mép trước (range.x 31, đã xác nhận); tấm đuôi = cả mặt sau 199 mm"
+    "body": "thân vuông 199 × 199 mm; tâm trục → mặt sau/tấm đuôi 68 mm (→ tâm trục → mép trước 131 mm); mặt kính ToF sát mép trước (range.x 131); tấm đuôi = cả mặt sau 199 mm"
   },
   "note": "Cấu hình đầy đủ xuất từ robot. Khôi phục: PUT /api/robots/198a2c/config {patch: params, persist: true} hoặc nhập lại trên tab Cấu hình.",
   "params": {
     "body.length_mm": 199,
     "body.width_mm": 199,
-    "body.axle_to_front_mm": 31,
-    "body.axle_to_rear_mm": 168,
+    "body.axle_to_front_mm": 131,
+    "body.axle_to_rear_mm": 68,
     "body.plate_width_mm": 199,
     "wheel.diameter_mm": 66.862,
     "wheel.track_mm": 141,
@@ -42,7 +42,7 @@
     "power.l298n_vdrop_v": 2,
     "power.bat_min_v": 10.5,
     "power.vbat_divider": 0,
-    "range.x_mm": 31,
+    "range.x_mm": 131,
     "range.baseline_mm": 124,
     "range.offset_l_mm": -6.78,
     "range.offset_r_mm": 6.78,
@@ -115,6 +115,7 @@
     "2026-11-21 rev 14: enc.gear_ratio 34 → 21.3 (motor GA25-370 12V 280RPM; đi thẳng 1000 mm ra thật 1610 = 34/21.3), wheel.diameter_mm 55.1 → 69 (số đo thật)",
     "2026-11-21 rev 18: hiệu chuẩn trên UI — enc.gear_ratio 21.3 → 20.239 (0b quay tay), wheel.diameter_mm 69 → 66.862 (2. đi thẳng), motor.ks_l/r 3.84/4.27 → 3.45/3.28 V, kbreak_l/r 5.79/5.44 → 4.49/5.23 V (1b đo lại)",
     "2026-11-21 rev 19: body 199×199, axle_to_rear 168, axle_to_front 31, range.x_mm 120 → 31 (tạm: mặt kính ToF ngang mép trước)",
-    "2026-11-21 rev 20: body.plate_width_mm 120 → 199 (tấm đuôi = cả mặt sau xe)"
+    "2026-11-21 rev 20: body.plate_width_mm 120 → 199 (tấm đuôi = cả mặt sau xe)",
+    "2026-11-21 rev 21: sửa tâm trục → mặt sau 168 → 68 mm ⇒ axle_to_front 31 → 131, range.x_mm 31 → 131"
   ]
 }
