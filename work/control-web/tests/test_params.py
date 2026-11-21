@@ -42,8 +42,9 @@ def test_cross_check_sensor_outside_body():
 
 
 def test_derived_mm_per_tick():
-    d = P.derive_robot(P.defaults())
-    expected = math.pi * 65 / (11 * 4 * 34)
+    cfg = P.defaults()
+    d = P.derive_robot(cfg)
+    expected = math.pi * 65 / (11 * 4 * cfg["enc.gear_ratio"])
     assert abs(d["mm_per_tick_l"] - expected) < 1e-9
     assert abs(d["r_sweep_mm"] - math.hypot(120, 60)) < 1e-9
 
@@ -73,7 +74,7 @@ def test_paramservice_swap_and_idle_lock():
     assert not res["ok"] and res["busy"]
     res = ps.submit({"wheel.diameter_mm": 70}, running=False)
     ps.swap_if_pending()
-    assert abs(ps.derived["mm_per_tick_l"] - math.pi * 70 / (11 * 4 * 34)) < 1e-9
+    assert abs(ps.derived["mm_per_tick_l"] - math.pi * 70 / (11 * 4 * ps.active["enc.gear_ratio"])) < 1e-9
 
 
 def test_paramservice_save_and_reload():

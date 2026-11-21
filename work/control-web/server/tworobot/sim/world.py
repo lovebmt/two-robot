@@ -17,6 +17,12 @@ DEFAULT_MISMATCH = {
     "motor_scale_r": 1.0,
     "fric_scale": 1.0,      # nhân điện áp vùng chết (ma sát)
     "stiction": 1.0,        # ma sát tĩnh = stiction × ma sát động (bánh đứng yên cần điện áp này mới bứt)
+    # Dây cắm vật lý — mặc định GIỐNG XE THẬT (robot-198a2c): motor trái, motor phải và encoder phải đấu ngược.
+    # Cấu hình mặc định (motor.invert_l/r, enc.invert_r = true) bù đúng cách cắm này.
+    "wire_motor_l_rev": True,
+    "wire_motor_r_rev": True,
+    "wire_enc_l_rev": False,
+    "wire_enc_r_rev": True,
     "diam_err_l": 0.0,      # sai số đường kính thật so với config (tỉ lệ)
     "diam_err_r": 0.0,
     "track_err_mm": 0.0,
@@ -59,6 +65,8 @@ class Physical:
     fric_l: float
     fric_r: float
     stiction: float
+    wire_motor_rev: dict
+    wire_enc_rev: dict
     tau: float
     gyro_bias: float
     gyro_scale_err: float
@@ -94,6 +102,8 @@ def physical_from_cfg(cfg: dict, mismatch: dict | None = None) -> Physical:
         k_l=m["motor_scale_l"] / cfg["motor.kv_l"], k_r=m["motor_scale_r"] / cfg["motor.kv_r"],
         fric_l=cfg["motor.ks_l_v"] * m["fric_scale"], fric_r=cfg["motor.ks_r_v"] * m["fric_scale"],
         stiction=m["stiction"], tau=0.08,
+        wire_motor_rev={"l": bool(m["wire_motor_l_rev"]), "r": bool(m["wire_motor_r_rev"])},
+        wire_enc_rev={"l": bool(m["wire_enc_l_rev"]), "r": bool(m["wire_enc_r_rev"])},
         gyro_bias=math.radians(m["gyro_bias_dps"]), gyro_scale_err=m["gyro_scale_err"],
         gyro_noise=math.radians(m["gyro_noise_dps"]),
         gyro_rw=math.radians(m["gyro_rw_dps"]), gyro_warm=math.radians(m["gyro_warm_dps"]),

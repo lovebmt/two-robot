@@ -30,9 +30,9 @@
     {"key": "wheel.diam_eps",        "type": "float", "unit": "",   "min": -0.1,"max": 0.1,  "default": 0.0, "group": "wheel", "scope": "robot", "apply": "idle", "desc": "Bù đường kính trái/phải: D_l=D(1+e), D_r=D(1-e)"},
 
     {"key": "enc.ppr_motor",         "type": "int",   "unit": "xung/vòng", "min": 1, "max": 2048, "default": 11, "group": "enc", "scope": "robot", "apply": "idle", "desc": "Xung/vòng trục motor (1 kênh)"},
-    {"key": "enc.gear_ratio",        "type": "float", "unit": "",   "min": 1,   "max": 1000, "default": 34,  "group": "enc", "scope": "robot", "apply": "idle", "desc": "Tỉ số hộp số GA25-370"},
+    {"key": "enc.gear_ratio",        "type": "float", "unit": "",   "min": 1,   "max": 1000, "default": 20.239,  "group": "enc", "scope": "robot", "apply": "idle", "desc": "Tỉ số hộp số GA25-370"},
     {"key": "enc.invert_l",          "type": "bool",  "unit": "",   "default": false, "group": "enc", "scope": "robot", "apply": "idle", "desc": "Đảo chiều đếm encoder trái (xe tiến mà đếm âm)"},
-    {"key": "enc.invert_r",          "type": "bool",  "unit": "",   "default": false, "group": "enc", "scope": "robot", "apply": "idle", "desc": "Đảo chiều đếm encoder phải"},
+    {"key": "enc.invert_r",          "type": "bool",  "unit": "",   "default": true, "group": "enc", "scope": "robot", "apply": "idle", "desc": "Đảo chiều đếm encoder phải"},
 
     {"key": "motor.ks_l_v",          "type": "float", "unit": "V",       "min": 0, "max": 6,    "default": 1.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Vùng chết bánh trái (điện áp)"},
     {"key": "motor.ks_r_v",          "type": "float", "unit": "V",       "min": 0, "max": 6,    "default": 1.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Vùng chết bánh phải (điện áp)"},
@@ -43,8 +43,8 @@
     {"key": "motor.v_min_reliable",  "type": "float", "unit": "mm/s",    "min": 0, "max": 200,  "default": 15,     "group": "motor", "scope": "robot", "apply": "live", "desc": "Tốc độ bánh tối thiểu điều khiển được"},
     {"key": "motor.adapt_rate",      "type": "float", "unit": "1/s",     "min": 0, "max": 1,    "default": 0.05,   "group": "motor", "scope": "robot", "apply": "live", "desc": "Tốc độ học offset FF (L4), 0 = tắt"},
     {"key": "motor.adapt_limit",     "type": "float", "unit": "",        "min": 0, "max": 0.5,  "default": 0.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Giới hạn offset học được (tỉ lệ)"},
-    {"key": "motor.invert_l",        "type": "bool",  "unit": "",        "default": false, "group": "motor", "scope": "robot", "apply": "idle", "desc": "Đảo chiều motor trái (lệnh tiến mà bánh quay lùi)"},
-    {"key": "motor.invert_r",        "type": "bool",  "unit": "",        "default": false, "group": "motor", "scope": "robot", "apply": "idle", "desc": "Đảo chiều motor phải"},
+    {"key": "motor.invert_l",        "type": "bool",  "unit": "",        "default": true, "group": "motor", "scope": "robot", "apply": "idle", "desc": "Đảo chiều motor trái (lệnh tiến mà bánh quay lùi)"},
+    {"key": "motor.invert_r",        "type": "bool",  "unit": "",        "default": true, "group": "motor", "scope": "robot", "apply": "idle", "desc": "Đảo chiều motor phải"},
     {"key": "motor.pwm_hz",          "type": "int",   "unit": "Hz",      "min": 100, "max": 20000, "default": 2000, "group": "motor", "scope": "robot", "apply": "idle", "desc": "Tần số PWM L298N (thấp → mô-men tốt hơn ở duty thấp)"},
 
     {"key": "power.l298n_vdrop_v",   "type": "float", "unit": "V", "min": 0, "max": 4, "default": 2.0, "group": "power", "scope": "robot", "apply": "live", "desc": "Sụt áp L298N"},

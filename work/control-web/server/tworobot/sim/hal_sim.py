@@ -23,12 +23,14 @@ class SimHal:
     def now_ms(self) -> int:
         return int(round(self.engine.t * 1000))
 
+    # Dây cắm vật lý của xe ảo (Physical.wire_*): chân HAL → bánh thật, giống xe thật bị đấu ngược
     def set_motor(self, side: str, duty: float, brake: bool) -> None:
-        self.body.duty[side] = duty
+        self.body.duty[side] = -duty if self.body.p.wire_motor_rev[side] else duty
         self.body.brake[side] = brake
 
     def read_encoder(self, side: str) -> int:
-        return self.body.ticks(side)
+        t = self.body.ticks(side)
+        return -t if self.body.p.wire_enc_rev[side] else t
 
     def read_gyro_z(self) -> float:
         return self.body.gyro(self.rng, self.engine.t)

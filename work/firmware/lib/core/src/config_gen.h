@@ -37,9 +37,9 @@ struct Config {
   float wheel_track_eff_mm = 130;  // mm Track hiệu dụng (sau hiệu chuẩn quay)
   float wheel_diam_eps = 0.0f;  //  Bù đường kính trái/phải: D_l=D(1+e), D_r=D(1-e)
   int32_t enc_ppr_motor = 11;  // xung/vòng Xung/vòng trục motor (1 kênh)
-  float enc_gear_ratio = 34;  //  Tỉ số hộp số GA25-370
+  float enc_gear_ratio = 20.239f;  //  Tỉ số hộp số GA25-370
   bool enc_invert_l = false;  //  Đảo chiều đếm encoder trái (xe tiến mà đếm âm)
-  bool enc_invert_r = false;  //  Đảo chiều đếm encoder phải
+  bool enc_invert_r = true;  //  Đảo chiều đếm encoder phải
   float motor_ks_l_v = 1.2f;  // V Vùng chết bánh trái (điện áp)
   float motor_ks_r_v = 1.2f;  // V Vùng chết bánh phải (điện áp)
   float motor_kbreak_l_v = 0;  // V Điện áp bứt ma sát tĩnh bánh trái (lúc bánh đứng yên; 0 = dùng vùng chết)
@@ -49,8 +49,8 @@ struct Config {
   float motor_v_min_reliable = 15;  // mm/s Tốc độ bánh tối thiểu điều khiển được
   float motor_adapt_rate = 0.05f;  // 1/s Tốc độ học offset FF (L4), 0 = tắt
   float motor_adapt_limit = 0.2f;  //  Giới hạn offset học được (tỉ lệ)
-  bool motor_invert_l = false;  //  Đảo chiều motor trái (lệnh tiến mà bánh quay lùi)
-  bool motor_invert_r = false;  //  Đảo chiều motor phải
+  bool motor_invert_l = true;  //  Đảo chiều motor trái (lệnh tiến mà bánh quay lùi)
+  bool motor_invert_r = true;  //  Đảo chiều motor phải
   int32_t motor_pwm_hz = 2000;  // Hz Tần số PWM L298N (thấp → mô-men tốt hơn ở duty thấp)
   float power_l298n_vdrop_v = 2.0f;  // V Sụt áp L298N
   float power_bat_min_v = 10.5f;  // V Ngưỡng pin yếu (3S)

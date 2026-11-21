@@ -66,7 +66,7 @@ void test_patch_errors() {
 
 void test_derived() {
   Derived d = derive(Config());
-  TEST_ASSERT_FLOAT_WITHIN(1e-5, PI_F * 65.f / (11 * 4 * 34), d.mm_per_tick_l);
+  TEST_ASSERT_FLOAT_WITHIN(1e-5, PI_F * 65.f / (11 * 4 * Config().enc_gear_ratio), d.mm_per_tick_l);
   TEST_ASSERT_FLOAT_WITHIN(1e-3, std::hypot(120.f, 60.f), d.r_sweep_mm);
 }
 
