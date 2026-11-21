@@ -93,7 +93,7 @@ Sửa form ─► [Apply]   PUT /api/config?persist=0   → RAM, có hiệu lự
 Slider ─► PUT /api/config {"patch":{"pid.wheel_kp":1.2}}  (RAM, tối đa 10 lần/s)
 ```
 - Ô chưa lưu flash có viền vàng. Ô khác giữa PC và xe có viền tím. Khoá `idle` có biểu tượng khoá khi xe đang chạy.
-- Project trên PC giữ **bản chuẩn** cho từng xe (theo MAC). Khi xe kết nối, so `cfg_rev`/`crc`. Nếu khác, web hỏi chiều đồng bộ: PC → xe hay xe → PC.
+- ~~Project trên PC giữ **bản chuẩn** cho từng xe (theo MAC). Khi xe kết nối, so `cfg_rev`/`crc`. Nếu khác, web hỏi chiều đồng bộ: PC → xe hay xe → PC.~~ **Chưa làm** (kiểm 2026-11-21): bản chuẩn tham số riêng là flash của xe; bản sao lưu nằm ở `work/hardware/robots/robot-<id>.config.json`, cập nhật thủ công khi người dùng yêu cầu "lưu database". Xem §7.
 - Wizard hiệu chuẩn ([motor-control §3](motor-control.md#3-hiệu-chuẩn-trên-web-wizard)) đi qua đúng luồng này.
 - Robot ảo có cùng API, "flash" của nó là `work/sim/state/<id>/config.json`. Nhờ vậy cơ chế tham số động được **test trong sim trước**, ví dụ kịch bản đổi `pid.*` và `gap.target` giữa lúc chạy.
 
@@ -105,3 +105,43 @@ Slider ─► PUT /api/config {"patch":{"pid.wheel_kp":1.2}}  (RAM, tối đa 10
 | PUT | `/api/config?persist=0\|1&queue=0\|1` | cập nhật một phần (JSON merge patch). Trả `{ok, cfg_rev, errors:{key:msg}, deferred:[keys]}` |
 | POST | `/api/config/save` / `reload` / `factory_reset` | |
 | GET/PUT/DELETE | `/api/config/learned` | hiệu chỉnh học được |
+
+## 7. Luồng tham số thực tế (đối chiếu code, 2026-11-21)
+
+Firmware luôn chạy bằng bộ tham số trong **RAM**. **Flash** chỉ là bản lưu để nạp lại vào RAM mỗi lần bật nguồn.
+
+```
+BẬT NGUỒN ESP32
+  └─ đọc bộ tham số đã lưu trong flash → chép vào RAM
+     (flash trống → dùng giá trị mặc định trong code, báo CFG_DEFAULT, không cho ARM)
+
+WEB CONTROL KẾT NỐI (Tìm robot)
+  └─ chỉ ĐỌC cấu hình từ xe để hiển thị
+     ⚠ trừ tham số "chung 2 xe" (xem bên dưới)
+
+BẤM START / CHẠY 1 LƯỢT
+  └─ không gửi tham số; xe dùng bộ đang có trong RAM
+     primitive chép giá trị cần dùng vào biến riêng lúc bắt đầu (xem ghi chú)
+
+CHỈNH Ở TAB CẤU HÌNH
+  ├─ "Áp dụng"  → gửi xuống xe → chỉ đổi RAM (tắt nguồn là mất)
+  └─ "Save"     → gửi xuống xe → đổi RAM + ghi flash (giữ sau khi tắt nguồn)
+
+HIỆU CHUẨN (bước 0b, 1b, 2, 3, 5 → bấm Lưu) → luôn ghi RAM + flash
+```
+
+### 7.1 Hai loại tham số
+
+| Loại (`scope` trong schema) | Ví dụ | "Bản gốc" nằm ở đâu |
+|---|---|---|
+| **Riêng từng xe** (`robot`) | kích thước, bánh, encoder, motor, IMU, ToF, `plate.*` | **Flash của xe đó** (sao lưu: `work/hardware/robots/robot-<id>.config.json`) |
+| **Chung 2 xe** (`shared`) | `motion.*`, `gap.*`, `corner.*`, `start.*` | **PC (Web Control)** |
+
+**⚠ Chỗ dễ nhầm:** mỗi lần Web Control kết nối xe, nó **đẩy tham số chung của PC xuống RAM của xe** (`add_real` trong `server/tworobot/app.py`). Hiện PC **không lưu** bộ tham số chung ra đĩa: mở lại Web Control là bộ chung về mặc định, và lần kết nối sau sẽ đè mặc định xuống xe, kể cả khi trước đó đã Save vào flash xe.
+
+### 7.2 Ghi chú "primitive chép tham số lúc bắt đầu"
+
+Primitive là một động tác cơ bản chạy trong firmware (`DRIVE_TO`, `TURN`, `FOLLOW`, `FOLLOW_PLATE`, `CAL_*`); PC chỉ ra lệnh, ESP32 tự điều khiển 100 lần/giây.
+
+- **`FOLLOW_PLATE`**: đọc nhóm `plate.*` **một lần** lúc `start()` vào biến riêng, dùng suốt lượt chạy, Stop là bỏ. Nhóm `plate.*` có `apply = idle` nên firmware còn từ chối sửa khi xe đang chạy (409 "chỉ đổi được khi xe đứng yên").
+- **Các primitive còn lại**: đọc thẳng bộ cấu hình trong RAM mỗi chu kỳ. Tham số `idle` bị khoá khi chạy. Tham số `live` (PID, tốc độ, ngưỡng…) chỉ đổi giữa lượt được khi bật `safety.allow_tune_while_running` (mặc định **tắt**) ⇒ với mặc định, không tham số nào đổi được lúc xe đang chạy.

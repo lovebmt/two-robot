@@ -65,3 +65,7 @@
 - Code: ToF lọc theo range status + tín hiệu (`range.min_signal_mcps` mặc định 1.5); CAL_KS + kbreak + tăng điện áp khi kẹt + ω quay tối thiểu + chấp nhận dừng khi kẹt (fw 0.2.8); cờ pause kẹt khi IDLE (fw 0.2.9); `FOLLOW_PLATE` + API /api/follow/start|stop + UI "1 xe bám tấm" (fw 0.3.0)
 - Phần cứng: GA25-370 12V 280RPM → hộp số ≈ 1:20.24 (không phải 1:34); thân 199×199, tâm trục → mặt sau 68 mm
 - Cập nhật ngoài wiki: ops/decisions.md (D31), work/hardware (robot-198a2c rev 22, hardware-intake.md)
+
+## [2026-11-21] query | Luồng tham số RAM ↔ flash ↔ Web Control
+- Cập nhật: config-management.md (thêm §7 luồng thực tế đối chiếu code, §7.1 hai loại tham số + chỗ dễ nhầm tham số chung, §7.2 primitive chép tham số; gạch ý "web hỏi chiều đồng bộ" ở §5 vì chưa làm)
+- Cập nhật: index.md (mô tả config-management)
