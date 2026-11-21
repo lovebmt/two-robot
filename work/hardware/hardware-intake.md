@@ -58,5 +58,5 @@ Cấu hình đầy đủ đang nạp trên xe A: [robots/robot-198a2c.config.jso
 Đặt ảnh xe và sơ đồ đi dây vào `work/hardware/img/`.
 
 ## Motor (2026-11-21)
-- GA25-370 12V **280 RPM**, mua hshop 2026-04-20 → hộp số **1:21.3** (không phải 1:34 mặc định), encoder 11 PPR × 4 → **937 tick/vòng bánh**.
+- GA25-370 12V **280 RPM**, mua hshop 2026-04-20. Quay tay (0b) đo được hộp số **≈ 1:20.24** (gần chuẩn 1:20.4; không phải 1:34 mặc định), encoder 11 PPR × 4 → **890.5 tick/vòng bánh**.
 - Bằng chứng: lệnh đi thẳng 100/1000 mm ra thật 161/1610 mm = 34/21.3.
