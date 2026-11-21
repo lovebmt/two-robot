@@ -781,11 +781,10 @@ async def follow_start(body: dict = Body(default={})):
     if S.coord.state == "RUNNING":
         raise HTTPException(409, "đang chạy đường")
     s = _plate_robot(body)
-    d = float(body.get("d_target", 200))
-    if not 40 <= d <= 1000:
-        raise HTTPException(400, {"errors": ["khoảng cách bám phải trong 40–1000 mm"]})
-    args = {"d_target": d, "v_max": float(body.get("v_max") or S.shared["motion.v_cruise"]),
-            "v_back": float(body.get("v_back", 80))}
+    # Mặc định dùng cấu hình robot (tab Cấu hình → nhóm "Bám tấm"); body có thể ghi đè riêng lần chạy này
+    args = {k: float(body[k]) for k in ("d_target", "v_max", "v_back", "hold_band") if body.get(k) is not None}
+    cfg = ((s.config or {}).get("params") or {})
+    d = args.get("d_target", cfg.get("plate.dist_mm", 200.0))
     await s.link.send({"t": "cmd", "op": "reset"})
     if not ((s.last_tel or {}).get("imu") or {}).get("ok"):
         raise HTTPException(400, {"errors": [f"{s.name}: IMU chưa calib — để xe đứng yên vài giây rồi thử lại"]})
@@ -797,7 +796,7 @@ async def follow_start(body: dict = Body(default={})):
         raise HTTPException(400, {"errors": [f"{s.name} từ chối: {res.get('err')}"]})
     FOLLOW_PLATE[s.id] = args
     S.note(f"{s.name}: bám tấm phẳng, giữ {d:.0f} mm (mặt kính ToF → tấm)")
-    return {"ok": True, "rid": s.id, **args}
+    return {"ok": True, "rid": s.id, "d_target": d, **args}
 
 
 @app.post("/api/follow/stop")

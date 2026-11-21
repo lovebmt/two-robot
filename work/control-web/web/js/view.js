@@ -279,12 +279,11 @@ async function loadLogs() {
 
 export async function startRun() {
   if (store.mode === 'follow') {  // 1 xe bám tấm phẳng cầm tay: không cần đường vẽ
-    const d = Number($('followDist').value) || 200;
-    const r = await guard(() => api('POST', '/api/follow/start', { d_target: d }));
+    const r = await guard(() => api('POST', '/api/follow/start', {}));
     if (r) {
       trails.clear();
       Object.values(charts).forEach((c) => c.clear());
-      toast(`Đang bám tấm: giữ ${d} mm. Cầm tấm phẳng trước 2 mắt ToF; bấm Stop để dừng`, 'ok');
+      toast(`Đang bám tấm: giữ ${r.d_target} mm. Cầm tấm phẳng trước 2 mắt ToF; bấm Stop để dừng`, 'ok');
     }
     return !!r;
   }

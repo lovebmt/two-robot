@@ -19,11 +19,12 @@ constexpr uint32_t G_RANGE = 1u << 5;
 constexpr uint32_t G_IMU = 1u << 6;
 constexpr uint32_t G_PID = 1u << 7;
 constexpr uint32_t G_FOLLOW = 1u << 8;
-constexpr uint32_t G_MOTION = 1u << 9;
-constexpr uint32_t G_GAP = 1u << 10;
-constexpr uint32_t G_CORNER = 1u << 11;
-constexpr uint32_t G_START = 1u << 12;
-constexpr uint32_t G_SAFETY = 1u << 13;
+constexpr uint32_t G_PLATE = 1u << 9;
+constexpr uint32_t G_MOTION = 1u << 10;
+constexpr uint32_t G_GAP = 1u << 11;
+constexpr uint32_t G_CORNER = 1u << 12;
+constexpr uint32_t G_START = 1u << 13;
+constexpr uint32_t G_SAFETY = 1u << 14;
 
 struct Config {
   float body_length_mm = 160;  // mm Chiều dài thân
@@ -86,9 +87,14 @@ struct Config {
   float follow_ki_g = 0.1f;  // 1/s² Bám gap: Ki
   float follow_k_psi = 2.0f;  // 1/s Căn song song theo Δψ
   float follow_k_edge = 0.15f;  // rad/s Lái khi 1 chùm mất mép tấm
-  float follow_plate_k_psi = 3.0f;  // 1/s Bám tấm: xoay theo góc tấm (Δψ) — lớn = bám cua nhanh, quá lớn = lắc
-  float follow_plate_k_edge = 0.8f;  // rad/s Bám tấm: tốc độ xoay về phía mắt còn thấy tấm khi 1 mắt mất tấm
-  float follow_plate_max_dpsi_deg = 50;  // ° Bám tấm: góc tấm lớn nhất còn tin (2 mắt cùng trúng tấm)
+  float plate_k_psi = 3.0f;  // 1/s Bám tấm: xoay theo góc tấm (Δψ) — lớn = bám cua nhanh, quá lớn = lắc
+  float plate_k_edge = 0.8f;  // rad/s Bám tấm: tốc độ xoay về phía mắt còn thấy tấm khi 1 mắt mất tấm
+  float plate_max_dpsi_deg = 50;  // ° Bám tấm: góc tấm lớn nhất còn tin (2 mắt cùng trúng tấm)
+  float plate_dist_mm = 200;  // mm Khoảng cách giữ: mặt kính ToF → tấm
+  float plate_v_max = 150;  // mm/s Tốc độ tiến tối đa khi bám tấm
+  float plate_v_back = 80;  // mm/s Tốc độ lùi tối đa khi tấm lại quá gần (0 = không lùi)
+  float plate_hold_band_mm = 10;  // mm Vùng chết quanh khoảng cách giữ: trong vùng này xe đứng yên (chống giật tới-lui)
+  float plate_kp = 1.2f;  // 1/s Độ cứng bám khoảng cách: lớn = đuổi nhanh, quá lớn = dao động tới-lui
   float follow_kf_q_a = 300;  // mm/s² KF: nhiễu gia tốc leader
   float follow_kf_gate_chi2 = 9;  //  KF: ngưỡng gating
   int32_t follow_lost_timeout_ms = 500;  // ms Mất leader quá thời gian này → dừng

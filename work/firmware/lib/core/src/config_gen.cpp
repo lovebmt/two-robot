@@ -64,9 +64,14 @@ const ParamMeta PARAMS[] = {
   {"follow.ki_g", PType::Float, (uint16_t)offsetof(Config, follow_ki_g), 0.0f, 5.0f, G_FOLLOW, false, false},
   {"follow.k_psi", PType::Float, (uint16_t)offsetof(Config, follow_k_psi), 0.0f, 10.0f, G_FOLLOW, false, false},
   {"follow.k_edge", PType::Float, (uint16_t)offsetof(Config, follow_k_edge), 0.0f, 2.0f, G_FOLLOW, false, false},
-  {"follow.plate_k_psi", PType::Float, (uint16_t)offsetof(Config, follow_plate_k_psi), 0.0f, 10.0f, G_FOLLOW, false, false},
-  {"follow.plate_k_edge", PType::Float, (uint16_t)offsetof(Config, follow_plate_k_edge), 0.0f, 3.0f, G_FOLLOW, false, false},
-  {"follow.plate_max_dpsi_deg", PType::Float, (uint16_t)offsetof(Config, follow_plate_max_dpsi_deg), 5.0f, 70.0f, G_FOLLOW, false, false},
+  {"plate.k_psi", PType::Float, (uint16_t)offsetof(Config, plate_k_psi), 0.0f, 10.0f, G_PLATE, true, false},
+  {"plate.k_edge", PType::Float, (uint16_t)offsetof(Config, plate_k_edge), 0.0f, 3.0f, G_PLATE, true, false},
+  {"plate.max_dpsi_deg", PType::Float, (uint16_t)offsetof(Config, plate_max_dpsi_deg), 5.0f, 70.0f, G_PLATE, true, false},
+  {"plate.dist_mm", PType::Float, (uint16_t)offsetof(Config, plate_dist_mm), 40.0f, 1000.0f, G_PLATE, true, false},
+  {"plate.v_max", PType::Float, (uint16_t)offsetof(Config, plate_v_max), 10.0f, 600.0f, G_PLATE, true, false},
+  {"plate.v_back", PType::Float, (uint16_t)offsetof(Config, plate_v_back), 0.0f, 300.0f, G_PLATE, true, false},
+  {"plate.hold_band_mm", PType::Float, (uint16_t)offsetof(Config, plate_hold_band_mm), 0.0f, 100.0f, G_PLATE, true, false},
+  {"plate.kp", PType::Float, (uint16_t)offsetof(Config, plate_kp), 0.0f, 10.0f, G_PLATE, true, false},
   {"follow.kf_q_a", PType::Float, (uint16_t)offsetof(Config, follow_kf_q_a), 1.0f, 5000.0f, G_FOLLOW, false, false},
   {"follow.kf_gate_chi2", PType::Float, (uint16_t)offsetof(Config, follow_kf_gate_chi2), 1.0f, 100.0f, G_FOLLOW, false, false},
   {"follow.lost_timeout_ms", PType::Int, (uint16_t)offsetof(Config, follow_lost_timeout_ms), 50.0f, 5000.0f, G_FOLLOW, false, false},
@@ -101,7 +106,7 @@ const ParamMeta PARAMS[] = {
 };
 const size_t PARAM_COUNT = sizeof(PARAMS) / sizeof(PARAMS[0]);
 
-const char* const GROUP_NAMES[] = {"body", "wheel", "enc", "motor", "power", "range", "imu", "pid", "follow", "motion", "gap", "corner", "start", "safety"};
-const size_t GROUP_COUNT = 14;
+const char* const GROUP_NAMES[] = {"body", "wheel", "enc", "motor", "power", "range", "imu", "pid", "follow", "plate", "motion", "gap", "corner", "start", "safety"};
+const size_t GROUP_COUNT = 15;
 
 }  // namespace tr

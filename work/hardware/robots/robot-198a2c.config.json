@@ -3,7 +3,7 @@
   "name": "Robot-198a2c",
   "saved_at": "2026-11-21",
   "cfg_rev": 22,
-  "crc": "b8c6d33e",
+  "crc": "61bfbd2c",
   "measured": {
     "wheel.diameter_mm": 69,
     "wheel.track_mm": 141,
@@ -74,6 +74,14 @@
     "follow.ki_g": 0.1,
     "follow.k_psi": 2,
     "follow.k_edge": 0.15,
+    "plate.k_psi": 3,
+    "plate.k_edge": 0.8,
+    "plate.max_dpsi_deg": 50,
+    "plate.dist_mm": 200,
+    "plate.v_max": 150,
+    "plate.v_back": 80,
+    "plate.hold_band_mm": 10,
+    "plate.kp": 1.2,
     "follow.kf_q_a": 300,
     "follow.kf_gate_chi2": 9,
     "follow.lost_timeout_ms": 500,
@@ -117,6 +125,7 @@
     "2026-11-21 rev 19: body 199×199, axle_to_rear 168, axle_to_front 31, range.x_mm 120 → 31 (tạm: mặt kính ToF ngang mép trước)",
     "2026-11-21 rev 20: body.plate_width_mm 120 → 199 (tấm đuôi = cả mặt sau xe)",
     "2026-11-21 rev 21: sửa tâm trục → mặt sau 168 → 68 mm ⇒ axle_to_front 31 → 131, range.x_mm 31 → 131",
-    "2026-11-21 rev 22: range.min_signal_mcps 0.5 → 1.5 (phía trước trống vẫn báo vật 19–145 mm: số ma tín hiệu 0.66–1.13 MCPS)"
+    "2026-11-21 rev 22: range.min_signal_mcps 0.5 → 1.5 (phía trước trống vẫn báo vật 19–145 mm: số ma tín hiệu 0.66–1.13 MCPS)",
+    "2026-11-21 rev 22: thêm nhóm plate.* (bám tấm 1 xe): dist 200 mm, v_max 150, v_back 80, hold_band 10, kp 1.2, k_psi 3, k_edge 0.8, max_dpsi 50° — mặc định"
   ]
 }

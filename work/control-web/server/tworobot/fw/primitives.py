@@ -227,19 +227,24 @@ class Follow(Prim):
 
 
 class FollowPlate(Prim):
-    """Chế độ 1 xe bám tấm phẳng cầm tay (không cần path/ARM). Giữ mặt kính ToF → tấm = d_target: tấm xa thì tiến,
-    gần thì lùi (≤ v_back), căn song song theo Δψ. Mất tấm → phanh và CHỜ (không lỗi); thấy lại → bám tiếp.
-    Chạy tới khi PC gửi stop. Vùng chết ±hold_band quanh đích để không giật tới-lui."""
+    """Chế độ 1 xe bám tấm phẳng cầm tay (không cần path/ARM). Giữ mặt kính ToF → tấm = plate.dist_mm: tấm xa thì
+    tiến, gần thì lùi (≤ plate.v_back), căn song song theo Δψ. Mất tấm → phanh và CHỜ (không lỗi); thấy lại → bám
+    tiếp. Chạy tới khi PC gửi stop. Tham số nhóm "plate" chép vào biến 1 lần lúc start, dùng suốt lượt chạy
+    (nhóm "plate" là apply=idle: không cho sửa khi xe đang chạy); args ghi đè cho riêng lượt này."""
     name = "FOLLOW_PLATE"
     standalone = True
 
+    def _arg(self, k, v):
+        return float(self.args[k]) if self.args.get(k) is not None else v
+
     def start(self, fw):
         cfg = fw.params.active
-        a = self.args
-        self.g_t = cfg["range.x_mm"] + float(a.get("d_target", 200.0)) + fw.range_rear()
-        self.v_max = float(a.get("v_max") or cfg["motion.v_cruise"])
-        self.v_back = float(a.get("v_back", 80.0))
-        self.band = float(a.get("hold_band", 10.0))
+        self.g_t = cfg["range.x_mm"] + self._arg("d_target", cfg["plate.dist_mm"]) + fw.range_rear()
+        self.band = self._arg("hold_band", cfg["plate.hold_band_mm"])
+        self.v_max = self._arg("v_max", cfg["plate.v_max"])
+        self.v_back = self._arg("v_back", cfg["plate.v_back"])
+        self.kp, self.k_psi, self.k_edge = cfg["plate.kp"], cfg["plate.k_psi"], cfg["plate.k_edge"]
+        self.max_dpsi = math.radians(cfg["plate.max_dpsi_deg"])
         self.integ = self.v_prev = self.dpsi_f = 0.0
         self.have_dpsi, self.lost, self.edge = False, True, 0
         self.hold = fw.heading.psi
@@ -252,12 +257,12 @@ class FollowPlate(Prim):
             return
         cfg = fw.params.active
         kf = fw.kf
-        # Tấm cầm tay xoay nhiều: tự tính Δψ khi 2 mắt cùng thấy, cho phép tới plate_max_dpsi_deg
+        # Tấm cầm tay xoay nhiều: tự tính Δψ khi 2 mắt cùng thấy, cho phép tới plate.max_dpsi_deg
         # (rangeproc chỉ nhận |dl−dr| ≤ range.max_diff ≈ 18° — dành cho đuôi xe trước)
         rho, dps, pair = m.rho, 0.0, False
         if m.dl is not None and m.dr is not None:
             dps = math.atan2(m.dr - m.dl, cfg["range.baseline_mm"])
-            if abs(dps) < math.radians(cfg["follow.plate_max_dpsi_deg"]):
+            if abs(dps) < self.max_dpsi:
                 pair = True
                 rho = cfg["range.x_mm"] + 0.5 * (m.dl + m.dr) * math.cos(dps) + fw.range_rear()
         if self.lost:  # (bắt) lại tấm: khởi tạo KF theo số đo
@@ -282,23 +287,25 @@ class FollowPlate(Prim):
             self.lost = True
             self.hold = fw.heading.psi
             return BRAKE
+        band, v_max, v_back = self.band, self.v_max, self.v_back
         kf = fw.kf
         kf.predict(fw.drive.v_meas, dt, cfg["follow.kf_q_a"])
         e = kf.g - self.g_t  # > 0: tấm xa hơn đích → tiến
-        self.integ = clamp(self.integ + cfg["follow.ki_g"] * e * dt, -40.0, 40.0) if abs(e) < 4 * self.band else 0.0
-        v = kf.vL + cfg["follow.kp_g"] * e + self.integ
-        if abs(e) < self.band and abs(kf.vL) < 15.0:
+        self.integ = (clamp(self.integ + cfg["follow.ki_g"] * e * dt, -40.0, 40.0)
+                      if abs(e) < 4 * band + 20.0 else 0.0)
+        v = kf.vL + self.kp * e + self.integ
+        if abs(e) < band and abs(kf.vL) < 15.0:
             v, self.integ = 0.0, 0.0
-        v = clamp(v, -self.v_back, self.v_max)
+        v = clamp(v, -v_back, v_max)
         a = cfg["motion.a_max"]
         v = clamp(v, self.v_prev - a * dt, self.v_prev + a * dt)
         self.v_prev = v
         self.dpsi_f -= fw.heading.w * dt
         if self.have_dpsi and now - self.last_dpsi_ms < 250:
-            w = cfg["follow.plate_k_psi"] * self.dpsi_f
+            w = self.k_psi * self.dpsi_f
             self.hold = fw.heading.psi
         elif self.edge:  # 1 mắt mất tấm: xoay hẳn về phía mắt còn thấy
-            w = cfg["follow.plate_k_edge"] * self.edge
+            w = self.k_edge * self.edge
             self.hold = fw.heading.psi
         else:
             w = _heading_hold(fw, self.hold, self.hint, dt)

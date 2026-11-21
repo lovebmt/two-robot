@@ -72,4 +72,22 @@ def test_follows_plate_around_a_curve(w):
     assert lost == 0, f"mất tấm {lost} lần trong cua"
     assert abs(_face_gap(a, b) - 200) < 40, _face_gap(a, b)
     # Không kiểm hướng: ToF sim lấy điểm gần nhất trong nón 25° nên gần như không thấy góc nghiêng của tấm
-    # (tấm nghiêng 50° đo ra < 10°); xe thật đo góc tốt hơn — chỉnh follow.plate_k_psi / plate_k_edge trên xe.
+    # (tấm nghiêng 50° đo ra < 10°); xe thật đo góc tốt hơn — chỉnh plate.k_psi / plate.k_edge trên xe.
+
+
+def test_plate_params_locked_while_running_and_used_next_run():
+    """Tham số bám tấm lấy từ cấu hình lúc start; đang chạy thì KHÔNG cho sửa; dừng → sửa → lượt sau dùng giá trị mới."""
+    eng, a, b = _pair(200)
+    assert b.fw.handle_cmd({"op": "prim", "id": 1, "prim": "FOLLOW_PLATE"})["ok"]
+    eng.advance(4.0)
+    assert abs(_face_gap(a, b) - 200) < 20, _face_gap(a, b)   # mặc định plate.dist_mm = 200
+    code, res = b.fw.handle_request("PUT", "/api/config", {"patch": {"plate.dist_mm": 320}})
+    assert code == 409 and "plate.dist_mm" in res["errors"], (code, res)  # đang chạy: bị khoá
+    b.fw.handle_cmd({"op": "stop"})
+    eng.advance(0.2)
+    code, res = b.fw.handle_request("PUT", "/api/config", {"patch": {"plate.dist_mm": 320, "plate.v_back": 120}})
+    assert code == 200 and res["ok"], res
+    eng.advance(0.1)
+    assert b.fw.handle_cmd({"op": "prim", "id": 2, "prim": "FOLLOW_PLATE"})["ok"]
+    eng.advance(6.0)
+    assert abs(_face_gap(a, b) - 320) < 20, _face_gap(a, b)   # lượt mới dùng giá trị mới

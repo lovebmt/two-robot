@@ -200,16 +200,22 @@ class Follow : public Prim {
 class FollowPlate : public Prim {
  public:
   FollowPlate() { name = "FOLLOW_PLATE"; standalone = true; }
-  float g_t = 0, v_max = 0, v_back = 0, band = 0, integ = 0, v_prev = 0, dpsi_f = 0, hold = 0, hint = 0;
+  float g_t = 0, integ = 0, v_prev = 0, dpsi_f = 0, hold = 0, hint = 0;
   bool have_dpsi = false, lost = true;
   int edge = 0;
   uint32_t last_valid = 0, last_dpsi = 0;
+  // Tham số nhóm "plate" chép vào RAM 1 lần lúc start, dùng suốt lượt chạy (nhóm "plate" là apply=idle:
+  // firmware từ chối sửa khi xe đang chạy). args trong lệnh (nếu có) ghi đè cho riêng lượt này.
+  float band = 0, v_max = 0, v_back = 0, kp = 0, k_psi = 0, k_edge = 0, max_dpsi = 0;
+  float cfgArg(const char* k, float v) const { return has(k) ? argf(k, v) : v; }
   void start(App& a) override {
     const Config& c = a.params.active();
-    g_t = c.range_x_mm + argf("d_target", 200.f) + a.rangeRear();  // đổi sang gap tâm–tâm như rangeproc
-    v_max = argf("v_max", 0) > 0 ? argf("v_max", 0) : c.motion_v_cruise;
-    v_back = argf("v_back", 80.f);
-    band = argf("hold_band", 10.f);
+    g_t = c.range_x_mm + cfgArg("d_target", c.plate_dist_mm) + a.rangeRear();  // gap tâm–tâm như rangeproc
+    band = cfgArg("hold_band", c.plate_hold_band_mm);
+    v_max = cfgArg("v_max", c.plate_v_max);
+    v_back = cfgArg("v_back", c.plate_v_back);
+    kp = c.plate_kp; k_psi = c.plate_k_psi; k_edge = c.plate_k_edge;
+    max_dpsi = deg2rad(c.plate_max_dpsi_deg);
     hold = a.heading.psi;
     last_dpsi = 0;
     lost = true;
@@ -217,13 +223,13 @@ class FollowPlate : public Prim {
   void onRange(App& a, const RangeMeas& m) override {
     if (!m.valid) return;
     const Config& c = a.params.active();
-    // Tấm cầm tay xoay nhiều: tự tính Δψ khi 2 mắt cùng thấy, cho phép tới plate_max_dpsi_deg
+    // Tấm cầm tay xoay nhiều: tự tính Δψ khi 2 mắt cùng thấy, cho phép tới plate.max_dpsi_deg
     // (rangeproc chỉ nhận |dl−dr| ≤ range.max_diff ≈ 18° — dành cho đuôi xe trước)
     float rho = m.rho, dps = 0;
     bool pair = false;
     if (m.has_dl && m.has_dr) {
       dps = std::atan2(m.dr - m.dl, c.range_baseline_mm);
-      if (std::fabs(dps) < deg2rad(c.follow_plate_max_dpsi_deg)) {
+      if (std::fabs(dps) < max_dpsi) {
         pair = true;
         rho = c.range_x_mm + 0.5f * (m.dl + m.dr) * std::cos(dps) + a.rangeRear();
       }
@@ -254,8 +260,8 @@ class FollowPlate : public Prim {
     }
     a.kf.predict(a.drive.vMeas(), dt, c.follow_kf_q_a);
     const float e = a.kf.g - g_t;  // > 0: tấm xa hơn đích → tiến
-    integ = std::fabs(e) < 4 * band ? clampf(integ + c.follow_ki_g * e * dt, -40.f, 40.f) : 0.f;
-    float v = a.kf.vL + c.follow_kp_g * e + integ;
+    integ = std::fabs(e) < 4 * band + 20.f ? clampf(integ + c.follow_ki_g * e * dt, -40.f, 40.f) : 0.f;
+    float v = a.kf.vL + kp * e + integ;
     if (std::fabs(e) < band && std::fabs(a.kf.vL) < 15.f) { v = 0; integ = 0; }
     v = clampf(v, -v_back, v_max);
     const float acc = c.motion_a_max;
@@ -264,10 +270,10 @@ class FollowPlate : public Prim {
     dpsi_f -= a.heading.w * dt;
     float w;
     if (have_dpsi && now - last_dpsi < 250) {
-      w = c.follow_plate_k_psi * dpsi_f;
+      w = k_psi * dpsi_f;
       hold = a.heading.psi;
     } else if (edge) {  // 1 mắt mất tấm: xoay hẳn về phía mắt còn thấy
-      w = c.follow_plate_k_edge * edge;
+      w = k_edge * edge;
       hold = a.heading.psi;
     } else {
       w = headingHold(a, hold, hint, dt);
