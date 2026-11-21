@@ -28,6 +28,7 @@ static void rangeTask(void*) {
   uint32_t seq = 0;
   for (;;) {
     TofSample s;
+    hal.tof.min_signal_mcps = app->params.active().range_min_signal_mcps;  // float căn lề: đọc không khoá được
     hal.tof.read(s.l, s.ls, s.r, s.rs);
     s.seq = ++seq;
     portENTER_CRITICAL(&tofMux);
@@ -173,6 +174,11 @@ static void printStatus() {
   const std::string st = app->state, fault = app->fault;
   xSemaphoreGive(appMutex);
   const int32_t el = hal.readEncoderRaw('l'), er = hal.readEncoderRaw('r');
+  const auto tl = hal.tof.rawL(), tr_ = hal.tof.rawR();
+  con.printf("ToF thô: trái %u mm st%u tín hiệu %.2f nền %.2f · phải %u mm st%u tín hiệu %.2f nền %.2f MCPS "
+             "(st11 = hợp lệ; ngưỡng tín hiệu %.2f)\n",
+             tl.mm, tl.dev_status, tl.signal, tl.ambient, tr_.mm, tr_.dev_status, tr_.signal, tr_.ambient,
+             (float)hal.tof.min_signal_mcps);
   con.printf("ToF trái %s%.0f mm · phải %s%.0f mm | gyro hướng %.1f° bias %.2f°/s · %.1f°C | "
              "enc tick L %ld R %ld · v L %.0f R %.0f mm/s · s %.0f mm | %s%s%s\n",
              sl ? "×" : "", rl, sr ? "×" : "", rr, psi, bias, temp, (long)el, (long)er, vl, vr, s, st.c_str(),

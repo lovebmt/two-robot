@@ -73,20 +73,46 @@ void TofPair::begin(TwoWire& w) {
   ok_r_ = initTof(r_, w, pins::TOF_R_XSHUT, pins::TOF_R_ADDR);
 }
 
+// Đọc 1 mẫu continuous kèm range status + cường độ tín hiệu (thư viện Pololu chỉ trả mm, không lọc gì →
+// khi phía trước trống chip vẫn trả "số ma" vài chục cm với tín hiệu yếu / status không hợp lệ).
+// Bố cục thanh ghi theo ST API (VL53L0X_GetRangingMeasurementData): 12 byte từ RESULT_RANGE_STATUS 0x14.
+bool TofPair::readOne_(VL53L0X& s, Raw& out) {
+  const uint32_t t0 = millis();
+  while ((s.readReg(0x13) & 0x07) == 0) {  // RESULT_INTERRUPT_STATUS: chờ có mẫu mới
+    if (millis() - t0 > 100) return false;
+    delay(1);
+  }
+  uint8_t b[12];
+  s.readMulti(0x14, b, 12);
+  s.writeReg(0x0B, 0x01);  // SYSTEM_INTERRUPT_CLEAR
+  out.dev_status = (b[0] >> 3) & 0x0F;
+  out.signal = ((b[6] << 8) | b[7]) / 128.f;   // fix 9.7 MCPS
+  out.ambient = ((b[8] << 8) | b[9]) / 128.f;
+  out.mm = (b[10] << 8) | b[11];
+  return true;
+}
+
+void TofPair::classify_(const Raw& r, bool timeout, float& mm, int& st) const {
+  mm = 8190;
+  st = 4;
+  if (timeout || r.mm >= 8190) return;
+  if (r.dev_status != 11 || r.signal < min_signal_mcps) { st = 2; return; }  // 11 = range valid
+  mm = r.mm;
+  st = 0;
+}
+
 void TofPair::read(float& l_mm, int& l_st, float& r_mm, int& r_st) {
   l_mm = r_mm = 8190;
   l_st = r_st = 4;
   if (ok_l_) {
-    const uint16_t d = l_.readRangeContinuousMillimeters();
-    const bool to = l_.timeoutOccurred();
-    fail_l_ = to ? fail_l_ + 1 : 0;
-    if (!to && d < 8190) { l_mm = d; l_st = 0; }
+    const bool ok = readOne_(l_, raw_l_);
+    fail_l_ = ok ? 0 : fail_l_ + 1;
+    classify_(raw_l_, !ok, l_mm, l_st);
   }
   if (ok_r_) {
-    const uint16_t d = r_.readRangeContinuousMillimeters();
-    const bool to = r_.timeoutOccurred();
-    fail_r_ = to ? fail_r_ + 1 : 0;
-    if (!to && d < 8190) { r_mm = d; r_st = 0; }
+    const bool ok = readOne_(r_, raw_r_);
+    fail_r_ = ok ? 0 : fail_r_ + 1;
+    classify_(raw_r_, !ok, r_mm, r_st);
   }
   if (fail_l_ > 10) ok_l_ = false;  // timeout liên tục → báo HW_TOF_L
   if (fail_r_ > 10) ok_r_ = false;

@@ -36,6 +36,7 @@ const ParamMeta PARAMS[] = {
   {"range.offset_r_mm", PType::Float, (uint16_t)offsetof(Config, range_offset_r_mm), -50.0f, 50.0f, G_RANGE, false, false},
   {"range.min_valid_mm", PType::Float, (uint16_t)offsetof(Config, range_min_valid_mm), 0.0f, 200.0f, G_RANGE, false, false},
   {"range.max_valid_mm", PType::Float, (uint16_t)offsetof(Config, range_max_valid_mm), 100.0f, 2000.0f, G_RANGE, false, false},
+  {"range.min_signal_mcps", PType::Float, (uint16_t)offsetof(Config, range_min_signal_mcps), 0.0f, 20.0f, G_RANGE, false, false},
   {"range.max_diff_mm", PType::Float, (uint16_t)offsetof(Config, range_max_diff_mm), 5.0f, 200.0f, G_RANGE, false, false},
   {"range.sigma_mm", PType::Float, (uint16_t)offsetof(Config, range_sigma_mm), 0.5f, 50.0f, G_RANGE, false, false},
   {"imu.gyro_scale_z", PType::Float, (uint16_t)offsetof(Config, imu_gyro_scale_z), 0.8f, 1.2f, G_IMU, false, false},

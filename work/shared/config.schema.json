@@ -54,6 +54,7 @@
     {"key": "range.offset_r_mm",     "type": "float", "unit": "mm", "min": -50, "max": 50,   "default": 0,   "group": "range", "scope": "robot", "apply": "live", "desc": "Offset hiệu chuẩn ToF phải"},
     {"key": "range.min_valid_mm",    "type": "float", "unit": "mm", "min": 0,   "max": 200,  "default": 30,  "group": "range", "scope": "robot", "apply": "live", "desc": "Khoảng đo hợp lệ tối thiểu"},
     {"key": "range.max_valid_mm",    "type": "float", "unit": "mm", "min": 100, "max": 2000, "default": 1200,"group": "range", "scope": "robot", "apply": "live", "desc": "Khoảng đo hợp lệ tối đa"},
+    {"key": "range.min_signal_mcps", "type": "float", "unit": "MCPS", "min": 0, "max": 20, "default": 0.5, "group": "range", "scope": "robot", "apply": "live", "desc": "Cường độ tín hiệu phản hồi tối thiểu để tin số đo ToF (loại số ma khi phía trước trống)"},
     {"key": "range.max_diff_mm",     "type": "float", "unit": "mm", "min": 5,   "max": 200,  "default": 40,  "group": "range", "scope": "robot", "apply": "live", "desc": "|d_l - d_r| tối đa còn tin"},
     {"key": "range.sigma_mm",        "type": "float", "unit": "mm", "min": 0.5, "max": 50,   "default": 6,   "group": "range", "scope": "robot", "apply": "live", "desc": "Độ lệch chuẩn nhiễu ToF (cho KF)"},
 

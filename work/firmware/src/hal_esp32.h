@@ -27,15 +27,25 @@ class Mpu6050 {
 class TofPair {
  public:
   void begin(TwoWire& w);
-  // Chặn tới khi có mẫu (~33 ms). status: 0 hợp lệ, 4 ngoài tầm / timeout.
+  // Chặn tới khi có mẫu (~33 ms). status: 0 hợp lệ, 2 không tin cậy (range status ≠ valid hoặc tín hiệu yếu),
+  // 4 ngoài tầm / timeout.
   void read(float& l_mm, int& l_st, float& r_mm, int& r_st);
   bool okL() const { return ok_l_; }
   bool okR() const { return ok_r_; }
+
+  // Số thô của mẫu gần nhất (chẩn đoán): range status của chip (11 = hợp lệ), mm, tín hiệu & nền (MCPS)
+  struct Raw { uint8_t dev_status = 0; uint16_t mm = 0; float signal = 0, ambient = 0; };
+  Raw rawL() const { return raw_l_; }
+  Raw rawR() const { return raw_r_; }
+  volatile float min_signal_mcps = 0.5f;  // cập nhật từ cấu hình range.min_signal_mcps
 
  private:
   VL53L0X l_, r_;
   bool ok_l_ = false, ok_r_ = false;
   int fail_l_ = 0, fail_r_ = 0;
+  Raw raw_l_, raw_r_;
+  bool readOne_(VL53L0X& s, Raw& out);
+  void classify_(const Raw& r, bool timeout, float& mm, int& st) const;
 };
 
 class Esp32Hal : public tr::Hal {
