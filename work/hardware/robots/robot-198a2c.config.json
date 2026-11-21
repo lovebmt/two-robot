@@ -126,6 +126,7 @@
     "2026-11-21 rev 20: body.plate_width_mm 120 → 199 (tấm đuôi = cả mặt sau xe)",
     "2026-11-21 rev 21: sửa tâm trục → mặt sau 168 → 68 mm ⇒ axle_to_front 31 → 131, range.x_mm 31 → 131",
     "2026-11-21 rev 22: range.min_signal_mcps 0.5 → 1.5 (phía trước trống vẫn báo vật 19–145 mm: số ma tín hiệu 0.66–1.13 MCPS)",
-    "2026-11-21 rev 22: thêm nhóm plate.* (bám tấm 1 xe): dist 200 mm, v_max 150, v_back 80, hold_band 10, kp 1.2, k_psi 3, k_edge 0.8, max_dpsi 50° — mặc định"
+    "2026-11-21 rev 22: thêm nhóm plate.* (bám tấm 1 xe): dist 200 mm, v_max 150, v_back 80, hold_band 10, kp 1.2, k_psi 3, k_edge 0.8, max_dpsi 50° — mặc định",
+    "2026-11-21: xoá sạch flash (esptool erase_flash) → nạp lại fw 0.3.3 qua USB → khôi phục cấu hình rev 22 từ database (crc 61bfbd2c, robot đếm lại cfg_rev = 2). IP mới 192.168.1.19"
   ]
 }
