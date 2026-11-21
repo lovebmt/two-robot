@@ -38,6 +38,7 @@ class App {
   // Snapshot cho HTTP không cần khoá điều khiển: gọi trong task control (đang giữ khoá)
   void snapshot(std::string& telJson, std::deque<Ev>& events, uint32_t& eseq);
   // Heartbeat từ HTTP (ghi 32-bit nguyên tử, không cần khoá)
+  float vbat() const { return vbat_; }
   void touchLink(uint32_t now) { last_hb_ms_ = now; link_watch_ = true; }
 
   // ---- dùng bởi primitive ----

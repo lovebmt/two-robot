@@ -23,11 +23,15 @@ class WheelController:
         self.adapt = 0.0  # tỉ lệ bù FF học được
         self.v_ref = 0.0
         self.duty = 0.0
+        self.stall_t = 0.0  # bánh được lệnh mà vẫn đứng yên → tăng dần điện áp (ma sát tĩnh)
+        self.boost = 0.0
 
     def reset(self) -> None:
         self.integ = 0.0
         self.v_ref = 0.0
         self.duty = 0.0
+        self.stall_t = 0.0
+        self.boost = 0.0
 
     def update(self, v_ref: float, v_meas: float, vbat: float, cfg: dict, dt: float) -> float:
         s = self.side
@@ -35,12 +39,20 @@ class WheelController:
         if v_ref == 0.0:
             self.integ = 0.0
             self.duty = 0.0
+            self.stall_t = 0.0
+            self.boost = 0.0
             return 0.0
         ks, kv = cfg[f"motor.ks_{s}_v"], cfg[f"motor.kv_{s}"]
-        ff = sign(v_ref) * (ks + kv * abs(v_ref)) * (1.0 + self.adapt)
+        # Ma sát tĩnh > ma sát động: bánh đứng yên cần điện áp bứt (kbreak) mới nhúc nhích
+        stopped = abs(v_meas) < 0.3 * cfg["motor.v_min_reliable"]
+        kb = max(ks, cfg[f"motor.kbreak_{s}_v"])
+        ff = sign(v_ref) * ((kb if stopped else ks) + kv * abs(v_ref)) * (1.0 + self.adapt)
+        # Lệnh mà vẫn kẹt > 0.15 s → cộng dần 4 V/s; chạy được thì nhả nhanh
+        self.stall_t = self.stall_t + dt if stopped else 0.0
+        self.boost = min(self.boost + 4.0 * dt, 4.0) if self.stall_t > 0.15 else max(0.0, self.boost - 8.0 * dt)
         e = v_ref - v_meas
         self.integ = clamp(self.integ + cfg["pid.wheel_ki"] * e * dt, -3.0, 3.0)
-        volts = ff + cfg["pid.wheel_kp"] * e + self.integ
+        volts = ff + cfg["pid.wheel_kp"] * e + self.integ + sign(v_ref) * self.boost
         # L4: chuyển dần phần I sang offset FF khi chạy ổn định.
         rate = cfg["motor.adapt_rate"]
         if rate > 0 and abs(v_ref) > 2 * cfg["motor.v_min_reliable"] and abs(ff) > 0.5:

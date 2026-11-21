@@ -41,6 +41,8 @@ struct Config {
   bool enc_invert_r = false;  //  Đảo chiều đếm encoder phải
   float motor_ks_l_v = 1.2f;  // V Vùng chết bánh trái (điện áp)
   float motor_ks_r_v = 1.2f;  // V Vùng chết bánh phải (điện áp)
+  float motor_kbreak_l_v = 0;  // V Điện áp bứt ma sát tĩnh bánh trái (lúc bánh đứng yên; 0 = dùng vùng chết)
+  float motor_kbreak_r_v = 0;  // V Điện áp bứt ma sát tĩnh bánh phải
   float motor_kv_l = 0.0126f;  // V/(mm/s) Điện áp trên mỗi mm/s, bánh trái
   float motor_kv_r = 0.0126f;  // V/(mm/s) Điện áp trên mỗi mm/s, bánh phải
   float motor_v_min_reliable = 15;  // mm/s Tốc độ bánh tối thiểu điều khiển được
@@ -95,6 +97,9 @@ struct Config {
   float motion_stop_tol_mm = 2;  // mm Sai số dừng tại điểm
   float motion_turn_rate_dps = 90;  // °/s Tốc độ quay tại chỗ tối đa
   float motion_turn_acc_dps2 = 240;  // °/s² Gia tốc góc khi quay
+  float motion_settle_tol_mm = 6;  // mm Xe kẹt (đứng yên) trong khoảng này trước điểm dừng → coi như tới
+  float motion_settle_tol_deg = 2;  // ° Xe kẹt (đứng yên) trong khoảng này trước góc đích → coi như tới
+  float motion_stall_time_s = 0.6f;  // s Đứng yên bao lâu thì coi là kẹt (áp dụng 2 ngưỡng trên)
   float motion_turn_tol_deg = 0.8f;  // ° Sai số chấp nhận khi quay
   float gap_target_mm = 320;  // mm Gap tâm–tâm mong muốn trên đoạn thẳng
   float gap_hold_mm = 0;  // mm Gap chờ khi leader quay (0 = tự tính)

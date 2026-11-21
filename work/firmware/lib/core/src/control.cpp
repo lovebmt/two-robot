@@ -9,13 +9,19 @@ namespace tr {
 
 float WheelController::update(float v_ref, float v_meas, float vbat, const Config& c, float dt) {
   vref = v_ref;
-  if (v_ref == 0.f) { integ = 0; duty = 0; return 0; }
+  if (v_ref == 0.f) { integ = 0; duty = 0; stall_t = 0; boost = 0; return 0; }
   const float ks = side == 'l' ? c.motor_ks_l_v : c.motor_ks_r_v;
   const float kv = side == 'l' ? c.motor_kv_l : c.motor_kv_r;
-  const float ff = sgn(v_ref) * (ks + kv * std::fabs(v_ref)) * (1.f + adapt);
+  // Ma sát tĩnh > ma sát động: bánh đang đứng yên thì cần điện áp bứt (kbreak) mới nhúc nhích
+  const bool stopped = std::fabs(v_meas) < 0.3f * c.motor_v_min_reliable;
+  const float kb = std::max(ks, side == 'l' ? c.motor_kbreak_l_v : c.motor_kbreak_r_v);
+  const float ff = sgn(v_ref) * ((stopped ? kb : ks) + kv * std::fabs(v_ref)) * (1.f + adapt);
+  // Lệnh mà vẫn kẹt > 0.15 s (gần đích, ma sát lớn hơn hiệu chuẩn) → cộng dần 4 V/s; chạy được thì nhả nhanh
+  stall_t = stopped ? stall_t + dt : 0.f;
+  boost = stall_t > 0.15f ? std::min(boost + 4.f * dt, 4.f) : std::max(0.f, boost - 8.f * dt);
   const float e = v_ref - v_meas;
   integ = clampf(integ + c.pid_wheel_ki * e * dt, -3.f, 3.f);
-  const float volts = ff + c.pid_wheel_kp * e + integ;
+  const float volts = ff + c.pid_wheel_kp * e + integ + sgn(v_ref) * boost;
   // L4: chuyển dần phần I sang offset FF khi chạy ổn định
   if (c.motor_adapt_rate > 0 && std::fabs(v_ref) > 2.f * c.motor_v_min_reliable && std::fabs(ff) > 0.5f) {
     const float lim = c.motor_adapt_limit;

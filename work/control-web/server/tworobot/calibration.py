@@ -120,3 +120,26 @@ def gap(cfg: dict, snap: dict, known_mm: float, keep_diff: bool) -> tuple[dict, 
         "err_before_mm": 0.5 * (dl + dr) - known_mm, "dpsi_deg": snap.get("dpsi_deg"),
         "offset_old": [ol, orr], "offset_new": [round(new_l, 2), round(new_r, 2)], "keep_diff": keep_diff,
     }
+
+
+def ks(cfg: dict, res: dict) -> tuple[dict, dict]:
+    """Vùng chết motor từ CAL_KS: điện áp GIỮ quay (lúc giảm dần tới khi dừng) → motor.ks_*; điện áp BỨT
+    (lúc tăng dần tới khi bánh nhúc nhích) → motor.kbreak_*. Lấy trung bình chiều tiến/lùi."""
+    patch: dict = {}
+    info: dict = {}
+    for s in ("l", "r"):
+        brk = [res.get(f"break_{s}_fwd", 0.0), res.get(f"break_{s}_back", 0.0)]
+        hold = [res.get(f"hold_{s}_fwd", 0.0), res.get(f"hold_{s}_back", 0.0)]
+        if min(brk) <= 0.0:
+            raise CalError(f"bánh {'trái' if s == 'l' else 'phải'} không quay được ở một chiều")
+        kb = sum(brk) / 2
+        kh = sum(hold) / 2
+        if kh <= 0.0:  # bánh chạy tới khi điện áp về 0 (hầu như không ma sát động) → lấy 60 % điện áp bứt
+            kh = 0.6 * kb
+        kh = min(kh, kb)
+        patch[f"motor.ks_{s}_v"] = round(kh, 2)
+        patch[f"motor.kbreak_{s}_v"] = round(kb, 2)
+        info[s] = {"break_fwd": round(brk[0], 2), "break_back": round(brk[1], 2),
+                   "hold_fwd": round(hold[0], 2), "hold_back": round(hold[1], 2),
+                   "ks_old": cfg.get(f"motor.ks_{s}_v"), "kbreak_old": cfg.get(f"motor.kbreak_{s}_v")}
+    return patch, info

@@ -17,6 +17,15 @@ if TYPE_CHECKING:
 BRAKE = (0.0, 0.0, True)
 
 
+class RAW(tuple):
+    """Lệnh điện áp thẳng xuống 2 motor (CAL_KS), bỏ qua PI bánh. Vẫn là bộ (v, ω, brake) để giải nén."""
+
+    def __new__(cls, volt_l: float, volt_r: float):
+        t = super().__new__(cls, (0.0, 0.0, False))
+        t.volts = (volt_l, volt_r)
+        return t
+
+
 class Prim:
     name = "?"
     standalone = False  # True: chạy được cả khi xe IDLE (hiệu chuẩn, kiểm tra), không cần path/ARM
@@ -63,12 +72,17 @@ class DriveTo(Prim):
         self.hold = math.radians(h) if h is not None else fw.heading.psi
         self.hint = [0.0]
         self.v_prev = max(0.0, fw.drive.v_meas)
+        self.stall = 0.0
 
     def update(self, fw, dt):
         cfg = fw.params.active
         rem = self.s_end - fw.odo.s
-        if rem <= cfg["motion.stop_tol_mm"]:
-            self.finish(s=fw.odo.s, yaw_deg=math.degrees(fw.heading.psi), overshoot_mm=-rem)
+        # Kẹt sát đích (ma sát tĩnh) quá stall_time → coi như tới, không chờ mãi
+        near = rem <= cfg["motion.settle_tol_mm"] and abs(fw.drive.v_meas) < 2.0
+        self.stall = self.stall + dt if near else 0.0
+        if rem <= cfg["motion.stop_tol_mm"] or self.stall > cfg["motion.stall_time_s"]:
+            extra = {"stalled": True} if rem > cfg["motion.stop_tol_mm"] else {}
+            self.finish(s=fw.odo.s, yaw_deg=math.degrees(fw.heading.psi), overshoot_mm=-rem, **extra)
             return BRAKE
         a, vc, app = cfg["motion.a_max"], cfg["motion.v_corner"], cfg["motion.approach_dist"]
         if rem > app:
@@ -78,6 +92,11 @@ class DriveTo(Prim):
         v = min(v, self.v_prev + a * dt)
         self.v_prev = v
         return v, _heading_hold(fw, self.hold, self.hint, dt), False
+
+
+def turn_w_min(cfg: dict) -> float:
+    """ω tối thiểu khi quay tại chỗ: bánh không chậm hơn motor.v_min_reliable (dưới mức đó motor không kéo nổi)."""
+    return max(math.radians(6.0), cfg["motor.v_min_reliable"] / max(cfg["wheel.track_eff_mm"] / 2.0, 1.0))
 
 
 class Turn(Prim):
@@ -92,21 +111,26 @@ class Turn(Prim):
         self.target = wrap(tgt)
         self.w_prev = 0.0
         self.settle = 0.0
+        self.stall = 0.0
 
     def update(self, fw, dt):
         cfg = fw.params.active
         e = wrap(self.target - fw.heading.psi)
         tol = math.radians(cfg["motion.turn_tol_deg"])
-        if abs(e) < tol:
+        near = abs(e) < math.radians(cfg["motion.settle_tol_deg"]) and abs(fw.heading.w) < math.radians(2.0)
+        self.stall = self.stall + dt if near else 0.0
+        stuck = self.stall > cfg["motion.stall_time_s"]
+        if abs(e) < tol or stuck:
             self.settle += dt
-            if self.settle > 0.15:
-                self.finish(yaw_deg=math.degrees(fw.heading.psi), err_deg=math.degrees(e))
+            if self.settle > 0.15 or stuck:
+                extra = {"stalled": True} if abs(e) >= tol else {}
+                self.finish(yaw_deg=math.degrees(fw.heading.psi), err_deg=math.degrees(e), **extra)
             return BRAKE
         self.settle = 0.0
         wmax = math.radians(cfg["motion.turn_rate_dps"])
         alpha = math.radians(cfg["motion.turn_acc_dps2"])
         w = min(wmax, 0.8 * math.sqrt(2 * alpha * abs(e)))
-        w = max(w, math.radians(6.0))
+        w = max(w, turn_w_min(cfg))
         w = min(w, abs(self.w_prev) + alpha * dt)
         self.w_prev = w
         return 0.0, sign(e) * w, False
@@ -555,12 +579,68 @@ class CalTurn(Prim):
         self.settle = 0.0
         wmax = math.radians(cfg["motion.turn_rate_dps"])
         alpha = math.radians(cfg["motion.turn_acc_dps2"])
-        w = max(min(wmax, 0.8 * math.sqrt(2 * alpha * abs(e))), math.radians(6.0))
+        w = max(min(wmax, 0.8 * math.sqrt(2 * alpha * abs(e))), turn_w_min(cfg))
         w = min(w, abs(self.w_prev) + alpha * dt)
         self.w_prev = w
         return 0.0, sign(e) * w, False
 
 
+class CalKs(Prim):
+    """Đo vùng chết từng bánh: tăng điện áp 1.5 V/s tới khi bánh quay (→ điện áp BỨT ma sát tĩnh), rồi giảm 3 V/s
+    tới khi bánh dừng (→ điện áp GIỮ quay = motor.ks). Chiều tiến rồi chiều lùi. Trả lệnh RAW (điện áp)."""
+    name = "CAL_KS"
+    standalone = True
+    needs_imu = False
+    RATE_UP, RATE_DOWN, V_MAX, MOVE, STOP = 1.5, 3.0, 9.0, 15.0, 4.0
+
+    def start(self, fw):
+        self.ph = ["UP", "UP"]
+        self.V = [0.0, 0.0]
+        self.brk = [[0.0, 0.0], [0.0, 0.0]]
+        self.stp = [[0.0, 0.0], [0.0, 0.0]]
+        self.dir = 1
+        self.rest = 0.0
+        self.t = 0.0
+
+    def update(self, fw, dt):
+        self.t += dt
+        if self.t > 30.0:
+            self.finish(ok=False, err="TIMEOUT")
+            return BRAKE
+        vm = (fw.drive.v_meas_l * self.dir, fw.drive.v_meas_r * self.dir)
+        di = 0 if self.dir > 0 else 1
+        for i in range(2):
+            if self.ph[i] == "UP":
+                self.V[i] += self.RATE_UP * dt
+                if vm[i] > self.MOVE:
+                    self.brk[i][di] = self.V[i]
+                    self.ph[i] = "DOWN"
+                elif self.V[i] > self.V_MAX:
+                    self.finish(ok=False, err="NO_MOVE_L" if i == 0 else "NO_MOVE_R")
+                    return BRAKE
+            elif self.ph[i] == "DOWN":
+                self.V[i] -= self.RATE_DOWN * dt
+                if vm[i] < self.STOP or self.V[i] <= 0:
+                    self.stp[i][di] = max(self.V[i], 0.0)
+                    self.ph[i] = "DONE"
+        if self.ph == ["DONE", "DONE"]:
+            self.rest += dt
+            if self.rest < 0.5:
+                return BRAKE
+            if self.dir > 0:
+                self.dir, self.rest, self.ph, self.V = -1, 0.0, ["UP", "UP"], [0.0, 0.0]
+                return BRAKE
+            res = {}
+            for i, s in enumerate("lr"):
+                res.update({f"break_{s}_fwd": self.brk[i][0], f"break_{s}_back": self.brk[i][1],
+                            f"hold_{s}_fwd": self.stp[i][0], f"hold_{s}_back": self.stp[i][1]})
+            self.finish(vbat=fw.vbat, **res)
+            return BRAKE
+        vl = 0.0 if self.ph[0] == "DONE" else self.dir * self.V[0]
+        vr = 0.0 if self.ph[1] == "DONE" else self.dir * self.V[1]
+        return RAW(vl, vr)
+
+
 PRIMS: dict[str, type[Prim]] = {
-    c.name: c for c in (DriveTo, Turn, Hold, Follow, Snapshot, Align, Reacquire, TofCal, CalDrive, CalTurn)
+    c.name: c for c in (DriveTo, Turn, Hold, Follow, Snapshot, Align, Reacquire, TofCal, CalDrive, CalTurn, CalKs)
 }

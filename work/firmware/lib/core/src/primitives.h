@@ -16,6 +16,8 @@ class App;
 struct Cmd {
   float v = 0, w = 0;
   bool brake = true;
+  bool raw = false;              // raw: điện áp thẳng xuống 2 motor (hiệu chuẩn CAL_KS), bỏ qua PI bánh
+  float volt_l = 0, volt_r = 0;  // V, dấu = chiều tiến
 };
 constexpr Cmd BRAKE{0, 0, true};
 

@@ -16,6 +16,7 @@ DEFAULT_MISMATCH = {
     "motor_scale_l": 1.0,   # nhân hệ số motor (mm/s trên mỗi volt) — <1 là motor yếu
     "motor_scale_r": 1.0,
     "fric_scale": 1.0,      # nhân điện áp vùng chết (ma sát)
+    "stiction": 1.0,        # ma sát tĩnh = stiction × ma sát động (bánh đứng yên cần điện áp này mới bứt)
     "diam_err_l": 0.0,      # sai số đường kính thật so với config (tỉ lệ)
     "diam_err_r": 0.0,
     "track_err_mm": 0.0,
@@ -57,6 +58,7 @@ class Physical:
     k_r: float
     fric_l: float
     fric_r: float
+    stiction: float
     tau: float
     gyro_bias: float
     gyro_scale_err: float
@@ -91,7 +93,7 @@ def physical_from_cfg(cfg: dict, mismatch: dict | None = None) -> Physical:
         ticks_per_rev=cfg["enc.ppr_motor"] * 4 * cfg["enc.gear_ratio"],
         k_l=m["motor_scale_l"] / cfg["motor.kv_l"], k_r=m["motor_scale_r"] / cfg["motor.kv_r"],
         fric_l=cfg["motor.ks_l_v"] * m["fric_scale"], fric_r=cfg["motor.ks_r_v"] * m["fric_scale"],
-        tau=0.08,
+        stiction=m["stiction"], tau=0.08,
         gyro_bias=math.radians(m["gyro_bias_dps"]), gyro_scale_err=m["gyro_scale_err"],
         gyro_noise=math.radians(m["gyro_noise_dps"]),
         gyro_rw=math.radians(m["gyro_rw_dps"]), gyro_warm=math.radians(m["gyro_warm_dps"]),
@@ -139,6 +141,9 @@ class Body:
                 volts = self.duty[s] * (p.vbat - p.vdrop)
                 fric = (p.fric_l if s == "l" else p.fric_r) * fric_factor
                 k = p.k_l if s == "l" else p.k_r
+                if abs(self.u[s]) < 1.0:  # bánh đang đứng: phải thắng ma sát tĩnh
+                    if abs(volts) <= fric * p.stiction:
+                        volts = 0.0
                 if abs(volts) <= fric:
                     target = 0.0
                 else:

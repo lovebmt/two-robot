@@ -35,6 +35,8 @@
 
     {"key": "motor.ks_l_v",          "type": "float", "unit": "V",       "min": 0, "max": 6,    "default": 1.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Vùng chết bánh trái (điện áp)"},
     {"key": "motor.ks_r_v",          "type": "float", "unit": "V",       "min": 0, "max": 6,    "default": 1.2,    "group": "motor", "scope": "robot", "apply": "live", "desc": "Vùng chết bánh phải (điện áp)"},
+    {"key": "motor.kbreak_l_v",      "type": "float", "unit": "V",       "min": 0, "max": 9,    "default": 0,      "group": "motor", "scope": "robot", "apply": "live", "desc": "Điện áp bứt ma sát tĩnh bánh trái (lúc bánh đứng yên; 0 = dùng vùng chết)"},
+    {"key": "motor.kbreak_r_v",      "type": "float", "unit": "V",       "min": 0, "max": 9,    "default": 0,      "group": "motor", "scope": "robot", "apply": "live", "desc": "Điện áp bứt ma sát tĩnh bánh phải"},
     {"key": "motor.kv_l",            "type": "float", "unit": "V/(mm/s)","min": 0.001, "max": 0.1, "default": 0.0126, "group": "motor", "scope": "robot", "apply": "live", "desc": "Điện áp trên mỗi mm/s, bánh trái"},
     {"key": "motor.kv_r",            "type": "float", "unit": "V/(mm/s)","min": 0.001, "max": 0.1, "default": 0.0126, "group": "motor", "scope": "robot", "apply": "live", "desc": "Điện áp trên mỗi mm/s, bánh phải"},
     {"key": "motor.v_min_reliable",  "type": "float", "unit": "mm/s",    "min": 0, "max": 200,  "default": 15,     "group": "motor", "scope": "robot", "apply": "live", "desc": "Tốc độ bánh tối thiểu điều khiển được"},
@@ -95,6 +97,9 @@
     {"key": "motion.stop_tol_mm",    "type": "float", "unit": "mm",    "min": 0.5,"max": 20,   "default": 2,   "group": "motion", "scope": "shared", "apply": "live", "desc": "Sai số dừng tại điểm"},
     {"key": "motion.turn_rate_dps",  "type": "float", "unit": "°/s",   "min": 5,  "max": 360,  "default": 90,  "group": "motion", "scope": "shared", "apply": "live", "desc": "Tốc độ quay tại chỗ tối đa"},
     {"key": "motion.turn_acc_dps2",  "type": "float", "unit": "°/s²",  "min": 10, "max": 2000, "default": 240, "group": "motion", "scope": "shared", "apply": "live", "desc": "Gia tốc góc khi quay"},
+    {"key": "motion.settle_tol_mm",  "type": "float", "unit": "mm",    "min": 0.5,"max": 50,   "default": 6,   "group": "motion", "scope": "shared", "apply": "live", "desc": "Xe kẹt (đứng yên) trong khoảng này trước điểm dừng → coi như tới"},
+    {"key": "motion.settle_tol_deg", "type": "float", "unit": "°",     "min": 0.1,"max": 10,   "default": 2,   "group": "motion", "scope": "shared", "apply": "live", "desc": "Xe kẹt (đứng yên) trong khoảng này trước góc đích → coi như tới"},
+    {"key": "motion.stall_time_s",   "type": "float", "unit": "s",     "min": 0.1,"max": 5,    "default": 0.6, "group": "motion", "scope": "shared", "apply": "live", "desc": "Đứng yên bao lâu thì coi là kẹt (áp dụng 2 ngưỡng trên)"},
     {"key": "motion.turn_tol_deg",   "type": "float", "unit": "°",     "min": 0.1,"max": 10,   "default": 0.8, "group": "motion", "scope": "shared", "apply": "live", "desc": "Sai số chấp nhận khi quay"},
 
     {"key": "gap.target_mm",         "type": "float", "unit": "mm", "min": 100, "max": 2000, "default": 320, "group": "gap", "scope": "shared", "apply": "live", "desc": "Gap tâm–tâm mong muốn trên đoạn thẳng"},

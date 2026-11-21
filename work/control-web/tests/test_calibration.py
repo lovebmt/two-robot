@@ -92,3 +92,30 @@ def test_encoder_hand_rotation_calibration():
     assert patch["enc.invert_r"] is True and abs(patch["enc.gear_ratio"] - 46.9) < 0.01
     with pytest.raises(CAL.CalError):
         CAL.encoder(cfg, "r", 3, 2)  # encoder không có tín hiệu
+
+
+def test_ks_calibration_recovers_motor_friction():
+    """CAL_KS đo ra ma sát động (≈ vùng chết thật) và ma sát tĩnh (điện áp bứt) của từng bánh."""
+    eng, r = _robot({"fric_scale": 2.5, "stiction": 1.7})  # thật: động 3.0 V, tĩnh 5.1 V (config ghi 1.2 V)
+    done, _ = _run_prim(eng, r, "CAL_KS")
+    assert done["ok"], done
+    patch, info = CAL.ks(r.fw.params.active, done["result"])
+    for s in "lr":
+        assert abs(patch[f"motor.kbreak_{s}_v"] - 5.1) < 0.5, (s, patch, info)
+        assert abs(patch[f"motor.ks_{s}_v"] - 3.0) < 0.6, (s, patch, info)
+
+
+def test_drive_settles_with_static_friction_after_ks_calibration():
+    """Ma sát tĩnh vượt trần PI cũ: sau khi lưu CAL_KS, DRIVE_TO/TURN tới đích chính xác, không treo."""
+    eng, r = _robot({"fric_scale": 2.5, "stiction": 1.7})
+    done, _ = _run_prim(eng, r, "CAL_KS")
+    patch, _ = CAL.ks(r.fw.params.active, done["result"])
+    r.fw.handle_request("PUT", "/api/config", {"patch": patch})
+    eng.advance(0.05)
+    s0 = r.fw.odo.s
+    done, t0 = _run_prim(eng, r, "CAL_DRIVE", mm=300)
+    assert done["ok"], done
+    assert abs(done["result"]["enc_mm"] - 300) < 8
+    done, _ = _run_prim(eng, r, "CAL_TURN", deg=90)
+    assert done["ok"], done
+    assert abs(done["result"]["est_deg"] - 90) < 1.0

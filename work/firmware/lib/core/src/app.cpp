@@ -8,7 +8,7 @@
 
 namespace tr {
 
-const char* FW_VERSION = "0.2.7-esp32";
+const char* FW_VERSION = "0.2.8-esp32";
 
 App::App(Hal& h, const std::string& id_, const std::string& name_) : hal(h), params(h), id(id_), name(name_) {}
 
@@ -76,7 +76,14 @@ void App::tick(float dt) {
   w_cmd_ = cmd.brake ? 0 : cmd.w;
   float duty_l, duty_r;
   bool b;
-  drive.command(cmd.v, cmd.w, cmd.brake, c, vbat_, dt, duty_l, duty_r, b);
+  drive.command(cmd.v, cmd.w, cmd.brake || cmd.raw, c, vbat_, dt, duty_l, duty_r, b);
+  if (cmd.raw) {  // CAL_KS: điện áp thẳng, không PI
+    const float va = std::max(vbat_ - c.power_l298n_vdrop_v, 1.f);
+    duty_l = clampf(cmd.volt_l / va, -1.f, 1.f);
+    duty_r = clampf(cmd.volt_r / va, -1.f, 1.f);
+    b = false;
+    v_cmd_ = 0.5f * (cmd.volt_l + cmd.volt_r);  // ≠ 0: không coi là đứng yên
+  }
   if (state == "TEST") {  // thử motor thô: 1 bánh duty cố định, bánh kia phanh
     if (now < test_until_) {
       const float d = test_duty_;

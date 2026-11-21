@@ -11,8 +11,9 @@ namespace tr {
 struct WheelController {
   char side;
   float integ = 0, adapt = 0, vref = 0, duty = 0;
+  float stall_t = 0, boost = 0;  // bánh được lệnh mà vẫn đứng yên → tăng dần điện áp (ma sát tĩnh)
   explicit WheelController(char s) : side(s) {}
-  void reset() { integ = 0; vref = 0; duty = 0; }
+  void reset() { integ = 0; vref = 0; duty = 0; stall_t = 0; boost = 0; }
   float update(float v_ref, float v_meas, float vbat, const Config& c, float dt);
 };
 

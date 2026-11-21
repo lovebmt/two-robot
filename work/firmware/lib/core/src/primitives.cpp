@@ -21,7 +21,7 @@ static float headingHold(App& a, float target, float& integ, float dt) {
 class DriveTo : public Prim {
  public:
   DriveTo() { name = "DRIVE_TO"; }
-  float s_end = 0, v_max = 0, hold = 0, hint = 0, v_prev = 0;
+  float s_end = 0, v_max = 0, hold = 0, hint = 0, v_prev = 0, stall = 0;
   void start(App& a) override {
     const Config& c = a.params.active();
     s_end = argf("s_end", a.odo.s);
@@ -32,10 +32,13 @@ class DriveTo : public Prim {
   Cmd update(App& a, float dt) override {
     const Config& c = a.params.active();
     const float rem = s_end - a.odo.s;
-    if (rem <= c.motion_stop_tol_mm) {
+    // Kẹt sát đích (ma sát tĩnh) quá stall_time → coi như tới, không chờ mãi
+    stall = (rem <= c.motion_settle_tol_mm && std::fabs(a.drive.vMeas()) < 2.f) ? stall + dt : 0.f;
+    if (rem <= c.motion_stop_tol_mm || stall > c.motion_stall_time_s) {
       result["s"] = a.odo.s;
       result["yaw_deg"] = rad2deg(a.heading.psi);
       result["overshoot_mm"] = -rem;
+      if (rem > c.motion_stop_tol_mm) result["stalled"] = true;
       finish();
       return BRAKE;
     }
@@ -49,10 +52,15 @@ class DriveTo : public Prim {
 };
 
 // ---------------------------------------------------------------- TURN
+// ω tối thiểu khi quay tại chỗ: bánh không được chậm hơn motor.v_min_reliable (dưới mức đó motor không kéo nổi)
+static float turnWMin(const Config& c) {
+  return std::max(deg2rad(6.f), c.motor_v_min_reliable / std::max(c.wheel_track_eff_mm / 2.f, 1.f));
+}
+
 class Turn : public Prim {
  public:
   Turn() { name = "TURN"; }
-  float target = 0, w_prev = 0, settle = 0;
+  float target = 0, w_prev = 0, settle = 0, stall = 0;
   void start(App& a) override {
     const float tgt = has("heading_deg") ? deg2rad(argf("heading_deg", 0)) : a.heading.psi + deg2rad(argf("deg", 0));
     target = wrap(tgt);
@@ -60,11 +68,14 @@ class Turn : public Prim {
   Cmd update(App& a, float dt) override {
     const Config& c = a.params.active();
     const float e = wrap(target - a.heading.psi);
-    if (std::fabs(e) < deg2rad(c.motion_turn_tol_deg)) {
+    stall = (std::fabs(e) < deg2rad(c.motion_settle_tol_deg) && std::fabs(a.heading.w) < deg2rad(2.f)) ? stall + dt
+                                                                                                      : 0.f;
+    if (std::fabs(e) < deg2rad(c.motion_turn_tol_deg) || stall > c.motion_stall_time_s) {
       settle += dt;
-      if (settle > 0.15f) {
+      if (settle > 0.15f || stall > c.motion_stall_time_s) {
         result["yaw_deg"] = rad2deg(a.heading.psi);
         result["err_deg"] = rad2deg(e);
+        if (std::fabs(e) >= deg2rad(c.motion_turn_tol_deg)) result["stalled"] = true;
         finish();
       }
       return BRAKE;
@@ -72,7 +83,7 @@ class Turn : public Prim {
     settle = 0;
     const float wmax = deg2rad(c.motion_turn_rate_dps), alpha = deg2rad(c.motion_turn_acc_dps2);
     float w = std::min(wmax, 0.8f * std::sqrt(2 * alpha * std::fabs(e)));
-    w = std::max(w, deg2rad(6.f));
+    w = std::max(w, turnWMin(c));
     w = std::min(w, std::fabs(w_prev) + alpha * dt);
     w_prev = w;
     return {0, sgn(e) * w, false};
@@ -512,14 +523,70 @@ class CalTurn : public Prim {
     }
     settle = 0;
     const float wmax = deg2rad(c.motion_turn_rate_dps), alpha = deg2rad(c.motion_turn_acc_dps2);
-    float w = std::max(std::min(wmax, 0.8f * std::sqrt(2 * alpha * std::fabs(e))), deg2rad(6.f));
+    float w = std::max(std::min(wmax, 0.8f * std::sqrt(2 * alpha * std::fabs(e))), turnWMin(c));
     w = std::min(w, std::fabs(w_prev) + alpha * dt);
     w_prev = w;
     return {0, sgn(e) * w, false};
   }
 };
 
+// ---------------------------------------------------------------- CAL_KS
+// Đo vùng chết từng bánh: tăng điện áp dần (1.5 V/s) tới khi bánh quay (→ điện áp BỨT ma sát tĩnh), rồi giảm dần
+// (3 V/s) tới khi bánh dừng (→ điện áp GIỮ quay = vùng chết động, motor.ks). Làm chiều tiến rồi chiều lùi.
+// Hai bánh chạy song song, độc lập; xe đi thẳng-ish vài cm rồi lùi về.
+class CalKs : public Prim {
+ public:
+  CalKs() { name = "CAL_KS"; standalone = true; needs_imu = false; }
+  enum Ph { UP, DOWN, DONE };
+  Ph ph[2] = {UP, UP};
+  float V[2] = {0, 0}, brk[2][2] = {{0, 0}, {0, 0}}, stp[2][2] = {{0, 0}, {0, 0}};
+  int dir = 1;
+  float rest = 0, t = 0;
+  static constexpr float RATE_UP = 1.5f, RATE_DOWN = 3.f, V_MAX = 9.f, MOVE = 15.f, STOP = 4.f;
+  Cmd update(App& a, float dt) override {
+    t += dt;
+    if (t > 30.f) { finish(false, "TIMEOUT"); return BRAKE; }
+    const float vm[2] = {a.drive.v_meas_l * dir, a.drive.v_meas_r * dir};
+    const int di = dir > 0 ? 0 : 1;
+    for (int i = 0; i < 2; ++i) {
+      if (ph[i] == UP) {
+        V[i] += RATE_UP * dt;
+        if (vm[i] > MOVE) { brk[i][di] = V[i]; ph[i] = DOWN; }
+        else if (V[i] > V_MAX) { finish(false, i == 0 ? "NO_MOVE_L" : "NO_MOVE_R"); return BRAKE; }
+      } else if (ph[i] == DOWN) {
+        V[i] -= RATE_DOWN * dt;
+        if (vm[i] < STOP || V[i] <= 0) { stp[i][di] = std::max(V[i], 0.f); ph[i] = DONE; }
+      }
+    }
+    if (ph[0] == DONE && ph[1] == DONE) {
+      rest += dt;
+      if (rest < 0.5f) return BRAKE;
+      if (dir > 0) {
+        dir = -1; rest = 0; ph[0] = ph[1] = UP; V[0] = V[1] = 0;
+        return BRAKE;
+      }
+      const char* side[2] = {"l", "r"};
+      for (int i = 0; i < 2; ++i) {
+        result[std::string("break_") + side[i] + "_fwd"] = brk[i][0];
+        result[std::string("break_") + side[i] + "_back"] = brk[i][1];
+        result[std::string("hold_") + side[i] + "_fwd"] = stp[i][0];
+        result[std::string("hold_") + side[i] + "_back"] = stp[i][1];
+      }
+      result["vbat"] = a.vbat();
+      finish();
+      return BRAKE;
+    }
+    Cmd c;
+    c.brake = false;
+    c.raw = true;
+    c.volt_l = ph[0] == DONE ? 0.f : dir * V[0];
+    c.volt_r = ph[1] == DONE ? 0.f : dir * V[1];
+    return c;
+  }
+};
+
 std::unique_ptr<Prim> makePrim(const char* n) {
+  if (!std::strcmp(n, "CAL_KS")) return std::unique_ptr<Prim>(new CalKs());
   if (!std::strcmp(n, "DRIVE_TO")) return std::unique_ptr<Prim>(new DriveTo());
   if (!std::strcmp(n, "TURN")) return std::unique_ptr<Prim>(new Turn());
   if (!std::strcmp(n, "HOLD")) return std::unique_ptr<Prim>(new Hold());

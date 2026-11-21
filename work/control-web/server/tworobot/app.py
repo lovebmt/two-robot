@@ -620,7 +620,7 @@ async def run_check(body: dict = Body(...)):
 
 
 # ---------------------------------------------------------------- calibration wizards
-CAL_PRIM = {"drive": "CAL_DRIVE", "turn": "CAL_TURN", "gap": "SNAPSHOT"}
+CAL_PRIM = {"drive": "CAL_DRIVE", "turn": "CAL_TURN", "gap": "SNAPSHOT", "ks": "CAL_KS"}
 
 
 def _truth(s: RobotSession) -> dict | None:
@@ -676,7 +676,7 @@ async def cal_run(rid: str, kind: str, body: dict = Body(default={})):
     """Bước 1 hiệu chuẩn: robot thực hiện (đi thẳng / quay / đo khoảng cách) và báo số đo của nó.
     Robot ảo: trả thêm 'sim_measured' — số đo thật trong mô phỏng (thay cho thước của người dùng)."""
     if kind not in CAL_PRIM:
-        raise HTTPException(404, "loại hiệu chuẩn: drive | turn | gap")
+        raise HTTPException(404, "loại hiệu chuẩn: drive | turn | gap | ks")
     s = _sess(rid)
     if S.coord.state == "RUNNING":
         raise HTTPException(409, "đang chạy đường")
@@ -734,8 +734,10 @@ async def cal_apply(rid: str, kind: str, body: dict = Body(...)):
             patch, info = CAL.turn(cfg, res, float(body["measured"]))
         elif kind == "gap":
             patch, info = CAL.gap(cfg, res, float(body["measured"]), bool(body.get("keep_diff", True)))
+        elif kind == "ks":  # không cần người đo: tính thẳng từ kết quả robot
+            patch, info = CAL.ks(cfg, res)
         else:
-            raise HTTPException(404, "loại hiệu chuẩn: drive | turn | gap")
+            raise HTTPException(404, "loại hiệu chuẩn: drive | turn | gap | ks")
     except (CAL.CalError, KeyError, ValueError) as e:
         raise HTTPException(400, str(e)) from None
     if body.get("dry_run"):

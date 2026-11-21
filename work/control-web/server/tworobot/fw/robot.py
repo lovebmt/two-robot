@@ -125,8 +125,11 @@ class VirtualFirmware:
             self.raise_fault("LINK_LOST")
 
         v, w, brake = 0.0, 0.0, True
+        raw = None
         if self.state == "RUNNING" and self.prim is not None and not self.paused:
-            v, w, brake = self.prim.update(self, dt)
+            out = self.prim.update(self, dt)
+            raw = getattr(out, "volts", None)
+            v, w, brake = out
             if self.prim is not None and self.prim.done:
                 self._finish_prim()
         elif self.state == "JOG":
@@ -135,7 +138,13 @@ class VirtualFirmware:
             else:
                 self.state = "IDLE"
         self.v_cmd, self.w_cmd = (0.0, 0.0) if brake else (v, w)
-        duty_l, duty_r, b = self.drive.command(v, w, brake, cfg, self.vbat, dt)
+        duty_l, duty_r, b = self.drive.command(v, w, brake or raw is not None, cfg, self.vbat, dt)
+        if raw is not None:  # CAL_KS: điện áp thẳng, không PI
+            va = max(self.vbat - cfg["power.l298n_vdrop_v"], 1.0)
+            duty_l = max(-1.0, min(1.0, raw[0] / va))
+            duty_r = max(-1.0, min(1.0, raw[1] / va))
+            b = False
+            self.v_cmd = 0.5 * (raw[0] + raw[1])
         self.hal.set_motor("l", -duty_l if cfg["motor.invert_l"] else duty_l, b)
         self.hal.set_motor("r", -duty_r if cfg["motor.invert_r"] else duty_r, b)
         # An toàn: duty lớn mà bánh quay NGƯỢC chiều lệnh → motor hoặc encoder đấu ngược → PI thành

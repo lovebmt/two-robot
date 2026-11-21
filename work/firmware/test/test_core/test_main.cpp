@@ -292,6 +292,26 @@ void test_api_contract_matches_python() {
     }
 }
 
+
+// Bánh kẹt ma sát tĩnh (lệnh 15 mm/s, đo 0): phải đẩy vượt trần PI cũ (~4.5 V); kbreak cấp ngay từ đầu
+static float stallVolts(const Config& c, float seconds) {
+  WheelController wc('l');
+  float d = 0;
+  for (int i = 0; i < static_cast<int>(seconds / 0.01f); ++i) d = wc.update(15.f, 0.f, 12.f, c, 0.01f);
+  return d * (12.f - c.power_l298n_vdrop_v);
+}
+
+void test_wheel_stall_boost_and_kbreak() {
+  Config c;
+  TEST_ASSERT_TRUE(stallVolts(c, 0.1f) < 2.f);
+  TEST_ASSERT_TRUE(stallVolts(c, 3.f) > 7.5f);
+  c.motor_kbreak_l_v = 5.f;
+  TEST_ASSERT_TRUE(stallVolts(c, 0.02f) > 5.f);
+  WheelController wc('l');
+  const float d = wc.update(15.f, 15.f, 12.f, c, 0.01f);  // đang quay → về ks
+  TEST_ASSERT_TRUE(d * (12.f - c.power_l298n_vdrop_v) < 2.f);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_defaults_valid);
@@ -306,5 +326,6 @@ int main(int, char**) {
   RUN_TEST(test_app_state_events_and_link_loss);
   RUN_TEST(test_app_unknown_route_and_config);
   RUN_TEST(test_api_contract_matches_python);
+  RUN_TEST(test_wheel_stall_boost_and_kbreak);
   return UNITY_END();
 }

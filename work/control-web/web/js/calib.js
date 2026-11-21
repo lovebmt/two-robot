@@ -54,6 +54,7 @@ async function run(kind) {
     await calibTof(target, src);
     return;
   }
+  if (kind === 'ks') { await runKs(); return; }
   const body = kind === 'drive' ? { mm: Number($('calDriveMm').value) }
     : kind === 'turn' ? { deg: Number($('calTurnDeg').value) }
       : { known_mm: Number($('calGapMm').value) };
@@ -145,6 +146,28 @@ async function dirTest(kind) {
         : dy < -3 ? '<p class="err small">Góc GIẢM khi quay trái → bật <code>imu.invert_z</code> (MPU gắn úp) rồi Save. Nếu xe thực tế quay PHẢI → kiểm tra lại invert motor.</p>'
           : '<p class="err small">Góc gần như không đổi: xe chưa quay (bánh trượt/kê gầm) hoặc IMU lỗi (cờ HW_IMU).</p>');
   }
+}
+
+// 1b: vùng chết motor — robot tự đo, không cần người nhập số đo
+async function runKs() {
+  const out = $('calOut-ks');
+  out.innerHTML = '<span class="muted">Đang đo (~10 s, xe nhích tới rồi lùi)…</span>';
+  const r = await guard(() => api('POST', `/api/robots/${target}/cal/ks`, {}));
+  if (!r) { out.innerHTML = ''; return; }
+  const p = await guard(() => api('POST', `/api/robots/${target}/cal/ks/apply`, { dry_run: true }));
+  if (!p) { out.innerHTML = ''; return; }
+  const row = (s, name) => {
+    const i = p.info[s];
+    return [`Bánh ${name}`, `bứt ${f(i.break_fwd, 2)} / ${f(i.break_back, 2)} V · giữ ${f(i.hold_fwd, 2)} / ${f(i.hold_back, 2)} V (tiến / lùi)`];
+  };
+  out.innerHTML = kv([row('l', 'trái'), row('r', 'phải'),
+    ['Vùng chết ks (L/R)', `${f(p.info.l.ks_old, 2)} / ${f(p.info.r.ks_old, 2)} → <b>${f(p.patch['motor.ks_l_v'], 2)} / ${f(p.patch['motor.ks_r_v'], 2)}</b> V`],
+    ['Điện áp bứt (L/R)', `${f(p.info.l.kbreak_old, 2)} / ${f(p.info.r.kbreak_old, 2)} → <b>${f(p.patch['motor.kbreak_l_v'], 2)} / ${f(p.patch['motor.kbreak_r_v'], 2)}</b> V`]])
+    + '<button class="btn primary" id="ksSave">Lưu vào robot</button>';
+  $('ksSave').onclick = async () => {
+    const s = await guard(() => api('POST', `/api/robots/${target}/cal/ks/apply`, {}), 'Đã lưu vùng chết motor vào flash');
+    if (s) $('calOut-ks').insertAdjacentHTML('beforeend', ' <span class="ok-text">Đã lưu</span>');
+  };
 }
 
 // 0b: hiệu chuẩn encoder quay tay — mốc tick → người dùng quay N vòng tới → tính → lưu
