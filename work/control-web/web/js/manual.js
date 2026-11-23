@@ -1,9 +1,10 @@
 import { api, toast } from './api.js';
-import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-6';
+import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-8';
 import { on, store } from './store.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const KEY_COMMANDS = { KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right' };
+const KEY_MIN_PULSE_MS = 400;
 
 let card = null;
 let stateEl = null;
@@ -16,6 +17,7 @@ let runToken = 0;
 let stopping = false;
 let requestChain = Promise.resolve();
 let activeKey = null;
+let keyStartedAt = 0;
 
 function robot() {
   return (store.frame?.robots || []).find((r) => r.id === store.rid) || null;
@@ -114,6 +116,7 @@ function handleKeyDown(event) {
     || active || stopping) return;
   event.preventDefault();
   activeKey = event.code;
+  keyStartedAt = performance.now();
   void startMotion(button, { pointerType: 'keyboard', preventDefault() {} });
 }
 
@@ -121,7 +124,15 @@ function handleKeyUp(event) {
   if (!activeKey || event.code !== activeKey) return;
   event.preventDefault();
   activeKey = null;
-  void stopMotion();
+  const token = runToken;
+  const remaining = KEY_MIN_PULSE_MS - (performance.now() - keyStartedAt);
+  if (remaining <= 0) {
+    void stopMotion();
+    return;
+  }
+  setTimeout(() => {
+    if (runToken === token) void stopMotion();
+  }, remaining);
 }
 
 export function stopManual() {

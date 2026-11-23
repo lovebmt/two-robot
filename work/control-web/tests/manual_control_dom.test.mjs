@@ -108,7 +108,10 @@ test('solo mode updates real robot controls without waiting for a frame', async 
   });
 
   document.dispatch('keyup', { code: 'KeyW', key: 'w' });
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  assert.equal(fetchCalls.at(-1).url, '/api/robots/198a2c/jog');
+  assert.ok(fetchCalls.filter((call) => call.url.endsWith('/jog')).length >= 2);
+  await new Promise((resolve) => setTimeout(resolve, 360));
   assert.deepEqual(fetchCalls.at(-1), {
     url: '/api/robots/198a2c/jog/stop',
     method: 'POST',
@@ -131,7 +134,7 @@ test('solo mode updates real robot controls without waiting for a frame', async 
     await new Promise((resolve) => setTimeout(resolve, 10));
     assert.deepEqual(fetchCalls.at(-1).body, body);
     document.dispatch('keyup', { code, key: code.slice(-1).toLowerCase() });
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 420));
     assert.equal(fetchCalls.at(-1).url, '/api/robots/198a2c/jog/stop');
   }
 });

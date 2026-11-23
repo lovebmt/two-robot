@@ -233,6 +233,7 @@ body.mode-single .single-only { display: inline-block; }
 
 .manual-control { display: none; }
 body.mode-solo .manual-control { display: block; }
+.manual-keyboard-enable { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
 .manual-grid {
   display: grid;
   grid-template-columns: repeat(3, 64px);
