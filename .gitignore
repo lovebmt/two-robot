@@ -35,3 +35,4 @@ work/control-web/logs/
 
 # Local brainstorming artifacts
 .superpowers/
+.worktrees/
