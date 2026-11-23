@@ -1,5 +1,5 @@
 import { api, toast } from './api.js';
-import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js';
+import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-3';
 import { on, store } from './store.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -19,7 +19,8 @@ function robot() {
 }
 
 function availability() {
-  return manualAvailability(store.mode, robot());
+  const mode = document.getElementById('runMode')?.value || store.mode;
+  return manualAvailability(mode, robot());
 }
 
 function enqueue(request) {
@@ -34,10 +35,11 @@ function setStatus(text = null) {
 
 function render() {
   if (!card) return;
-  card.hidden = store.mode !== 'solo';
+  const mode = document.getElementById('runMode')?.value || store.mode;
+  card.hidden = mode !== 'solo';
   const available = availability().enabled;
   buttons.forEach((button) => {
-    button.disabled = !available || (active && active.button !== button);
+    button.disabled = !available || Boolean(active && active.button !== button);
     button.classList.toggle('active', active?.button === button);
   });
   stopButton.disabled = !active;
@@ -111,6 +113,9 @@ export function initManual() {
     }
   }
   stopButton.addEventListener('click', () => void stopMotion());
+  for (const select of document.querySelectorAll('[data-mode-select], [data-robot-select]')) {
+    select.addEventListener('change', () => setTimeout(render, 0));
+  }
   window.addEventListener('blur', () => void stopMotion());
   document.addEventListener('visibilitychange', () => { if (document.hidden) void stopMotion(); });
   on('frame', render);

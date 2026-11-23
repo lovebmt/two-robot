@@ -3,10 +3,10 @@ import { api, connectWS, guard, toast } from './api.js';
 import { initCalib } from './calib.js';
 import { initConfig } from './config.js';
 import { initDevices, refreshRobots } from './devices.js';
-import { initManual, stopManual } from './manual.js';
+import { initManual, stopManual } from './manual.js?v=manual-solo-3';
 import { initMap, validate } from './mapedit.js';
 import { emit, loadProject, on, saveProject, store } from './store.js';
-import { initView, onFrame, startRun } from './view.js';
+import { initView, onFrame, startRun } from './view.js?v=manual-solo-3';
 
 const TAB_KEY = 'tworobot.tab';
 
