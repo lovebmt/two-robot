@@ -3,6 +3,7 @@ import { api, connectWS, guard, toast } from './api.js';
 import { initCalib } from './calib.js';
 import { initConfig } from './config.js';
 import { initDevices, refreshRobots } from './devices.js';
+import { initManual, stopManual } from './manual.js';
 import { initMap, validate } from './mapedit.js';
 import { emit, loadProject, on, saveProject, store } from './store.js';
 import { initView, onFrame, startRun } from './view.js';
@@ -27,6 +28,7 @@ async function boot() {
   initConfig();
   initMap();
   initView();
+  initManual();
   initCalib();
 
   // Chế độ chạy 2 xe / 1 xe: các ô chọn ở tab Bản đồ và tab Chạy đồng bộ với nhau
@@ -34,6 +36,7 @@ async function boot() {
   const applyModeClass = () => {
     document.body.classList.toggle('mode-follow', store.mode === 'follow');
     document.body.classList.toggle('mode-single', store.mode !== 'pair');  // 1 xe / bám tấm: hiện ô chọn xe
+    document.body.classList.toggle('mode-solo', store.mode === 'solo');
   };
   applyModeClass();
 
@@ -48,6 +51,7 @@ async function boot() {
   };
   robotSel.forEach((el) => {
     el.onchange = () => {
+      stopManual();
       store.rid = el.value || null;
       robotSel.forEach((o) => { o.value = el.value; });
       saveProject();
@@ -60,6 +64,7 @@ async function boot() {
   modeSel.forEach((el) => {
     el.value = store.mode;
     el.onchange = () => {
+      stopManual();
       store.mode = el.value;
       modeSel.forEach((o) => { o.value = store.mode; });
       applyModeClass();

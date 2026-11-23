@@ -230,3 +230,31 @@ body.mode-follow .follow-only { display: inline-flex; align-items: center; gap: 
 /* Ô chọn xe: chỉ hiện ở chế độ 1 xe / bám tấm */
 .single-only { display: none; }
 body.mode-single .single-only { display: inline-block; }
+
+.manual-control { display: none; }
+body.mode-solo .manual-control { display: block; }
+.manual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  grid-template-rows: repeat(3, 64px);
+  gap: 8px;
+  justify-content: center;
+  margin: 8px auto 12px;
+}
+.manual-btn, .manual-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.manual-btn small, .manual-stop small { font-size: 10px; }
+.manual-btn.active { background: var(--accent); color: var(--accent-text); }
+.manual-stop { background: var(--danger); border-color: var(--danger); color: white; font-weight: 700; }
+.manual-btn:disabled, .manual-stop:disabled { opacity: .45; cursor: not-allowed; }

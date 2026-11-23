@@ -2,7 +2,7 @@
 import { api, guard, toast } from './api.js';
 import { Chart } from './charts.js';
 import { cssVar, drawGrid, drawPath, drawRays, drawRobot, fitCanvas, makeTransform } from './draw.js';
-import { on, store } from './store.js';
+import { emit, on, store } from './store.js';
 
 const $ = (id) => document.getElementById(id);
 const DEG = 180 / Math.PI;
@@ -46,6 +46,7 @@ function n(v, d = 0) { return v === null || v === undefined || Number.isNaN(v) ?
 
 export function onFrame(f) {
   store.frame = f;
+  emit('frame', f);
   if (lastT !== null && f.t < lastT - 0.5) { trails.clear(); charts && Object.values(charts).forEach((c) => c.clear()); }
   lastT = f.t;
   for (const r of f.robots) {

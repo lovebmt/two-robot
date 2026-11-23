@@ -285,6 +285,24 @@
           </div>
         </div>
         <div class="run-side">
+          <div class="card manual-control" id="manualControl">
+            <div class="card-h">
+              <h2>Điều khiển tay</h2>
+              <span id="manualState" class="badge">Không khả dụng</span>
+            </div>
+            <div class="manual-grid">
+              <span></span>
+              <button class="manual-btn" data-jog="fwd" aria-label="Tiến">▲<small>Tiến</small></button>
+              <span></span>
+              <button class="manual-btn" data-jog="left" aria-label="Quay trái">◀<small>Trái</small></button>
+              <button class="manual-stop" id="manualStop" aria-label="Dừng">■<small>STOP</small></button>
+              <button class="manual-btn" data-jog="right" aria-label="Quay phải">▶<small>Phải</small></button>
+              <span></span>
+              <button class="manual-btn" data-jog="back" aria-label="Lùi">▼<small>Lùi</small></button>
+              <span></span>
+            </div>
+            <p class="muted small">Giữ nút để chạy, nhả nút để dừng. Chỉ dùng ở chế độ 1 xe.</p>
+          </div>
           <div class="card">
             <div class="card-h"><h2>Điều phối</h2><span id="coordState" class="badge">IDLE</span></div>
             <div id="coordSeg" class="muted small"></div>
