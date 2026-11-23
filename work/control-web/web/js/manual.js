@@ -1,5 +1,5 @@
 import { api, toast } from './api.js';
-import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-8';
+import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-9';
 import { on, store } from './store.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -97,7 +97,13 @@ async function startMotion(button, event) {
   activeRid = rid;
   runToken += 1;
   const token = runToken;
-  button.setPointerCapture?.(event.pointerId);
+  if (event.pointerId != null && button.setPointerCapture) {
+    try {
+      button.setPointerCapture(event.pointerId);
+    } catch {
+      // Keyboard events have no active pointer; capture is only needed for real pointer input.
+    }
+  }
   render();
   await driveLoop(token, rid, command);
 }

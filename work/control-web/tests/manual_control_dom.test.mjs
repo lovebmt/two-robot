@@ -27,7 +27,10 @@ class FakeElement {
     globalThis.document.activeElement = { tagName: 'BODY' };
   }
 
-  setPointerCapture() {}
+  setPointerCapture() {
+    this.pointerCaptureCalls = (this.pointerCaptureCalls || 0) + 1;
+    throw new DOMException('No active pointer with the given id is found.', 'NotFoundError');
+  }
 }
 
 test('solo mode updates real robot controls without waiting for a frame', async () => {
@@ -101,6 +104,7 @@ test('solo mode updates real robot controls without waiting for a frame', async 
 
   document.dispatch('keydown', { code: 'KeyW', key: 'w', repeat: false });
   await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(buttons[0].pointerCaptureCalls || 0, 0);
   assert.deepEqual(fetchCalls.at(-1), {
     url: '/api/robots/198a2c/jog',
     method: 'POST',
