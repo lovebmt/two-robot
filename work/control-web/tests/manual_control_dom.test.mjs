@@ -45,6 +45,7 @@ test('solo mode updates real robot controls without waiting for a frame', async 
     manualControl: new FakeElement(),
     manualState: new FakeElement(),
     manualStop: new FakeElement(),
+    manualKeyboard: new FakeElement(),
     runMode,
   };
   globalThis.document = {
@@ -87,6 +88,16 @@ test('solo mode updates real robot controls without waiting for a frame', async 
   assert.equal(elements.manualControl.hidden, false);
   assert.deepEqual(buttons.map((button) => button.disabled), [false, false, false, false]);
   assert.equal(runMode.blurred, true);
+
+  const beforeKeyboardEnabled = fetchCalls.length;
+  document.dispatch('keydown', { code: 'KeyW', key: 'w', repeat: false });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(fetchCalls.length, beforeKeyboardEnabled);
+
+  elements.manualKeyboard.checked = true;
+  elements.manualKeyboard.dispatch('change');
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(elements.manualKeyboard.blurred, true);
 
   document.dispatch('keydown', { code: 'KeyW', key: 'w', repeat: false });
   await new Promise((resolve) => setTimeout(resolve, 10));

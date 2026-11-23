@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Two-Robot Control</title>
-  <link rel="stylesheet" href="/css/app.css?v=manual-solo-5">
+  <link rel="stylesheet" href="/css/app.css?v=manual-solo-6">
 </head>
 <body>
   <header class="topbar">
@@ -290,6 +290,9 @@
               <h2>Điều khiển tay</h2>
               <span id="manualState" class="badge">Không khả dụng</span>
             </div>
+            <label class="chk manual-keyboard-enable">
+              <input type="checkbox" id="manualKeyboard"> Bật bàn phím WASD
+            </label>
             <div class="manual-grid">
               <span></span>
               <button class="manual-btn" data-jog="fwd" aria-label="Tiến, phím W">▲<small>Tiến · W</small></button>
@@ -356,6 +359,6 @@
   </main>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
-  <script type="module" src="/js/main.js?v=manual-solo-5"></script>
+  <script type="module" src="/js/main.js?v=manual-solo-6"></script>
 </body>
 </html>

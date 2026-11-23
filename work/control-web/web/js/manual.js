@@ -1,5 +1,5 @@
 import { api, toast } from './api.js';
-import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-5';
+import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-6';
 import { on, store } from './store.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -8,6 +8,7 @@ const KEY_COMMANDS = { KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right' };
 let card = null;
 let stateEl = null;
 let stopButton = null;
+let keyboardSwitch = null;
 let buttons = [];
 let active = null;
 let activeRid = null;
@@ -106,6 +107,7 @@ function keyboardBlocked(event) {
 }
 
 function handleKeyDown(event) {
+  if (!keyboardSwitch?.checked) return;
   const kind = KEY_COMMANDS[event.code];
   const button = buttons.find((item) => item.dataset.jog === kind);
   if (!kind || !button || keyboardBlocked(event) || card.hidden || !availability().enabled
@@ -124,6 +126,7 @@ function handleKeyUp(event) {
 
 export function stopManual() {
   activeKey = null;
+  if (keyboardSwitch) keyboardSwitch.checked = false;
   void stopMotion();
 }
 
@@ -131,6 +134,7 @@ export function initManual() {
   card = document.getElementById('manualControl');
   stateEl = document.getElementById('manualState');
   stopButton = document.getElementById('manualStop');
+  keyboardSwitch = document.getElementById('manualKeyboard');
   buttons = [...document.querySelectorAll('[data-jog]')];
   for (const button of buttons) {
     button.addEventListener('pointerdown', (event) => void startMotion(button, event));
@@ -139,6 +143,14 @@ export function initManual() {
     }
   }
   stopButton.addEventListener('click', () => void stopMotion());
+  keyboardSwitch.addEventListener('change', () => {
+    if (keyboardSwitch.checked) keyboardSwitch.blur?.();
+    else {
+      activeKey = null;
+      void stopMotion();
+    }
+    render();
+  });
   for (const select of document.querySelectorAll('[data-mode-select], [data-robot-select]')) {
     select.addEventListener('change', () => {
       select.blur?.();
