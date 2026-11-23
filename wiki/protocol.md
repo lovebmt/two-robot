@@ -33,6 +33,19 @@ Mọi body là JSON. Mã 200 = OK, 400 = tham số sai, 409 = trạng thái khô
 | PUT | `/api/path` | đường đi (§6) | `{ok, path_id, crc}` |
 | POST | `/api/identify` | | `{ok}`: nháy LED và lắc bánh 2.5 s |
 
+### 2.1 Điều khiển tay qua Control Server
+
+Web Control giữ nút điều khiển bằng cách gửi lặp lệnh jog cho tới khi nhả nút. Server giới hạn
+`v ∈ [-150, 150]` mm/s và `w ∈ [-2, 2]` rad/s.
+
+| Method | Path | Body | Trả về |
+|---|---|---|---|
+| POST | `/api/robots/{rid}/jog` | `{v, w}` | `{ok}` |
+| POST | `/api/robots/{rid}/jog/stop` | | `{ok}` |
+
+Server chuyển hai request này thành lệnh robot `/api/cmd` với `op: "jog"` hoặc `op: "stop"`.
+Lệnh jog trên robot tự hết hạn sau 300 ms; UI gửi lặp mỗi 100 ms trong lúc giữ nút.
+
 ## 3. `GET /api/state?since=N`
 ```json
 { "tel": { "t_ms": 123450, "state": "RUNNING", "role": "follower", "cfg_rev": 4, "fault": null,
