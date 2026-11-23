@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Two-Robot Control</title>
-  <link rel="stylesheet" href="/css/app.css?v=manual-solo-3">
+  <link rel="stylesheet" href="/css/app.css?v=manual-solo-4">
 </head>
 <body>
   <header class="topbar">
@@ -292,16 +292,16 @@
             </div>
             <div class="manual-grid">
               <span></span>
-              <button class="manual-btn" data-jog="fwd" aria-label="Tiến">▲<small>Tiến</small></button>
+              <button class="manual-btn" data-jog="fwd" aria-label="Tiến, phím W">▲<small>Tiến · W</small></button>
               <span></span>
-              <button class="manual-btn" data-jog="left" aria-label="Quay trái">◀<small>Trái</small></button>
+              <button class="manual-btn" data-jog="left" aria-label="Quay trái, phím A">◀<small>Trái · A</small></button>
               <button class="manual-stop" id="manualStop" aria-label="Dừng">■<small>STOP</small></button>
-              <button class="manual-btn" data-jog="right" aria-label="Quay phải">▶<small>Phải</small></button>
+              <button class="manual-btn" data-jog="right" aria-label="Quay phải, phím D">▶<small>Phải · D</small></button>
               <span></span>
-              <button class="manual-btn" data-jog="back" aria-label="Lùi">▼<small>Lùi</small></button>
+              <button class="manual-btn" data-jog="back" aria-label="Lùi, phím S">▼<small>Lùi · S</small></button>
               <span></span>
             </div>
-            <p class="muted small">Giữ nút để chạy, nhả nút để dừng. Chỉ dùng ở chế độ 1 xe.</p>
+            <p class="muted small">Giữ nút hoặc W/A/S/D để chạy, nhả để dừng. Chỉ dùng ở chế độ 1 xe.</p>
           </div>
           <div class="card">
             <div class="card-h"><h2>Điều phối</h2><span id="coordState" class="badge">IDLE</span></div>
@@ -356,6 +356,6 @@
   </main>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
-  <script type="module" src="/js/main.js?v=manual-solo-3"></script>
+  <script type="module" src="/js/main.js?v=manual-solo-4"></script>
 </body>
 </html>

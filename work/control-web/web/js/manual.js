@@ -1,8 +1,9 @@
 import { api, toast } from './api.js';
-import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-3';
+import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-4';
 import { on, store } from './store.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const KEY_COMMANDS = { KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right' };
 
 let card = null;
 let stateEl = null;
@@ -13,6 +14,7 @@ let activeRid = null;
 let runToken = 0;
 let stopping = false;
 let requestChain = Promise.resolve();
+let activeKey = null;
 
 function robot() {
   return (store.frame?.robots || []).find((r) => r.id === store.rid) || null;
@@ -97,7 +99,31 @@ async function startMotion(button, event) {
   await driveLoop(token, rid, command);
 }
 
+function keyboardBlocked(event) {
+  const tag = document.activeElement?.tagName;
+  return event.repeat || event.ctrlKey || event.metaKey || event.altKey
+    || ['INPUT', 'SELECT', 'TEXTAREA'].includes(tag) || document.activeElement?.isContentEditable;
+}
+
+function handleKeyDown(event) {
+  const kind = KEY_COMMANDS[event.code];
+  const button = buttons.find((item) => item.dataset.jog === kind);
+  if (!kind || !button || keyboardBlocked(event) || card.hidden || !availability().enabled
+    || active || stopping) return;
+  event.preventDefault();
+  activeKey = event.code;
+  void startMotion(button, { pointerType: 'keyboard', preventDefault() {} });
+}
+
+function handleKeyUp(event) {
+  if (!activeKey || event.code !== activeKey) return;
+  event.preventDefault();
+  activeKey = null;
+  void stopMotion();
+}
+
 export function stopManual() {
+  activeKey = null;
   void stopMotion();
 }
 
@@ -116,8 +142,12 @@ export function initManual() {
   for (const select of document.querySelectorAll('[data-mode-select], [data-robot-select]')) {
     select.addEventListener('change', () => setTimeout(render, 0));
   }
-  window.addEventListener('blur', () => void stopMotion());
-  document.addEventListener('visibilitychange', () => { if (document.hidden) void stopMotion(); });
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
+  window.addEventListener('blur', () => { activeKey = null; void stopMotion(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { activeKey = null; void stopMotion(); }
+  });
   on('frame', render);
   on('mode', render);
   on('selection', render);

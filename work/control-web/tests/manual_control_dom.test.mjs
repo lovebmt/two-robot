@@ -26,6 +26,11 @@ class FakeElement {
 }
 
 test('solo mode updates real robot controls without waiting for a frame', async () => {
+  const fetchCalls = [];
+  globalThis.fetch = async (url, options) => {
+    fetchCalls.push({ url, method: options.method, body: JSON.parse(options.body || 'null') });
+    return { ok: true, status: 200, json: async () => ({ ok: true }) };
+  };
   const buttons = ['fwd', 'back', 'left', 'right'].map((jog) => new FakeElement({ jog }));
   const runMode = new FakeElement();
   runMode.value = 'pair';
@@ -39,13 +44,23 @@ test('solo mode updates real robot controls without waiting for a frame', async 
   };
   globalThis.document = {
     hidden: false,
+    activeElement: { tagName: 'BODY' },
+    listeners: new Map(),
     getElementById: (id) => elements[id] || null,
     querySelectorAll: (selector) => {
       if (selector === '[data-jog]') return buttons;
       if (selector === '[data-mode-select], [data-robot-select]') return [runMode, robotSelect];
       return [];
     },
-    addEventListener() {},
+    addEventListener(type, listener) {
+      const listeners = this.listeners.get(type) || [];
+      listeners.push(listener);
+      this.listeners.set(type, listeners);
+    },
+    dispatch(type, event) {
+      const detail = { type, preventDefault() {}, ...event };
+      for (const listener of this.listeners.get(type) || []) listener(detail);
+    },
   };
   globalThis.window = { addEventListener() {} };
 
@@ -65,4 +80,40 @@ test('solo mode updates real robot controls without waiting for a frame', async 
   assert.equal(elements.manualState.textContent, 'Sẵn sàng');
   assert.equal(elements.manualControl.hidden, false);
   assert.deepEqual(buttons.map((button) => button.disabled), [false, false, false, false]);
+
+  document.dispatch('keydown', { code: 'KeyW', key: 'w', repeat: false });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.deepEqual(fetchCalls.at(-1), {
+    url: '/api/robots/198a2c/jog',
+    method: 'POST',
+    body: { v: 80, w: 0 },
+  });
+
+  document.dispatch('keyup', { code: 'KeyW', key: 'w' });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.deepEqual(fetchCalls.at(-1), {
+    url: '/api/robots/198a2c/jog/stop',
+    method: 'POST',
+    body: null,
+  });
+
+  const beforeInput = fetchCalls.length;
+  document.activeElement = { tagName: 'INPUT' };
+  document.dispatch('keydown', { code: 'KeyS', key: 's', repeat: false });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(fetchCalls.length, beforeInput);
+
+  document.activeElement = { tagName: 'BODY' };
+  for (const [code, body] of [
+    ['KeyA', { v: 0, w: 0.8 }],
+    ['KeyS', { v: -80, w: 0 }],
+    ['KeyD', { v: 0, w: -0.8 }],
+  ]) {
+    document.dispatch('keydown', { code, key: code.slice(-1).toLowerCase(), repeat: false });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.deepEqual(fetchCalls.at(-1).body, body);
+    document.dispatch('keyup', { code, key: code.slice(-1).toLowerCase() });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(fetchCalls.at(-1).url, '/api/robots/198a2c/jog/stop');
+  }
 });
