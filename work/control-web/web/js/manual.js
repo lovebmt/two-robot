@@ -1,5 +1,5 @@
 import { api, toast } from './api.js';
-import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-4';
+import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-5';
 import { on, store } from './store.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -140,7 +140,10 @@ export function initManual() {
   }
   stopButton.addEventListener('click', () => void stopMotion());
   for (const select of document.querySelectorAll('[data-mode-select], [data-robot-select]')) {
-    select.addEventListener('change', () => setTimeout(render, 0));
+    select.addEventListener('change', () => {
+      select.blur?.();
+      setTimeout(render, 0);
+    });
   }
   document.addEventListener('keydown', handleKeyDown);
   document.addEventListener('keyup', handleKeyUp);

@@ -22,6 +22,11 @@ class FakeElement {
     for (const listener of this.listeners.get(type) || []) listener({ type });
   }
 
+  blur() {
+    this.blurred = true;
+    globalThis.document.activeElement = { tagName: 'BODY' };
+  }
+
   setPointerCapture() {}
 }
 
@@ -73,6 +78,7 @@ test('solo mode updates real robot controls without waiting for a frame', async 
   assert.equal(elements.manualState.textContent, 'Không khả dụng');
   assert.equal(elements.manualControl.hidden, true);
 
+  document.activeElement = runMode;
   runMode.value = 'solo';
   runMode.dispatch('change');
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -80,6 +86,7 @@ test('solo mode updates real robot controls without waiting for a frame', async 
   assert.equal(elements.manualState.textContent, 'Sẵn sàng');
   assert.equal(elements.manualControl.hidden, false);
   assert.deepEqual(buttons.map((button) => button.disabled), [false, false, false, false]);
+  assert.equal(runMode.blurred, true);
 
   document.dispatch('keydown', { code: 'KeyW', key: 'w', repeat: false });
   await new Promise((resolve) => setTimeout(resolve, 10));
