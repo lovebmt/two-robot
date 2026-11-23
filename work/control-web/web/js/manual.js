@@ -49,7 +49,10 @@ async function stopMotion() {
   runToken += 1;
   active = null;
   activeRid = null;
-  if (!rid || stopping) return;
+  if (!rid || stopping) {
+    render();
+    return;
+  }
   stopping = true;
   render();
   try {
@@ -111,6 +114,9 @@ export function initManual() {
   window.addEventListener('blur', () => void stopMotion());
   document.addEventListener('visibilitychange', () => { if (document.hidden) void stopMotion(); });
   on('frame', render);
+  on('mode', render);
+  on('selection', render);
+  on('robots', render);
   on('tab', (tab) => { if (tab !== 'run') stopManual(); });
   render();
 }

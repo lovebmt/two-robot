@@ -54,6 +54,7 @@ async function boot() {
       stopManual();
       store.rid = el.value || null;
       robotSel.forEach((o) => { o.value = el.value; });
+      emit('selection', store.rid);
       saveProject();
       validate();
     };
@@ -68,6 +69,7 @@ async function boot() {
       store.mode = el.value;
       modeSel.forEach((o) => { o.value = store.mode; });
       applyModeClass();
+      emit('mode', store.mode);
       saveProject();
       validate();
       toast(store.mode === 'solo' ? 'Chế độ 1 xe: chỉ xe leader chạy theo đường'
