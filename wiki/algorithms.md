@@ -79,6 +79,7 @@ Kết luận: **calib lúc đứng yên + ZUPT là bắt buộc. Bù nhiệt và
 - Mỗi đoạn thẳng là một primitive `DRIVE_TO(s_end)` với profile hình thang (`a_max`, `v_cruise`). Tốc độ giảm về `v_corner` trong `approach_dist` cuối, rồi dừng bằng điều khiển vị trí.
 - Leader giữ hướng `ψ_seg` bằng gyro và encoder (§2). Leader không sửa được lệch ngang tuyệt đối vì không có mốc ngoài. Lệch ngang chỉ đến từ trôi hướng nên nhỏ.
 - An toàn: cảm biến phía trước của leader thấy vật < `obstacle_stop` thì phanh và gửi `fault OBSTACLE`.
+- An toàn 2 xe: trong `FOLLOW`, một hoặc hai mắt ToF của follower giảm đột ngột ≥ `safety.tof_anomaly_jump_mm` hoặc mất tín hiệu trong `safety.tof_anomaly_samples` mẫu liên tiếp → follower phanh, báo `OBSTACLE_INTRUSION`; PC phanh leader và Web UI hiện cảnh báo.
 
 ## 4. Follower: bám trên đoạn thẳng (tự chủ, `FOLLOW`)
 

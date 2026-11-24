@@ -61,7 +61,7 @@ Lệnh jog trên robot tự hết hạn sau 300 ms; UI gửi lặp mỗi 100 ms 
 ```
 - Robot giữ **64 sự kiện** gần nhất trong hộp thư, mỗi sự kiện có số `eseq` tăng dần. PC gửi `since` = `eseq` lớn nhất đã nhận, nên không mất sự kiện nếu một lần poll bị lỗi. `events_lost=true` nghĩa là PC tụt quá 64 sự kiện.
 - Nếu `eseq` trả về nhỏ hơn `since` thì robot đã khởi động lại, PC đếm lại từ 0.
-- Các loại sự kiện: `prim_done`, `calib_done`, `fault` (`code`: `LEADER_LOST`, `LINK_LOST`, `BAT_LOW`, ...).
+- Các loại sự kiện: `prim_done`, `calib_done`, `fault` (`code`: `OBSTACLE_INTRUSION`, `LEADER_LOST`, `LINK_LOST`, `BAT_LOW`, ...).
 - Kích thước khoảng 1.5–2 KB mỗi lần × 20 Hz × 2 xe ≈ 80 KB/s, rất nhỏ so với WiFi.
 
 ## 4. `POST /api/cmd`
