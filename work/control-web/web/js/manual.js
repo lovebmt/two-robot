@@ -1,5 +1,5 @@
 import { api, toast } from './api.js';
-import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=manual-solo-9';
+import { MANUAL_COMMANDS, manualAvailability } from './manual-core.js?v=tof-safe-10';
 import { on, store } from './store.js';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

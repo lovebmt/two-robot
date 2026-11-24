@@ -38,6 +38,7 @@ def test_tof_block_triggers_safe_stop():
     r = asyncio.run(scenario())
     assert not r["ok"]
     assert "OBSTACLE_INTRUSION" in (r["error"] or "")
+    assert any("OBSTACLE_INTRUSION" in entry["msg"] for entry in r["log"])
     assert r["collisions"] == 0
 
 
