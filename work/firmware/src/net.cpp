@@ -16,10 +16,6 @@ namespace net {
 static WebServer server(80);
 static tr::App* g_app = nullptr;
 static SemaphoreHandle_t g_mtx = nullptr;
-static Preferences* g_prefs = nullptr;
-static bool g_ap = false;
-
-bool isAp() { return g_ap; }
 
 // ---- Chẩn đoán đường truyền (LINK_LOST): khoảng lặng giữa 2 request + sự kiện WiFi rớt
 static volatile uint32_t g_lastReq = 0, g_gapMax = 0, g_disc = 0, g_lastDiscReason = 0;
@@ -50,39 +46,36 @@ static void onWifiEvent(WiFiEvent_t ev, WiFiEventInfo_t info) {
     con.printf("[%lus] WiFi nối lại: %s\n", millis() / 1000, WiFi.localIP().toString().c_str());
   }
 }
-String ipString() { return g_ap ? WiFi.softAPIP().toString() : WiFi.localIP().toString(); }
+String ipString() { return WiFi.localIP().toString(); }
 
 bool begin(Preferences& prefs, const String& id) {
-  String ssid = prefs.isKey("ssid") ? prefs.getString("ssid", "") : String();
-  String pass = prefs.isKey("pass") ? prefs.getString("pass", "") : String();
 #ifdef WIFI_SSID
-  if (ssid.isEmpty()) { ssid = WIFI_SSID; pass = WIFI_PASS; }
+  const String ssid = WIFI_SSID;
+  const String pass = WIFI_PASS;
+#else
+  const String ssid = prefs.isKey("ssid") ? prefs.getString("ssid", "") : String();
+  const String pass = prefs.isKey("pass") ? prefs.getString("pass", "") : String();
 #endif
   const String host = "tworobot-" + id;
-  if (!ssid.isEmpty()) {
-    WiFi.onEvent(onWifiEvent);
-    WiFi.mode(WIFI_STA);
-    WiFi.setHostname(host.c_str());
-    WiFi.setSleep(false);  // bắt buộc: power-save làm trễ 100–300 ms
-    WiFi.setAutoReconnect(true);
-    WiFi.begin(ssid.c_str(), pass.c_str());
-    Serial.printf("WiFi: kết nối \"%s\"", ssid.c_str());
-    for (int i = 0; i < 30 && WiFi.status() != WL_CONNECTED; ++i) { delay(500); Serial.print('.'); }
-    Serial.println();
-    if (WiFi.status() == WL_CONNECTED) {
-      g_ap = false;
-      if (MDNS.begin(host.c_str())) MDNS.addService("http", "tcp", 80);
-      Serial.printf("WiFi OK: http://%s  (http://%s.local)\n", WiFi.localIP().toString().c_str(), host.c_str());
-      return true;
-    }
-    Serial.println("WiFi: không kết nối được → chuyển AP");
+  if (ssid.isEmpty()) {
+    Serial.println("WiFi: thiếu credentials trong secrets.h/NVS; chạy offline");
+    return false;
   }
-  WiFi.mode(WIFI_AP);
-  const String ap = "TwoRobot-" + id;
-  WiFi.softAP(ap.c_str(), "tworobot");
-  g_ap = true;
-  Serial.printf("AP \"%s\" (mật khẩu tworobot): vào http://%s để nhập WiFi\n", ap.c_str(),
-                WiFi.softAPIP().toString().c_str());
+  WiFi.onEvent(onWifiEvent);
+  WiFi.mode(WIFI_STA);
+  WiFi.setHostname(host.c_str());
+  WiFi.setSleep(false);  // bắt buộc: power-save làm trễ 100–300 ms
+  WiFi.setAutoReconnect(true);
+  WiFi.begin(ssid.c_str(), pass.c_str());
+  Serial.printf("WiFi STA: kết nối \"%s\"", ssid.c_str());
+  for (int i = 0; i < 30 && WiFi.status() != WL_CONNECTED; ++i) { delay(500); Serial.print('.'); }
+  Serial.println();
+  if (WiFi.status() == WL_CONNECTED) {
+    if (MDNS.begin(host.c_str())) MDNS.addService("http", "tcp", 80);
+    Serial.printf("WiFi OK: http://%s  (http://%s.local)\n", WiFi.localIP().toString().c_str(), host.c_str());
+    return true;
+  }
+  Serial.println("WiFi: không kết nối được; giữ STA và thử lại tự động, không phát AP");
   return false;
 }
 
@@ -200,38 +193,17 @@ static void handleRoot() {
   html += "</b> · fw ";
   html += tr::FW_VERSION;
   html += "<br>Chế độ: <b>";
-  html += g_ap ? "AP (chưa có WiFi)" : "WiFi";
+  html += "WiFi STA";
   html += "</b> · IP <b>" + ip + "</b></p>";
   html += "<p>Web Control (PC): tab Thiết bị → Quét <code>" + ip + "</code></p>";
-  html +=
-      "<h3>Cài WiFi</h3><form method=post action=/wifi>"
-      "<p>SSID<br><input name=ssid style='width:100%'></p>"
-      "<p>Mật khẩu<br><input name=pass type=password style='width:100%'></p>"
-      "<p><button>Lưu và khởi động lại</button></p></form>"
-      "<p><a href=/api/info>/api/info</a> · <a href='/api/state?since=0'>/api/state</a></p>";
+  html += "<p><a href=/api/info>/api/info</a> · <a href='/api/state?since=0'>/api/state</a></p>";
   server.send(200, "text/html; charset=utf-8", html);
 }
 
-static void handleWifi() {
-  const String ssid = server.arg("ssid");
-  if (ssid.isEmpty()) {
-    server.send(400, "text/plain; charset=utf-8", "Thiếu SSID");
-    return;
-  }
-  g_prefs->putString("ssid", ssid);
-  g_prefs->putString("pass", server.arg("pass"));
-  server.send(200, "text/html; charset=utf-8",
-              "<meta charset=utf-8>Đã lưu WiFi. Robot khởi động lại sau 1 s, rồi tìm robot bằng nút Quét trên Web Control.");
-  delay(1000);
-  ESP.restart();
-}
-
-void startHttp(tr::App* app, SemaphoreHandle_t mutex, Preferences* prefs) {
+void startHttp(tr::App* app, SemaphoreHandle_t mutex) {
   g_app = app;
   g_mtx = mutex;
-  g_prefs = prefs;
   server.on("/", HTTP_GET, handleRoot);
-  server.on("/wifi", HTTP_POST, handleWifi);
   server.onNotFound(handleApi);  // mọi /api/* (route chi tiết nằm trong App::handleRequest)
   server.begin();
 }

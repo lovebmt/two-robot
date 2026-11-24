@@ -8,7 +8,7 @@
 
 namespace tr {
 
-const char* FW_VERSION = "0.3.6-esp32";
+const char* FW_VERSION = "0.3.7-esp32";
 
 App::App(Hal& h, const std::string& id_, const std::string& name_) : hal(h), params(h), id(id_), name(name_) {}
 

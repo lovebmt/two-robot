@@ -79,8 +79,8 @@ macOS có thể hỏi cho phép Python nhận kết nối đến (espota mở c�
 - `reboot`
 
 ## Chạy lần đầu (mỗi xe)
-1. Nạp firmware. Mở monitor: thấy `AP "TwoRobot-xxxxxx"`.
-2. Điện thoại/PC vào WiFi `TwoRobot-xxxxxx` (mật khẩu `tworobot`) → mở `http://192.168.4.1` → nhập WiFi → robot khởi động lại, monitor in IP.
+1. Nạp firmware có `src/secrets.h` (SSID/mật khẩu WiFi). Không còn chế độ AP cài đặt.
+2. Mở monitor để xem IP LAN. Khôi phục WiFi khẩn cấp qua USB: `wifi <ssid> <mật khẩu>` (lưu NVS, reboot).
 3. Web Control (`tworobot-server`) → **Thiết bị** → Quét subnet (hoặc nhập IP) → gán leader/follower.
 4. **Cấu hình**: nhập kích thước thật → **Save flash** (robot mới có cờ `CFG_DEFAULT` và từ chối chạy cho tới khi Save).
 5. **Kiểm tra chiều** (kê bánh lên): tab Chạy → jog nhẹ. Bánh quay ngược → bật `motor.invert_l/r`. Xe tiến mà `s` giảm → `enc.invert_l/r`. Quay trái mà góc giảm → `imu.invert_z`.
