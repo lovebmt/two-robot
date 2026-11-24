@@ -20,7 +20,7 @@ from .primitives import PRIMS, Prim
 from .rangeproc import RangeMeas, RangeProcessor
 from .tof_guard import TofAnomalyGuard
 
-FW_VERSION = "0.1.3-py"
+FW_VERSION = "0.1.4-py"
 
 # Trạng thái: IDLE → (PUT path, arm) → ARMED ⇄ RUNNING (có primitive) ; PAUSED ; JOG ; FAULT ; ESTOP
 RUN_STATES = ("ARMED", "RUNNING", "PAUSED")

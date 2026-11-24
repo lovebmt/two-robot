@@ -110,7 +110,7 @@ struct Config {
   float motion_settle_tol_deg = 2;  // ° Xe kẹt (đứng yên) trong khoảng này trước góc đích → coi như tới
   float motion_stall_time_s = 0.6f;  // s Đứng yên bao lâu thì coi là kẹt (áp dụng 2 ngưỡng trên)
   float motion_turn_tol_deg = 0.8f;  // ° Sai số chấp nhận khi quay
-  float gap_target_mm = 320;  // mm Gap tâm–tâm mong muốn trên đoạn thẳng
+  float gap_target_mm = 400;  // mm Gap tâm–tâm mong muốn trên đoạn thẳng
   float gap_hold_mm = 0;  // mm Gap chờ khi leader quay (0 = tự tính)
   float corner_exit_dist_mm = 0;  // mm Leader tiến thêm sau khi quay (0 = tự tính)
   float corner_follow_start_mm = 40;  // mm Leader ra khỏi góc bấy nhiêu thì follower bắt đầu tiến

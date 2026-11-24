@@ -86,3 +86,7 @@ def test_paramservice_save_and_reload():
     ps2 = ParamService(hal)
     assert ps2.active["gap.target_mm"] == 400
     assert not ps2.dirty()
+
+
+def test_default_pair_gap_is_400_mm():
+    assert P.shared_defaults()["gap.target_mm"] == 400

@@ -111,7 +111,7 @@
     {"key": "motion.stall_time_s",   "type": "float", "unit": "s",     "min": 0.1,"max": 5,    "default": 0.6, "group": "motion", "scope": "shared", "apply": "live", "desc": "Đứng yên bao lâu thì coi là kẹt (áp dụng 2 ngưỡng trên)"},
     {"key": "motion.turn_tol_deg",   "type": "float", "unit": "°",     "min": 0.1,"max": 10,   "default": 0.8, "group": "motion", "scope": "shared", "apply": "live", "desc": "Sai số chấp nhận khi quay"},
 
-    {"key": "gap.target_mm",         "type": "float", "unit": "mm", "min": 100, "max": 2000, "default": 320, "group": "gap", "scope": "shared", "apply": "live", "desc": "Gap tâm–tâm mong muốn trên đoạn thẳng"},
+    {"key": "gap.target_mm",         "type": "float", "unit": "mm", "min": 100, "max": 2000, "default": 400, "group": "gap", "scope": "shared", "apply": "live", "desc": "Gap tâm–tâm mong muốn trên đoạn thẳng"},
     {"key": "gap.hold_mm",           "type": "float", "unit": "mm", "min": 0,   "max": 2000, "default": 0,   "group": "gap", "scope": "shared", "apply": "idle", "desc": "Gap chờ khi leader quay (0 = tự tính)"},
 
     {"key": "corner.exit_dist_mm",   "type": "float", "unit": "mm", "min": 0,   "max": 2000, "default": 0,   "group": "corner", "scope": "shared", "apply": "idle", "desc": "Leader tiến thêm sau khi quay (0 = tự tính)"},
