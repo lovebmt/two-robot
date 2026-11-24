@@ -115,6 +115,7 @@
     {"key": "gap.hold_mm",           "type": "float", "unit": "mm", "min": 0,   "max": 2000, "default": 0,   "group": "gap", "scope": "shared", "apply": "idle", "desc": "Gap chờ khi leader quay (0 = tự tính)"},
 
     {"key": "corner.exit_dist_mm",   "type": "float", "unit": "mm", "min": 0,   "max": 2000, "default": 0,   "group": "corner", "scope": "shared", "apply": "idle", "desc": "Leader tiến thêm sau khi quay (0 = tự tính)"},
+    {"key": "corner.follow_start_mm","type": "float", "unit": "mm", "min": 0,   "max": 300,  "default": 40,  "group": "corner", "scope": "shared", "apply": "live", "desc": "Leader ra khỏi góc bấy nhiêu thì follower bắt đầu tiến"},
     {"key": "corner.margin_mm",      "type": "float", "unit": "mm", "min": 0,   "max": 200,  "default": 30,  "group": "corner", "scope": "shared", "apply": "idle", "desc": "Biên an toàn"},
     {"key": "corner.snapshot_n",     "type": "int",   "unit": "mẫu","min": 3,   "max": 100,  "default": 12,  "group": "corner", "scope": "shared", "apply": "live", "desc": "Số mẫu ToF khi SNAPSHOT"},
     {"key": "corner.align_tol_deg",  "type": "float", "unit": "°",  "min": 0.2, "max": 10,   "default": 1.5, "group": "corner", "scope": "shared", "apply": "live", "desc": "Ngưỡng căn song song"},

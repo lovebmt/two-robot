@@ -64,6 +64,12 @@ def test_one_tof_block_triggers_intrusion_stop():
     assert r["collisions"] == 0
 
 
+def test_follower_starts_during_leader_corner_exit():
+    r = asyncio.run(batch.run_scenario(batch.PRESETS["L"], seed=2))
+    assert r["ok"], r.get("error")
+    assert r["follower_starts_during_exit"] is True
+
+
 @pytest.mark.parametrize("path", ["L", "zigzag"])
 def test_solo_run_follows_drawn_path(path):
     """Chế độ 1 xe: leader chạy hết đường vẽ, dừng-quay tại góc gần đỉnh."""

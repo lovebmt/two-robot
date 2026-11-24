@@ -78,6 +78,7 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
     marks: dict[str, list] = {"L_turn": [], "F_turn": []}
     gap_err: list[float] = []
     min_gap = [1e9]
+    follower_starts_during_exit = [False]
     yaw_err = {"leader": 0.0, "follower": 0.0}
 
     def on_mark(tag, k):
@@ -101,6 +102,8 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
             min_gap[0] = min(min_gap[0], g)
             if msg["gap"]["target"] and abs(bl.v) > 0.8 * shared["motion.v_cruise"] and abs(bf.v) > 0.8 * shared["motion.v_cruise"]:
                 gap_err.append(g - msg["gap"]["target"])
+        if F is not None and sess is F and coord.step == 5 and abs(msg.get("est", {}).get("v", 0.0)) > 3.0:
+            follower_starts_during_exit[0] = True
     reg.on_tel = on_tel
 
     coord.start(path, L, F, shared)
@@ -128,6 +131,7 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         "gap_rmse_mm": None if rms is None else round(rms, 1),
         "gap_samples": len(gap_err),
         "min_center_gap_mm": round(min_gap[0], 1),
+        "follower_starts_during_exit": follower_starts_during_exit[0],
         "corner_err_mm": [round(e, 1) for e in corner_err],
         "yaw_est_err_max_deg": {k: round(v, 2) for k, v in yaw_err.items()},
         "leader_corner_err_mm": [round(e, 1) for e in leader_corner_err],

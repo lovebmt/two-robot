@@ -29,7 +29,10 @@ v_new = v + a_new·dt
 - `TURN` dùng cùng profile cho vận tốc góc, với giới hạn từ
   `motion.turn_acc_dps2`.
 - `FOLLOW` dùng profile cho vận tốc tiến; điều kiện dừng an toàn vẫn phanh ngay.
-- Không thêm tham số schema/UI.
+- Sau khi leader quay xong, follower bắt đầu tiến khi leader đã ra khỏi góc
+  `corner.follow_start_mm` (mặc định 40 mm), không chờ leader hoàn tất toàn bộ
+  `exit_dist`. Hai bước được chạy đồng thời sau điểm kích hoạt ngắn này.
+- Chỉ thêm `corner.follow_start_mm` vào nhóm tham số chung Corner; UI tự sinh ô nhập từ schema.
 
 ## Kiểm thử
 
