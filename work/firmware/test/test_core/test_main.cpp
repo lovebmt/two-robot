@@ -10,6 +10,7 @@
 #include "app.h"
 #include "gapkf.h"
 #include "mathutil.h"
+#include "motion_profile.h"
 #include "params.h"
 #include "paramsvc.h"
 #include "primitives.h"
@@ -121,6 +122,29 @@ void test_rangeproc_dpsi_sign() {
   RangeProcessor rp2;
   RangeMeas m2 = rp2.process(140, 0, 8190, 4, c, 40);
   TEST_ASSERT_EQUAL(+1, m2.edge);
+}
+
+void test_jerk_ramp_limits_acceleration_changes() {
+  JerkRamp ramp;
+  const float a_max = 250.f, dt = 0.01f, max_da = 4.f * a_max * dt;
+  float previous_a = ramp.acceleration();
+  float previous_v = 0.f;
+  for (int i = 0; i < 120; ++i) {
+    const float v = ramp.step(100.f, a_max, dt);
+    const float a = ramp.acceleration();
+    if (v < 100.f - 1e-6f) TEST_ASSERT_LESS_OR_EQUAL(max_da + 1e-5f, std::fabs(a - previous_a));
+    TEST_ASSERT_TRUE(v >= previous_v);
+    previous_v = v;
+    previous_a = a;
+  }
+  TEST_ASSERT_FLOAT_WITHIN(0.2f, 100.f, ramp.velocity());
+  previous_a = ramp.acceleration();
+  for (int i = 0; i < 120; ++i) {
+    const float v = ramp.step(0.f, a_max, dt);
+    if (v > 1e-6f) TEST_ASSERT_LESS_OR_EQUAL(max_da + 1e-5f, std::fabs(ramp.acceleration() - previous_a));
+    previous_a = ramp.acceleration();
+  }
+  TEST_ASSERT_FLOAT_WITHIN(0.2f, 0.f, ramp.velocity());
 }
 
 // tofFit trên mẫu tổng hợp: chùm rộng → d̄ phẳng quanh θ0 = 4°, c = −5 mm, b = 60
@@ -439,6 +463,7 @@ int main(int, char**) {
   RUN_TEST(test_paramservice_swap_idle_lock_and_persist);
   RUN_TEST(test_gapkf_tracks_leader_speed);
   RUN_TEST(test_rangeproc_dpsi_sign);
+  RUN_TEST(test_jerk_ramp_limits_acceleration_changes);
   RUN_TEST(test_tof_fit_synthetic);
   RUN_TEST(test_tof_fit_matches_python);
   RUN_TEST(test_app_imu_autocalib_and_arm_gate);
