@@ -1,7 +1,7 @@
 // Điểm vào: tabs, WebSocket, khởi tạo các trang.
 import { api, connectWS, guard, toast } from './api.js';
 import { initCalib } from './calib.js';
-import { initConfig } from './config.js';
+import { initConfig } from './config.js?v=gap-view-11';
 import { initDevices, refreshRobots } from './devices.js';
 import { initManual, stopManual } from './manual.js?v=tof-safe-10';
 import { initMap, validate } from './mapedit.js';
