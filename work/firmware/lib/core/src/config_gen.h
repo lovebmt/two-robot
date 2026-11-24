@@ -113,7 +113,8 @@ struct Config {
   float gap_target_mm = 400;  // mm Gap tâm–tâm mong muốn trên đoạn thẳng
   float gap_hold_mm = 0;  // mm Gap chờ khi leader quay (0 = tự tính)
   float corner_exit_dist_mm = 0;  // mm Leader tiến thêm sau khi quay (0 = tự tính)
-  float corner_follow_start_mm = 40;  // mm Leader ra khỏi góc bấy nhiêu thì follower bắt đầu tiến
+  float corner_follow_start_mm = 80;  // mm Leader ra khỏi góc bấy nhiêu thì follower bắt đầu tiến
+  float corner_follow_exit_vmax_mm_s = 60;  // mm/s Tốc độ tối đa của follower khi tiến theo leader thoát góc
   float corner_margin_mm = 30;  // mm Biên an toàn
   int32_t corner_snapshot_n = 12;  // mẫu Số mẫu ToF khi SNAPSHOT
   float corner_align_tol_deg = 1.5f;  // ° Ngưỡng căn song song

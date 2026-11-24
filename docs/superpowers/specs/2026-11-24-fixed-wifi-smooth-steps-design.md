@@ -30,9 +30,10 @@ v_new = v + a_new·dt
   `motion.turn_acc_dps2`.
 - `FOLLOW` dùng profile cho vận tốc tiến; điều kiện dừng an toàn vẫn phanh ngay.
 - Sau khi leader quay xong, follower bắt đầu tiến khi leader đã ra khỏi góc
-  `corner.follow_start_mm` (mặc định 40 mm), không chờ leader hoàn tất toàn bộ
-  `exit_dist`. Hai bước được chạy đồng thời sau điểm kích hoạt ngắn này.
-- Chỉ thêm `corner.follow_start_mm` vào nhóm tham số chung Corner; UI tự sinh ô nhập từ schema.
+  `corner.follow_start_mm` (mặc định 80 mm), không chờ leader hoàn tất toàn bộ
+  `exit_dist`. Follower giới hạn `corner.follow_exit_vmax_mm_s` (mặc định 60 mm/s)
+  trong đoạn thoát góc để tránh bắt kịp leader quá nhanh.
+- Thêm `corner.follow_start_mm` và `corner.follow_exit_vmax_mm_s` vào nhóm tham số chung Corner; UI tự sinh ô nhập từ schema.
 
 ## Kiểm thử
 

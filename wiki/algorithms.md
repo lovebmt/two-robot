@@ -164,7 +164,7 @@ v_cmd = clamp( v̂_L + kp_g·(ĝ − g*) + ki_g·∫(ĝ − g*) , 0 , v_max(s_F)
 | 2 | `HOLD` | **`SNAPSHOT`**: trung bình N mẫu, cho ra `ρ_k` và `Δψ_k` | `std < snap_std_max` |
 | 3 | `HOLD` | `ALIGN` nếu `|Δψ_k| > align_tol` (song song lại trước khi đi) | xong |
 | 4 | `TURN(±90)` | `HOLD` | xong |
-| 5 | `DRIVE_TO(s_k + exit_dist)` | Đứng chờ, rồi `DRIVE_TO(s_F + ρ_k)` sau khi leader ra khỏi góc `corner.follow_start_mm` | cả hai hoàn tất; follower dùng encoder vì cảm biến nhìn ra khoảng trống |
+| 5 | `DRIVE_TO(s_k + exit_dist)` | Đứng chờ, rồi `DRIVE_TO(s_F + ρ_k)` sau khi leader ra khỏi góc `corner.follow_start_mm`, giới hạn `corner.follow_exit_vmax_mm_s` | cả hai hoàn tất; follower dùng encoder vì cảm biến nhìn ra khoảng trống |
 | 6 | tiếp tục bước 5 | đồng bộ mốc quãng follower với leader | xong |
 | 7 | `HOLD` | `TURN(±90)` | xong |
 | 8 | `HOLD` | **`REACQUIRE(ρ_exp = exit_dist)`**: kiểm tra cả 2 chùm thấy leader, `|ρ − ρ_exp| < tol`. Nếu không thấy thì quét ±10° tìm hướng có `d̄` nhỏ nhất | thấy leader |

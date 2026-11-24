@@ -432,7 +432,9 @@ class Coordinator:
                 fut_l_exit = await self._start_prim(
                     L, "DRIVE_TO", s_end=res_l["s"] + form["exit_dist"], heading_deg=nxt["heading_deg"])
                 await self._wait_leader_exit(L, res_l["s"], sh["corner.follow_start_mm"], fut_l_exit)
-                fut_f_exit = await self._start_prim(F, "DRIVE_TO", s_end=snap["s"] + snap["rho"])
+                fut_f_exit = await self._start_prim(
+                    F, "DRIVE_TO", s_end=snap["s"] + snap["rho"],
+                    v_max=sh["corner.follow_exit_vmax_mm_s"])
                 await asyncio.gather(
                     self._wait(fut_l_exit, t_seg, f"{L.name} thoát góc"),
                     self._wait(fut_f_exit, t_seg, f"{F.name} tiến theo góc"),

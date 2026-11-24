@@ -79,6 +79,9 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
     gap_err: list[float] = []
     min_gap = [1e9]
     follower_starts_during_exit = [False]
+    exit_leader_start_s = [None]
+    exit_follow_start_progress = [None]
+    exit_follow_max_v = [0.0]
     yaw_err = {"leader": 0.0, "follower": 0.0}
 
     def on_mark(tag, k):
@@ -92,6 +95,15 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
     reg.on_event = coord.on_event
 
     def on_tel(sess, msg):
+        est = msg.get("est") or {}
+        if sess is L and coord.step == 5 and exit_leader_start_s[0] is None:
+            exit_leader_start_s[0] = float(est.get("s", 0.0))
+        if F is not None and sess is F and coord.step == 5:
+            exit_follow_max_v[0] = max(exit_follow_max_v[0], abs(float(est.get("v", 0.0))))
+            if abs(float(est.get("v", 0.0))) > 3.0 and exit_follow_start_progress[0] is None:
+                leader_est = (L.last_tel or {}).get("est") or {}
+                if exit_leader_start_s[0] is not None:
+                    exit_follow_start_progress[0] = float(leader_est.get("s", 0.0)) - exit_leader_start_s[0]
         if coord.phase == "RUN" and msg.get("truth"):
             e = abs(math.degrees(wrap(msg["est"]["yaw"] - msg["truth"]["yaw"])))
             role = "leader" if sess is L else "follower"
@@ -132,6 +144,8 @@ async def run_scenario(points, grid=GRID, seed: int = 1, mismatch: dict | None =
         "gap_samples": len(gap_err),
         "min_center_gap_mm": round(min_gap[0], 1),
         "follower_starts_during_exit": follower_starts_during_exit[0],
+        "exit_follow_start_progress_mm": round(exit_follow_start_progress[0] or 0.0, 1),
+        "exit_follow_max_v_mm_s": round(exit_follow_max_v[0], 1),
         "corner_err_mm": [round(e, 1) for e in corner_err],
         "yaw_est_err_max_deg": {k: round(v, 2) for k, v in yaw_err.items()},
         "leader_corner_err_mm": [round(e, 1) for e in leader_corner_err],

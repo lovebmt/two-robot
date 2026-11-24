@@ -91,6 +91,7 @@ const ParamMeta PARAMS[] = {
   {"gap.hold_mm", PType::Float, (uint16_t)offsetof(Config, gap_hold_mm), 0.0f, 2000.0f, G_GAP, true, true},
   {"corner.exit_dist_mm", PType::Float, (uint16_t)offsetof(Config, corner_exit_dist_mm), 0.0f, 2000.0f, G_CORNER, true, true},
   {"corner.follow_start_mm", PType::Float, (uint16_t)offsetof(Config, corner_follow_start_mm), 0.0f, 300.0f, G_CORNER, false, true},
+  {"corner.follow_exit_vmax_mm_s", PType::Float, (uint16_t)offsetof(Config, corner_follow_exit_vmax_mm_s), 20.0f, 300.0f, G_CORNER, false, true},
   {"corner.margin_mm", PType::Float, (uint16_t)offsetof(Config, corner_margin_mm), 0.0f, 200.0f, G_CORNER, true, true},
   {"corner.snapshot_n", PType::Int, (uint16_t)offsetof(Config, corner_snapshot_n), 3.0f, 100.0f, G_CORNER, false, true},
   {"corner.align_tol_deg", PType::Float, (uint16_t)offsetof(Config, corner_align_tol_deg), 0.2f, 10.0f, G_CORNER, false, true},
