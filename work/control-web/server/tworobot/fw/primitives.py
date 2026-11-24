@@ -9,6 +9,7 @@ import math
 from typing import TYPE_CHECKING
 
 from .mathutil import clamp, sign, wrap
+from .motion_profile import JerkRamp
 from .rangeproc import RangeMeas
 
 if TYPE_CHECKING:
@@ -71,7 +72,8 @@ class DriveTo(Prim):
         h = self.args.get("heading_deg")
         self.hold = math.radians(h) if h is not None else fw.heading.psi
         self.hint = [0.0]
-        self.v_prev = max(0.0, fw.drive.v_meas)
+        self.ramp = JerkRamp()
+        self.ramp.reset(max(0.0, fw.drive.v_meas))
         self.stall = 0.0
 
     def update(self, fw, dt):
@@ -86,11 +88,10 @@ class DriveTo(Prim):
             return BRAKE
         a, vc, app = cfg["motion.a_max"], cfg["motion.v_corner"], cfg["motion.approach_dist"]
         if rem > app:
-            v = min(self.v_max, math.sqrt(vc * vc + 2 * a * (rem - app)))
+            v_target = min(self.v_max, math.sqrt(vc * vc + 2 * a * (rem - app)))
         else:
-            v = max(min(vc, cfg["pid.pos_kp"] * rem), cfg["motor.v_min_reliable"])
-        v = min(v, self.v_prev + a * dt)
-        self.v_prev = v
+            v_target = max(min(vc, cfg["pid.pos_kp"] * rem), cfg["motor.v_min_reliable"])
+        v = clamp(self.ramp.step(v_target, a, dt), 0.0, self.v_max)
         return v, _heading_hold(fw, self.hold, self.hint, dt), False
 
 
@@ -109,7 +110,7 @@ class Turn(Prim):
         else:
             tgt = fw.heading.psi + math.radians(float(self.args.get("deg", 0.0)))
         self.target = wrap(tgt)
-        self.w_prev = 0.0
+        self.ramp = JerkRamp()
         self.settle = 0.0
         self.stall = 0.0
 
@@ -129,11 +130,10 @@ class Turn(Prim):
         self.settle = 0.0
         wmax = math.radians(cfg["motion.turn_rate_dps"])
         alpha = math.radians(cfg["motion.turn_acc_dps2"])
-        w = min(wmax, 0.8 * math.sqrt(2 * alpha * abs(e)))
-        w = max(w, turn_w_min(cfg))
-        w = min(w, abs(self.w_prev) + alpha * dt)
-        self.w_prev = w
-        return 0.0, sign(e) * w, False
+        w_target = min(wmax, 0.4 * math.sqrt(2 * alpha * abs(e)))
+        w_target = max(w_target, turn_w_min(cfg))
+        w = self.ramp.step(sign(e) * w_target, alpha, dt)
+        return 0.0, w, False
 
 
 class Hold(Prim):
@@ -159,7 +159,8 @@ class Follow(Prim):
         fresh = m is not None and m.valid and now - m.t_ms < 200
         fw.kf.reset(m.rho if fresh else self.g_t, 0.0, cfg["range.sigma_mm"])
         self.integ = 0.0
-        self.v_prev = max(0.0, fw.drive.v_meas)
+        self.ramp = JerkRamp()
+        self.ramp.reset(max(0.0, fw.drive.v_meas))
         self.dpsi_f = 0.0
         self.have_dpsi = False
         self.edge = 0
@@ -200,20 +201,20 @@ class Follow(Prim):
             kf.update_v(fw.relay[1], 40.0)
         e = kf.g - self.g_t
         self.integ = clamp(self.integ + cfg["follow.ki_g"] * e * dt, -60.0, 60.0)
-        v = kf.vL + cfg["follow.kp_g"] * e + self.integ
+        v_target = kf.vL + cfg["follow.kp_g"] * e + self.integ
         a = cfg["motion.a_max"]
-        v = clamp(v, 0.0, self.v_max)
-        v = min(v, self.v_prev + a * dt)
+        v_target = clamp(v_target, 0.0, self.v_max)
         if self.s_limit is not None:
             rem = float(self.s_limit) - fw.odo.s
             if rem <= cfg["motion.stop_tol_mm"]:
                 self.finish(s=fw.odo.s, gap=kf.g)
                 return BRAKE
-            v = min(v, math.sqrt(2 * a * rem))
+            v_target = min(v_target, math.sqrt(2 * a * rem))
         if kf.g < self.g_min:
-            v = 0.0
             self.integ = min(self.integ, 0.0)
-        self.v_prev = v
+            self.ramp.reset()
+            return BRAKE
+        v = self.ramp.step(v_target, a, dt)
         # Hướng: song song với leader theo Δψ (ToF); mất Δψ thì giữ hướng bằng gyro.
         self.dpsi_f -= fw.heading.w * dt
         if self.have_dpsi and now - self.last_dpsi_ms < 250:
