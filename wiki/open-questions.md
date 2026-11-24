@@ -31,7 +31,7 @@
 ## Còn mở (không chặn, có giả định)
 | # | Câu hỏi | Giả định |
 |---|---|---|
-| Q2 | Cách nạp WiFi cho xe | AP + trang cấu hình khi chưa có WiFi |
+| Q2 | Cách nạp WiFi cho xe | `secrets.h` biên dịch; NVS/console USB chỉ dùng khôi phục |
 | Q9 | Gap định nghĩa thế nào | Lưu tâm–tâm. UI cho nhập "khe hở mũi–đuôi" |
 | Q10 | Tốc độ, kích thước sân, ô lưới | 150 mm/s, 3×2 m, ô 100 mm |
 | Q13 | Ngôn ngữ server | Python FastAPI |

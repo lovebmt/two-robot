@@ -26,7 +26,7 @@ Ngoài phạm vi v1: tránh vật cản lạ (chỉ dừng khẩn cấp), địn
 ## 2. Yêu cầu chức năng
 
 ### 2.1 Dò tìm và kết nối
-- **F1** ESP32 tự vào WiFi đã lưu. Nếu chưa có WiFi hoặc không kết nối được thì xe phát AP `TwoRobot-XXXX` kèm trang nhập SSID/password.
+- **F1** ESP32 tự vào WiFi biên dịch trong `secrets.h`, ưu tiên trước WiFi dự phòng trong NVS. Không phát AP; nếu không kết nối được thì chạy offline và dùng console USB để khôi phục.
 - **F2** Web Control dò IP các xe trong LAN bằng **quét HTTP** `GET /api/info` (subnet, IP, IP:cổng, dải cổng). Mọi giao tiếp với robot thật là **HTTP** ([protocol.md](protocol.md), D25).
 - **F3** Danh sách xe: tên, MAC, IP, fw, pin, RSSI, độ trễ ping. Có nút **Identify** (nháy LED và cho bánh lắc nhẹ) để biết xe nào là xe nào.
 - **F4** Người dùng gán **LEADER** và **FOLLOWER**. Vai trò lưu ở cả PC và NVS của xe.

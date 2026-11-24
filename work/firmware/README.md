@@ -17,7 +17,7 @@ lib/core/src/        C++17 thuần, KHÔNG phụ thuộc Arduino → test đư�
 src/
   board/pins.h       GPIO CỐ ĐỊNH (⚠ kiểm tra theo dây thật)
   hal_esp32.*        L298N (LEDC), encoder (PCNT x4), MPU6050 (I2C 21/22), 2× VL53L0X (I2C 25/26 + XSHUT), LittleFS, NVS
-  net.*              WiFi STA / AP cài WiFi, WebServer cổng 80
+  net.*              WiFi STA cố định/NVS, WebServer cổng 80
   main.cpp           task: control 100 Hz (core 1), range ~30 Hz (core 1), http (core 0)
 test/test_core/      test native: params, KF, ToF, App; ĐỐI CHIẾU với Python (test/vectors/*.json)
 tools/gen_vectors.py sinh dữ liệu đối chiếu từ firmware ảo Python
@@ -75,7 +75,7 @@ macOS có thể hỏi cho phép Python nhận kết nối đến (espota mở c�
 - `status`: số đo 2 ToF, hướng/bias/nhiệt độ gyro, tick encoder, tốc độ bánh, trạng thái.
 - `watch`: bật/tắt in `status` 2 lần/giây.
 - Log 10 s/lần và log OTA cũng hiện trên telnet.
-- `wifi <ssid> <mật khẩu>`: lưu WiFi rồi khởi động lại (không cần vào AP).
+- `wifi <ssid> <mật khẩu>`: lưu WiFi dự phòng vào NVS rồi khởi động lại.
 - `reboot`
 
 ## Chạy lần đầu (mỗi xe)
