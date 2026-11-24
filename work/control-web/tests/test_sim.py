@@ -37,7 +37,29 @@ def test_tof_block_triggers_safe_stop():
             batch.SimEngine.step = orig
     r = asyncio.run(scenario())
     assert not r["ok"]
-    assert "LEADER_LOST" in (r["error"] or "") or "TOO" in (r["error"] or "")
+    assert "OBSTACLE_INTRUSION" in (r["error"] or "")
+    assert r["collisions"] == 0
+
+
+def test_one_tof_block_triggers_intrusion_stop():
+    """Một mắt đột ngột báo vật gần cũng phải dừng cả hệ thống, không chỉ lái theo mắt còn lại."""
+    async def scenario():
+        orig = batch.SimEngine.step
+        state = {"done": False}
+
+        def step(self):
+            if not state["done"] and self.t > 6.0:
+                self.inject("tof_block", "sim-b", side="l", dur=3.0)
+                state["done"] = True
+            orig(self)
+        batch.SimEngine.step = step
+        try:
+            return await batch.run_scenario(batch.PRESETS["line"], seed=1)
+        finally:
+            batch.SimEngine.step = orig
+    r = asyncio.run(scenario())
+    assert not r["ok"]
+    assert "OBSTACLE_INTRUSION" in (r["error"] or "")
     assert r["collisions"] == 0
 
 

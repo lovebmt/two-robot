@@ -240,6 +240,46 @@ void test_app_unknown_route_and_config() {
   TEST_ASSERT_TRUE(h.flash.find("\"gap.target_mm\":400") != std::string::npos);
 }
 
+void test_app_tof_guard_faults_only_during_follow() {
+  FakeHal h;
+  App a(h, "guard", "guard");
+  a.begin();
+  JsonDocument saved;
+  a.params.save(saved.to<JsonObject>());
+  a.role = h.role = "follower";
+  JsonDocument path, out;
+  path["path_id"] = 20;
+  path["start"]["x"] = 500; path["start"]["y"] = 300; path["start"]["yaw_deg"] = 0;
+  path["follower"]["start"]["x"] = 200; path["follower"]["start"]["y"] = 300;
+  path["follower"]["start"]["yaw_deg"] = 0; path["follower"]["start_s"] = -300;
+  path["formation"]["leader_rear_mm"] = 40;
+  TEST_ASSERT_EQUAL(200, a.handleRequest("PUT", "/api/path", path.as<JsonObjectConst>(), out));
+  runTicks(a, h, 3.0f);
+  JsonDocument arm, armOut;
+  arm["op"] = "arm";
+  a.handleCmd(arm.as<JsonObjectConst>(), armOut.to<JsonObject>());
+  TEST_ASSERT_EQUAL_STRING("ARMED", a.state.c_str());
+  JsonDocument prim, primOut;
+  prim["op"] = "prim"; prim["id"] = 5; prim["prim"] = "FOLLOW";
+  prim["g_target"] = 320; prim["gap_min_safe"] = 175;
+  a.handleCmd(prim.as<JsonObjectConst>(), primOut.to<JsonObject>());
+  TEST_ASSERT_EQUAL_STRING("RUNNING", a.state.c_str());
+  for (int i = 0; i < 3; ++i) a.onRange(300, 0, 302, 0);
+  a.onRange(15, 0, 302, 0);
+  a.onRange(15, 0, 302, 0);
+  TEST_ASSERT_EQUAL_STRING("FAULT", a.state.c_str());
+  TEST_ASSERT_EQUAL_STRING("OBSTACLE_INTRUSION", a.fault.c_str());
+
+  FakeHal idleHal;
+  App idle(idleHal, "idle", "idle");
+  idle.begin();
+  for (int i = 0; i < 3; ++i) idle.onRange(300, 0, 302, 0);
+  idle.onRange(15, 0, 302, 0);
+  idle.onRange(15, 0, 302, 0);
+  TEST_ASSERT_EQUAL_STRING("IDLE", idle.state.c_str());
+  TEST_ASSERT_TRUE(idle.fault.empty());
+}
+
 // Hợp đồng API: mọi khoá JSON firmware Python trả về (server/UI đọc) phải có trong bản C++
 static bool hasPath(JsonVariantConst v, const std::string& path) {
   size_t i = 0;
@@ -404,6 +444,7 @@ int main(int, char**) {
   RUN_TEST(test_app_imu_autocalib_and_arm_gate);
   RUN_TEST(test_app_state_events_and_link_loss);
   RUN_TEST(test_app_unknown_route_and_config);
+  RUN_TEST(test_app_tof_guard_faults_only_during_follow);
   RUN_TEST(test_api_contract_matches_python);
   RUN_TEST(test_wheel_stall_boost_and_kbreak);
   RUN_TEST(test_pause_in_idle_does_not_stick);

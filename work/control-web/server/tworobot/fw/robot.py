@@ -18,6 +18,7 @@ from .hal import Hal
 from .paramsvc import ParamService
 from .primitives import PRIMS, Prim
 from .rangeproc import RangeMeas, RangeProcessor
+from .tof_guard import TofAnomalyGuard
 
 FW_VERSION = "0.1.0-py"
 
@@ -43,6 +44,7 @@ class VirtualFirmware:
         self.heading = HeadingEstimator()
         self.odo = Odometry()
         self.rangep = RangeProcessor()
+        self.tof_guard = TofAnomalyGuard()
         self.kf = GapKF()
         self.meas: RangeMeas | None = None
         self.raw_tof = {"l": (0.0, 4), "r": (0.0, 4)}
@@ -167,10 +169,14 @@ class VirtualFirmware:
 
     def on_range(self, l_mm: float, l_st: int, r_mm: float, r_st: int) -> None:
         self.raw_tof = {"l": (l_mm, l_st), "r": (r_mm, r_st)}
-        m = self.rangep.process(l_mm, l_st, r_mm, r_st, self.params.active, self.range_rear())
+        cfg = self.params.active
+        m = self.rangep.process(l_mm, l_st, r_mm, r_st, cfg, self.range_rear())
         m.t_ms = self.hal.now_ms()
         self.meas = m
         if self.prim is not None and self.state == "RUNNING" and not self.paused:
+            if self.prim.name == "FOLLOW" and self.tof_guard.update(l_mm, l_st, r_mm, r_st, cfg):
+                self.raise_fault("OBSTACLE_INTRUSION")
+                return
             self.prim.on_range(self, m)
 
     def _on_params(self, groups: set[str]) -> None:
@@ -463,6 +469,8 @@ class VirtualFirmware:
             p.from_idle = from_idle
             self.prim = p
             self.state = "RUNNING"
+            if p.name == "FOLLOW":
+                self.tof_guard.reset()
             p.start(self)
             self._ack(msg)
             if p.done:

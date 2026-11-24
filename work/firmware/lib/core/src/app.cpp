@@ -126,6 +126,11 @@ void App::onRange(float l_mm, int l_st, float r_mm, int r_st) {
   meas = rangep.process(l_mm, l_st, r_mm, r_st, c, leader_rear_ >= 0 ? leader_rear_ : c.body_axle_to_rear_mm);
   meas.t_ms = hal.nowMs();
   has_meas = true;
+  if (prim_ && state == "RUNNING" && !paused && !std::strcmp(prim_->name, "FOLLOW")
+      && tof_guard.update(l_mm, l_st, r_mm, r_st, c)) {
+    raiseFault("OBSTACLE_INTRUSION");
+    return;
+  }
   if (prim_ && state == "RUNNING" && !paused) prim_->onRange(*this, meas);
 }
 
@@ -321,6 +326,7 @@ void App::startPrim_(JsonObjectConst cmd, JsonObject out) {
   }
   prim_ = std::move(p);
   state = "RUNNING";
+  if (!std::strcmp(prim_->name, "FOLLOW")) tof_guard.reset();
   prim_->start(*this);
   out["ok"] = true;
   if (prim_->done) finishPrim_();
