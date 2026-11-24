@@ -103,6 +103,8 @@ const ParamMeta PARAMS[] = {
   {"start.front_clear_mm", PType::Float, (uint16_t)offsetof(Config, start_front_clear_mm), 50.0f, 2000.0f, G_START, false, true},
   {"safety.allow_tune_while_running", PType::Bool, (uint16_t)offsetof(Config, safety_allow_tune_while_running), 0.0f, 1.0f, G_SAFETY, false, false},
   {"safety.link_timeout_ms", PType::Int, (uint16_t)offsetof(Config, safety_link_timeout_ms), 100.0f, 5000.0f, G_SAFETY, false, false},
+  {"safety.tof_anomaly_jump_mm", PType::Float, (uint16_t)offsetof(Config, safety_tof_anomaly_jump_mm), 20.0f, 600.0f, G_SAFETY, false, false},
+  {"safety.tof_anomaly_samples", PType::Int, (uint16_t)offsetof(Config, safety_tof_anomaly_samples), 1.0f, 10.0f, G_SAFETY, false, false},
 };
 const size_t PARAM_COUNT = sizeof(PARAMS) / sizeof(PARAMS[0]);
 

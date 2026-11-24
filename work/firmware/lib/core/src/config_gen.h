@@ -126,6 +126,8 @@ struct Config {
   float start_front_clear_mm = 250;  // mm Phía trước xe đầu phải trống ít nhất bấy nhiêu
   bool safety_allow_tune_while_running = true;  //  Cho chỉnh tham số live khi đang chạy
   int32_t safety_link_timeout_ms = 1500;  // ms Mất heartbeat PC → phanh
+  float safety_tof_anomaly_jump_mm = 120;  // mm Một mắt ToF ngắn đột ngột quá ngưỡng → dừng
+  int32_t safety_tof_anomaly_samples = 2;  // mẫu Số mẫu bất thường liên tiếp để báo vật cản
 };
 
 struct ParamMeta {

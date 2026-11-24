@@ -128,6 +128,8 @@
     {"key": "start.align_dpsi_deg",  "type": "float", "unit": "°",  "min": 0.2,"max": 10,  "default": 1.5, "group": "start", "scope": "shared", "apply": "live", "desc": "Xe sau lệch góc quá mức này → tự ALIGN trước khi chạy"},
     {"key": "start.front_clear_mm",  "type": "float", "unit": "mm", "min": 50, "max": 2000,"default": 250, "group": "start", "scope": "shared", "apply": "live", "desc": "Phía trước xe đầu phải trống ít nhất bấy nhiêu"},
     {"key": "safety.allow_tune_while_running", "type": "bool", "unit": "", "default": true, "group": "safety", "scope": "robot", "apply": "live", "desc": "Cho chỉnh tham số live khi đang chạy"},
-    {"key": "safety.link_timeout_ms","type": "int", "unit": "ms", "min": 100, "max": 5000, "default": 1500, "group": "safety", "scope": "robot", "apply": "live", "desc": "Mất heartbeat PC → phanh"}
+    {"key": "safety.link_timeout_ms","type": "int", "unit": "ms", "min": 100, "max": 5000, "default": 1500, "group": "safety", "scope": "robot", "apply": "live", "desc": "Mất heartbeat PC → phanh"},
+    {"key": "safety.tof_anomaly_jump_mm", "type": "float", "unit": "mm", "default": 120, "min": 20, "max": 600, "group": "safety", "scope": "robot", "apply": "live", "desc": "Một mắt ToF ngắn đột ngột quá ngưỡng → dừng"},
+    {"key": "safety.tof_anomaly_samples", "type": "int", "unit": "mẫu", "default": 2, "min": 1, "max": 10, "group": "safety", "scope": "robot", "apply": "live", "desc": "Số mẫu bất thường liên tiếp để báo vật cản"}
   ]
 }

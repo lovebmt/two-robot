@@ -14,6 +14,7 @@
 #include "paramsvc.h"
 #include "primitives.h"
 #include "rangeproc.h"
+#include "tof_guard.h"
 
 using namespace tr;
 
@@ -330,6 +331,47 @@ void test_solo_path_ignores_role() {
   TEST_ASSERT_EQUAL(400, a.handleRequest("PUT", "/api/path", p.as<JsonObjectConst>(), out3));  // 2 xe: cần vai trò
 }
 
+static void armTofGuard(TofAnomalyGuard& guard, const Config& c) {
+  for (int i = 0; i < 3; ++i) {
+    TEST_ASSERT_FALSE(guard.update(300, 0, 302, 0, c));
+  }
+}
+
+void test_tof_guard_ignores_gradual_change() {
+  Config c;
+  TofAnomalyGuard g;
+  armTofGuard(g, c);
+  for (float mm : {280.f, 260.f, 240.f, 220.f, 200.f}) {
+    TEST_ASSERT_FALSE(g.update(mm, 0, mm + 2, 0, c));
+  }
+}
+
+void test_tof_guard_trips_one_or_both_eyes() {
+  Config c;
+  TofAnomalyGuard one;
+  armTofGuard(one, c);
+  TEST_ASSERT_FALSE(one.update(170, 0, 302, 0, c));
+  TEST_ASSERT_TRUE(one.update(170, 0, 302, 0, c));
+
+  TofAnomalyGuard both;
+  armTofGuard(both, c);
+  TEST_ASSERT_FALSE(both.update(170, 0, 172, 0, c));
+  TEST_ASSERT_TRUE(both.update(170, 0, 172, 0, c));
+}
+
+void test_tof_guard_trips_on_signal_loss() {
+  Config c;
+  TofAnomalyGuard one;
+  armTofGuard(one, c);
+  TEST_ASSERT_FALSE(one.update(300, 0, 8190, 4, c));
+  TEST_ASSERT_TRUE(one.update(300, 0, 8190, 4, c));
+
+  TofAnomalyGuard both;
+  armTofGuard(both, c);
+  TEST_ASSERT_FALSE(both.update(8190, 4, 8190, 4, c));
+  TEST_ASSERT_TRUE(both.update(8190, 4, 8190, 4, c));
+}
+
 // Bánh kẹt ma sát tĩnh (lệnh 15 mm/s, đo 0): phải đẩy vượt trần PI cũ (~4.5 V); kbreak cấp ngay từ đầu
 static float stallVolts(const Config& c, float seconds) {
   WheelController wc('l');
@@ -366,5 +408,8 @@ int main(int, char**) {
   RUN_TEST(test_wheel_stall_boost_and_kbreak);
   RUN_TEST(test_pause_in_idle_does_not_stick);
   RUN_TEST(test_solo_path_ignores_role);
+  RUN_TEST(test_tof_guard_ignores_gradual_change);
+  RUN_TEST(test_tof_guard_trips_one_or_both_eyes);
+  RUN_TEST(test_tof_guard_trips_on_signal_loss);
   return UNITY_END();
 }
