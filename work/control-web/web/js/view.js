@@ -2,7 +2,7 @@
 import { api, guard, toast } from './api.js';
 import { Chart } from './charts.js';
 import { cssVar, drawGrid, drawPath, drawRays, drawRobot, fitCanvas, makeTransform } from './draw.js';
-import { on, store } from './store.js';
+import { emit, on, store } from './store.js';
 
 const $ = (id) => document.getElementById(id);
 const DEG = 180 / Math.PI;
@@ -46,6 +46,7 @@ function n(v, d = 0) { return v === null || v === undefined || Number.isNaN(v) ?
 
 export function onFrame(f) {
   store.frame = f;
+  emit('frame', f);
   if (lastT !== null && f.t < lastT - 0.5) { trails.clear(); charts && Object.values(charts).forEach((c) => c.clear()); }
   lastT = f.t;
   for (const r of f.robots) {
@@ -86,7 +87,10 @@ function addEvent(e) {
   else if (e.kind === 'calib_done') txt = e.ok
     ? `calib IMU xong: bias ${n(e.result.bias_dps, 2)}°/s, nhiễu ${n(e.result.std_dps, 3)}°/s${e.result.restarts ? `, làm lại ${e.result.restarts} lần` : ''}`
     : `calib IMU LỖI: ${e.err}`;
-  else if (e.kind === 'fault') txt = `FAULT ${e.code}`;
+  else if (e.kind === 'fault' && e.code === 'OBSTACLE_INTRUSION') {
+    txt = 'Vật cản/bất thường ToF giữa 2 xe — hệ thống đã dừng';
+    toast(txt, 'err');
+  } else if (e.kind === 'fault') txt = `FAULT ${e.code}`;
   else if (e.kind === 'nack') txt = `NACK ${e.err}`;
   if (e.kind === 'prim_done' && e.err === 'preempted') return;
   li.textContent = `${n(e.t, 1).padStart(6)} ${e.robot}: ${txt}`;

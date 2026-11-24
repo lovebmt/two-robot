@@ -266,6 +266,24 @@ class Coordinator:
                 return False
         return True
 
+    async def _wait_leader_exit(self, sess: RobotSession, start_s: float, distance: float,
+                                leader_future: asyncio.Future, timeout: float = 3.0) -> None:
+        """Chờ leader ra khỏi góc một đoạn ngắn trước khi follower cùng tiến."""
+        elapsed, last = 0.0, self.clock()
+        target = start_s + max(0.0, distance)
+        while not leader_future.done():
+            est = (sess.last_tel or {}).get("est") or {}
+            if float(est.get("s", start_s)) >= target:
+                return
+            await asyncio.sleep(self.poll)
+            now = self.clock()
+            elapsed += now - last
+            last = now
+            if self._fault:
+                raise RunFault(self._fault)
+            if elapsed > timeout:
+                raise RunFault(f"{sess.name}: leader không ra khỏi góc đủ {distance:.0f} mm")
+
     async def _prim_raw(self, sess: RobotSession, prim: str, timeout: float = 20.0, **args) -> dict:
         """Chạy primitive, trả nguyên bản tin prim_done (không ném lỗi khi ok=False)."""
         fut = await self._start_prim(sess, prim, **args)
@@ -410,11 +428,18 @@ class Coordinator:
                 self._set(i, 4)
                 self.on_mark("L_turn", i)
                 await self._prim(L, "TURN", heading_deg=nxt["heading_deg"])
-                self._set(i, 5)
-                await self._prim(L, "DRIVE_TO", s_end=res_l["s"] + form["exit_dist"], heading_deg=nxt["heading_deg"])
-
-                self._set(i, 6)
-                await self._prim(F, "DRIVE_TO", s_end=snap["s"] + snap["rho"])
+                self._set(i, 5, f"Góc {i + 1}: leader ra khỏi góc; follower cùng tiến")
+                fut_l_exit = await self._start_prim(
+                    L, "DRIVE_TO", s_end=res_l["s"] + form["exit_dist"], heading_deg=nxt["heading_deg"])
+                await self._wait_leader_exit(L, res_l["s"], sh["corner.follow_start_mm"], fut_l_exit)
+                fut_f_exit = await self._start_prim(
+                    F, "DRIVE_TO", s_end=snap["s"] + snap["rho"],
+                    v_max=sh["corner.follow_exit_vmax_mm_s"])
+                await asyncio.gather(
+                    self._wait(fut_l_exit, t_seg, f"{L.name} thoát góc"),
+                    self._wait(fut_f_exit, t_seg, f"{F.name} tiến theo góc"),
+                )
+                self._set(i, 6, f"Góc {i + 1}: đồng bộ quãng theo mốc ρ={snap['rho']:.0f} mm")
                 await self._cmd(F, "set_s", s=res_l["s"])
                 self.on_mark("F_turn", i)
                 self._set(i, 7)

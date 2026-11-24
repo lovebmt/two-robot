@@ -10,10 +10,12 @@
 #include "app.h"
 #include "gapkf.h"
 #include "mathutil.h"
+#include "motion_profile.h"
 #include "params.h"
 #include "paramsvc.h"
 #include "primitives.h"
 #include "rangeproc.h"
+#include "tof_guard.h"
 
 using namespace tr;
 
@@ -120,6 +122,29 @@ void test_rangeproc_dpsi_sign() {
   RangeProcessor rp2;
   RangeMeas m2 = rp2.process(140, 0, 8190, 4, c, 40);
   TEST_ASSERT_EQUAL(+1, m2.edge);
+}
+
+void test_jerk_ramp_limits_acceleration_changes() {
+  JerkRamp ramp;
+  const float a_max = 250.f, dt = 0.01f, max_da = 4.f * a_max * dt;
+  float previous_a = ramp.acceleration();
+  float previous_v = 0.f;
+  for (int i = 0; i < 120; ++i) {
+    const float v = ramp.step(100.f, a_max, dt);
+    const float a = ramp.acceleration();
+    if (v < 100.f - 1e-6f) TEST_ASSERT_LESS_OR_EQUAL(max_da + 1e-5f, std::fabs(a - previous_a));
+    TEST_ASSERT_TRUE(v >= previous_v);
+    previous_v = v;
+    previous_a = a;
+  }
+  TEST_ASSERT_FLOAT_WITHIN(0.2f, 100.f, ramp.velocity());
+  previous_a = ramp.acceleration();
+  for (int i = 0; i < 120; ++i) {
+    const float v = ramp.step(0.f, a_max, dt);
+    if (v > 1e-6f) TEST_ASSERT_LESS_OR_EQUAL(max_da + 1e-5f, std::fabs(ramp.acceleration() - previous_a));
+    previous_a = ramp.acceleration();
+  }
+  TEST_ASSERT_FLOAT_WITHIN(0.2f, 0.f, ramp.velocity());
 }
 
 // tofFit trên mẫu tổng hợp: chùm rộng → d̄ phẳng quanh θ0 = 4°, c = −5 mm, b = 60
@@ -239,6 +264,46 @@ void test_app_unknown_route_and_config() {
   TEST_ASSERT_TRUE(h.flash.find("\"gap.target_mm\":400") != std::string::npos);
 }
 
+void test_app_tof_guard_faults_only_during_follow() {
+  FakeHal h;
+  App a(h, "guard", "guard");
+  a.begin();
+  JsonDocument saved;
+  a.params.save(saved.to<JsonObject>());
+  a.role = h.role = "follower";
+  JsonDocument path, out;
+  path["path_id"] = 20;
+  path["start"]["x"] = 500; path["start"]["y"] = 300; path["start"]["yaw_deg"] = 0;
+  path["follower"]["start"]["x"] = 200; path["follower"]["start"]["y"] = 300;
+  path["follower"]["start"]["yaw_deg"] = 0; path["follower"]["start_s"] = -300;
+  path["formation"]["leader_rear_mm"] = 40;
+  TEST_ASSERT_EQUAL(200, a.handleRequest("PUT", "/api/path", path.as<JsonObjectConst>(), out));
+  runTicks(a, h, 3.0f);
+  JsonDocument arm, armOut;
+  arm["op"] = "arm";
+  a.handleCmd(arm.as<JsonObjectConst>(), armOut.to<JsonObject>());
+  TEST_ASSERT_EQUAL_STRING("ARMED", a.state.c_str());
+  JsonDocument prim, primOut;
+  prim["op"] = "prim"; prim["id"] = 5; prim["prim"] = "FOLLOW";
+  prim["g_target"] = 320; prim["gap_min_safe"] = 175;
+  a.handleCmd(prim.as<JsonObjectConst>(), primOut.to<JsonObject>());
+  TEST_ASSERT_EQUAL_STRING("RUNNING", a.state.c_str());
+  for (int i = 0; i < 3; ++i) a.onRange(300, 0, 302, 0);
+  a.onRange(15, 0, 302, 0);
+  a.onRange(15, 0, 302, 0);
+  TEST_ASSERT_EQUAL_STRING("FAULT", a.state.c_str());
+  TEST_ASSERT_EQUAL_STRING("OBSTACLE_INTRUSION", a.fault.c_str());
+
+  FakeHal idleHal;
+  App idle(idleHal, "idle", "idle");
+  idle.begin();
+  for (int i = 0; i < 3; ++i) idle.onRange(300, 0, 302, 0);
+  idle.onRange(15, 0, 302, 0);
+  idle.onRange(15, 0, 302, 0);
+  TEST_ASSERT_EQUAL_STRING("IDLE", idle.state.c_str());
+  TEST_ASSERT_TRUE(idle.fault.empty());
+}
+
 // Hợp đồng API: mọi khoá JSON firmware Python trả về (server/UI đọc) phải có trong bản C++
 static bool hasPath(JsonVariantConst v, const std::string& path) {
   size_t i = 0;
@@ -330,6 +395,47 @@ void test_solo_path_ignores_role() {
   TEST_ASSERT_EQUAL(400, a.handleRequest("PUT", "/api/path", p.as<JsonObjectConst>(), out3));  // 2 xe: cần vai trò
 }
 
+static void armTofGuard(TofAnomalyGuard& guard, const Config& c) {
+  for (int i = 0; i < 3; ++i) {
+    TEST_ASSERT_FALSE(guard.update(300, 0, 302, 0, c));
+  }
+}
+
+void test_tof_guard_ignores_gradual_change() {
+  Config c;
+  TofAnomalyGuard g;
+  armTofGuard(g, c);
+  for (float mm : {280.f, 260.f, 240.f, 220.f, 200.f}) {
+    TEST_ASSERT_FALSE(g.update(mm, 0, mm + 2, 0, c));
+  }
+}
+
+void test_tof_guard_trips_one_or_both_eyes() {
+  Config c;
+  TofAnomalyGuard one;
+  armTofGuard(one, c);
+  TEST_ASSERT_FALSE(one.update(170, 0, 302, 0, c));
+  TEST_ASSERT_TRUE(one.update(170, 0, 302, 0, c));
+
+  TofAnomalyGuard both;
+  armTofGuard(both, c);
+  TEST_ASSERT_FALSE(both.update(170, 0, 172, 0, c));
+  TEST_ASSERT_TRUE(both.update(170, 0, 172, 0, c));
+}
+
+void test_tof_guard_trips_on_signal_loss() {
+  Config c;
+  TofAnomalyGuard one;
+  armTofGuard(one, c);
+  TEST_ASSERT_FALSE(one.update(300, 0, 8190, 4, c));
+  TEST_ASSERT_TRUE(one.update(300, 0, 8190, 4, c));
+
+  TofAnomalyGuard both;
+  armTofGuard(both, c);
+  TEST_ASSERT_FALSE(both.update(8190, 4, 8190, 4, c));
+  TEST_ASSERT_TRUE(both.update(8190, 4, 8190, 4, c));
+}
+
 // Bánh kẹt ma sát tĩnh (lệnh 15 mm/s, đo 0): phải đẩy vượt trần PI cũ (~4.5 V); kbreak cấp ngay từ đầu
 static float stallVolts(const Config& c, float seconds) {
   WheelController wc('l');
@@ -357,14 +463,19 @@ int main(int, char**) {
   RUN_TEST(test_paramservice_swap_idle_lock_and_persist);
   RUN_TEST(test_gapkf_tracks_leader_speed);
   RUN_TEST(test_rangeproc_dpsi_sign);
+  RUN_TEST(test_jerk_ramp_limits_acceleration_changes);
   RUN_TEST(test_tof_fit_synthetic);
   RUN_TEST(test_tof_fit_matches_python);
   RUN_TEST(test_app_imu_autocalib_and_arm_gate);
   RUN_TEST(test_app_state_events_and_link_loss);
   RUN_TEST(test_app_unknown_route_and_config);
+  RUN_TEST(test_app_tof_guard_faults_only_during_follow);
   RUN_TEST(test_api_contract_matches_python);
   RUN_TEST(test_wheel_stall_boost_and_kbreak);
   RUN_TEST(test_pause_in_idle_does_not_stick);
   RUN_TEST(test_solo_path_ignores_role);
+  RUN_TEST(test_tof_guard_ignores_gradual_change);
+  RUN_TEST(test_tof_guard_trips_one_or_both_eyes);
+  RUN_TEST(test_tof_guard_trips_on_signal_loss);
   return UNITY_END();
 }

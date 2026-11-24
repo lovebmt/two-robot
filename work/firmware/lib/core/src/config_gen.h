@@ -110,9 +110,11 @@ struct Config {
   float motion_settle_tol_deg = 2;  // ° Xe kẹt (đứng yên) trong khoảng này trước góc đích → coi như tới
   float motion_stall_time_s = 0.6f;  // s Đứng yên bao lâu thì coi là kẹt (áp dụng 2 ngưỡng trên)
   float motion_turn_tol_deg = 0.8f;  // ° Sai số chấp nhận khi quay
-  float gap_target_mm = 320;  // mm Gap tâm–tâm mong muốn trên đoạn thẳng
+  float gap_target_mm = 400;  // mm Gap tâm–tâm mong muốn trên đoạn thẳng
   float gap_hold_mm = 0;  // mm Gap chờ khi leader quay (0 = tự tính)
   float corner_exit_dist_mm = 0;  // mm Leader tiến thêm sau khi quay (0 = tự tính)
+  float corner_follow_start_mm = 80;  // mm Leader ra khỏi góc bấy nhiêu thì follower bắt đầu tiến
+  float corner_follow_exit_vmax_mm_s = 60;  // mm/s Tốc độ tối đa của follower khi tiến theo leader thoát góc
   float corner_margin_mm = 30;  // mm Biên an toàn
   int32_t corner_snapshot_n = 12;  // mẫu Số mẫu ToF khi SNAPSHOT
   float corner_align_tol_deg = 1.5f;  // ° Ngưỡng căn song song
@@ -126,6 +128,8 @@ struct Config {
   float start_front_clear_mm = 250;  // mm Phía trước xe đầu phải trống ít nhất bấy nhiêu
   bool safety_allow_tune_while_running = true;  //  Cho chỉnh tham số live khi đang chạy
   int32_t safety_link_timeout_ms = 1500;  // ms Mất heartbeat PC → phanh
+  float safety_tof_anomaly_jump_mm = 120;  // mm Một mắt ToF ngắn đột ngột quá ngưỡng → dừng
+  int32_t safety_tof_anomaly_samples = 2;  // mẫu Số mẫu bất thường liên tiếp để báo vật cản
 };
 
 struct ParamMeta {

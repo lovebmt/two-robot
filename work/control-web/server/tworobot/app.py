@@ -280,6 +280,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="two-robot Web Control", version=__version__, lifespan=lifespan)
 
 
+@app.middleware("http")
+async def no_store_api(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 def _sess(rid: str) -> RobotSession:
     try:
         return S.reg.get(rid)
@@ -365,11 +373,33 @@ async def identify(rid: str):
     return await _req(_sess(rid), "POST", "/api/identify")
 
 
+def manual_jog_motion(body: dict) -> tuple[float, float]:
+    try:
+        v = float(body.get("v", 0.0))
+        w = float(body.get("w", 0.0))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "v/w phải là số") from None
+    if not math.isfinite(v) or not math.isfinite(w):
+        raise HTTPException(400, "v/w phải hữu hạn")
+    return max(-150.0, min(150.0, v)), max(-2.0, min(2.0, w))
+
+
 @app.post("/api/robots/{rid}/jog")
 async def jog(rid: str, body: dict = Body(...)):
     s = _sess(rid)
+    v, w = manual_jog_motion(body)
     try:
-        await s.link.send({"t": "cmd", "op": "jog", "v": float(body.get("v", 0)), "w": float(body.get("w", 0))})
+        await s.link.send({"t": "cmd", "op": "jog", "v": v, "w": w})
+    except LinkError as e:
+        raise HTTPException(502, str(e)) from None
+    return {"ok": True}
+
+
+@app.post("/api/robots/{rid}/jog/stop")
+async def jog_stop(rid: str):
+    s = _sess(rid)
+    try:
+        await s.link.send({"t": "cmd", "op": "stop"})
     except LinkError as e:
         raise HTTPException(502, str(e)) from None
     return {"ok": True}

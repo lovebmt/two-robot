@@ -79,6 +79,7 @@ Kết luận: **calib lúc đứng yên + ZUPT là bắt buộc. Bù nhiệt và
 - Mỗi đoạn thẳng là một primitive `DRIVE_TO(s_end)` với profile hình thang (`a_max`, `v_cruise`). Tốc độ giảm về `v_corner` trong `approach_dist` cuối, rồi dừng bằng điều khiển vị trí.
 - Leader giữ hướng `ψ_seg` bằng gyro và encoder (§2). Leader không sửa được lệch ngang tuyệt đối vì không có mốc ngoài. Lệch ngang chỉ đến từ trôi hướng nên nhỏ.
 - An toàn: cảm biến phía trước của leader thấy vật < `obstacle_stop` thì phanh và gửi `fault OBSTACLE`.
+- An toàn 2 xe: trong `FOLLOW`, một hoặc hai mắt ToF của follower giảm đột ngột ≥ `safety.tof_anomaly_jump_mm` hoặc mất tín hiệu trong `safety.tof_anomaly_samples` mẫu liên tiếp → follower phanh, báo `OBSTACLE_INTRUSION`; PC phanh leader và Web UI hiện cảnh báo.
 
 ## 4. Follower: bám trên đoạn thẳng (tự chủ, `FOLLOW`)
 
@@ -163,8 +164,8 @@ v_cmd = clamp( v̂_L + kp_g·(ĝ − g*) + ki_g·∫(ĝ − g*) , 0 , v_max(s_F)
 | 2 | `HOLD` | **`SNAPSHOT`**: trung bình N mẫu, cho ra `ρ_k` và `Δψ_k` | `std < snap_std_max` |
 | 3 | `HOLD` | `ALIGN` nếu `|Δψ_k| > align_tol` (song song lại trước khi đi) | xong |
 | 4 | `TURN(±90)` | `HOLD` | xong |
-| 5 | `DRIVE_TO(s_k + exit_dist)` | `HOLD` | xong |
-| 6 | `HOLD` | `DRIVE_TO(s_F + ρ_k)`, **chỉ dùng encoder** (cảm biến lúc này nhìn ra khoảng trống) | xong |
+| 5 | `DRIVE_TO(s_k + exit_dist)` | Đứng chờ, rồi `DRIVE_TO(s_F + ρ_k)` sau khi leader ra khỏi góc `corner.follow_start_mm`, giới hạn `corner.follow_exit_vmax_mm_s` | cả hai hoàn tất; follower dùng encoder vì cảm biến nhìn ra khoảng trống |
+| 6 | tiếp tục bước 5 | đồng bộ mốc quãng follower với leader | xong |
 | 7 | `HOLD` | `TURN(±90)` | xong |
 | 8 | `HOLD` | **`REACQUIRE(ρ_exp = exit_dist)`**: kiểm tra cả 2 chùm thấy leader, `|ρ − ρ_exp| < tol`. Nếu không thấy thì quét ±10° tìm hướng có `d̄` nhỏ nhất | thấy leader |
 | 9 | `HOLD` | `ALIGN` (quay tới `Δψ≈0`). Cập nhật lại `s_F = s_k`, reset KF với `g = ρ` | xong |

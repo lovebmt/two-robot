@@ -5,7 +5,9 @@ import time
 
 import httpx
 import pytest
+from fastapi.testclient import TestClient
 
+from tworobot.app import app
 from tworobot import params as P
 from tworobot.coordinator import Coordinator
 from tworobot.discovery import expand, scan
@@ -37,6 +39,13 @@ def test_expand_targets():
     assert expand(["10.0.0.5"]) == ["http://10.0.0.5"]
     with pytest.raises(ValueError):
         expand(["10.0.0.0/16"])
+
+
+def test_api_responses_disable_browser_cache():
+    with TestClient(app) as client:
+        response = client.get("/api/schema")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
 
 
 async def _farm(scale=4.0):

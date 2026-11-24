@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 
 function flagChips(flags = []) {
   return flags.map((f) => {
-    const cls = ['LEADER_LOST', 'LINK_LOST', 'BAT_LOW', 'CFG_DEFAULT', 'IMU_BIAS_HIGH'].includes(f) ? 'bad'
+    const cls = ['OBSTACLE_INTRUSION', 'LEADER_LOST', 'LINK_LOST', 'BAT_LOW', 'CFG_DEFAULT', 'IMU_BIAS_HIGH'].includes(f) ? 'bad'
       : ['SAT', 'SLIP', 'CFG_DIRTY', 'IMU_UNCAL', 'IMU_CALIB'].includes(f) ? 'warn' : '';
     return `<span class="chip ${cls}">${f}</span>`;
   }).join('');
@@ -31,7 +31,7 @@ function render() {
     <tr>
       <td><b>${r.name}</b><div class="muted small mono">${r.id}${r.fw ? ' · fw ' + r.fw : ''}</div></td>
       <td><span class="badge ${r.source}">${r.source}</span></td>
-      <td class="mono">${r.ip ?? '—'}${r.link?.rtt_ms != null ? `<div class="muted small">${r.link.rtt_ms.toFixed(0)} ms${r.link.errors ? ' · lỗi ' + r.link.errors : ''}</div>` : ''}</td>
+      <td class="mono">${r.ip ?? '—'}${r.link?.rtt_ms != null ? `<div class="muted small">${r.link.rtt_ms.toFixed(0)} ms${r.link.errors ? ' · lỗi lũy kế ' + r.link.errors : ''}</div>` : ''}</td>
       <td>${r.online ? '🟢' : '⚪'} ${r.state}${r.fault ? ` <span class="chip bad">${r.fault}</span>` : ''}</td>
       <td>
         <select data-role="${r.id}">

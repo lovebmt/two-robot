@@ -3,6 +3,7 @@ import asyncio
 
 import pytest
 
+from tworobot import params as P
 from tworobot.sim import batch
 
 MISMATCH = {"leader": {"motor_scale_r": 0.85, "fric_scale": 1.3},
@@ -37,8 +38,42 @@ def test_tof_block_triggers_safe_stop():
             batch.SimEngine.step = orig
     r = asyncio.run(scenario())
     assert not r["ok"]
-    assert "LEADER_LOST" in (r["error"] or "") or "TOO" in (r["error"] or "")
+    assert "OBSTACLE_INTRUSION" in (r["error"] or "")
+    assert any("OBSTACLE_INTRUSION" in entry["msg"] for entry in r["log"])
     assert r["collisions"] == 0
+
+
+def test_one_tof_block_triggers_intrusion_stop():
+    """Một mắt đột ngột báo vật gần cũng phải dừng cả hệ thống, không chỉ lái theo mắt còn lại."""
+    async def scenario():
+        orig = batch.SimEngine.step
+        state = {"done": False}
+
+        def step(self):
+            if not state["done"] and self.t > 6.0:
+                self.inject("tof_block", "sim-b", side="l", dur=3.0)
+                state["done"] = True
+            orig(self)
+        batch.SimEngine.step = step
+        try:
+            return await batch.run_scenario(batch.PRESETS["line"], seed=1)
+        finally:
+            batch.SimEngine.step = orig
+    r = asyncio.run(scenario())
+    assert not r["ok"]
+    assert "OBSTACLE_INTRUSION" in (r["error"] or "")
+    assert r["collisions"] == 0
+
+
+def test_follower_starts_during_leader_corner_exit():
+    r = asyncio.run(batch.run_scenario(batch.PRESETS["L"], seed=2))
+    assert r["ok"], r.get("error")
+    assert r["follower_starts_during_exit"] is True
+    sh = P.shared_defaults()
+    assert r["exit_follow_start_progress_mm"] >= sh["corner.follow_start_mm"] - 5.0
+    # v_meas có thể vọt ngắn hạn khi motor bắt đầu chuyển động; kiểm tra trần mục tiêu
+    # vẫn bảo đảm follower chậm hơn đáng kể so với v_cruise thường.
+    assert r["exit_follow_max_v_mm_s"] <= sh["corner.follow_exit_vmax_mm_s"] + 15.0
 
 
 @pytest.mark.parametrize("path", ["L", "zigzag"])

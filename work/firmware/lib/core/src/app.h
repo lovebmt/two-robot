@@ -15,6 +15,7 @@
 #include "paramsvc.h"
 #include "primitives.h"
 #include "rangeproc.h"
+#include "tof_guard.h"
 
 namespace tr {
 
@@ -51,6 +52,7 @@ class App {
   Odometry odo;
   GapKF kf;
   RangeProcessor rangep;
+  TofAnomalyGuard tof_guard;
   bool has_meas = false;
   RangeMeas meas;
   float raw_l = 0, raw_r = 0;

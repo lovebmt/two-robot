@@ -7,6 +7,7 @@
 
 #include "app.h"
 #include "mathutil.h"
+#include "motion_profile.h"
 
 namespace tr {
 
@@ -21,13 +22,14 @@ static float headingHold(App& a, float target, float& integ, float dt) {
 class DriveTo : public Prim {
  public:
   DriveTo() { name = "DRIVE_TO"; }
-  float s_end = 0, v_max = 0, hold = 0, hint = 0, v_prev = 0, stall = 0;
+  float s_end = 0, v_max = 0, hold = 0, hint = 0, stall = 0;
+  JerkRamp ramp;
   void start(App& a) override {
     const Config& c = a.params.active();
     s_end = argf("s_end", a.odo.s);
     v_max = argf("v_max", 0) > 0 ? argf("v_max", 0) : c.motion_v_cruise;
     hold = has("heading_deg") ? deg2rad(argf("heading_deg", 0)) : a.heading.psi;
-    v_prev = std::max(0.f, a.drive.vMeas());
+    ramp.reset(std::max(0.f, a.drive.vMeas()));
   }
   Cmd update(App& a, float dt) override {
     const Config& c = a.params.active();
@@ -43,10 +45,9 @@ class DriveTo : public Prim {
       return BRAKE;
     }
     const float acc = c.motion_a_max, vc = c.motion_v_corner, app = c.motion_approach_dist;
-    float v = rem > app ? std::min(v_max, std::sqrt(vc * vc + 2 * acc * (rem - app)))
-                        : std::max(std::min(vc, c.pid_pos_kp * rem), c.motor_v_min_reliable);
-    v = std::min(v, v_prev + acc * dt);
-    v_prev = v;
+    const float v_target = rem > app ? std::min(v_max, std::sqrt(vc * vc + 2 * acc * (rem - app)))
+                                     : std::max(std::min(vc, c.pid_pos_kp * rem), c.motor_v_min_reliable);
+    const float v = clampf(ramp.step(v_target, acc, dt), 0.f, v_max);
     return {v, headingHold(a, hold, hint, dt), false};
   }
 };
@@ -60,10 +61,12 @@ static float turnWMin(const Config& c) {
 class Turn : public Prim {
  public:
   Turn() { name = "TURN"; }
-  float target = 0, w_prev = 0, settle = 0, stall = 0;
+  float target = 0, settle = 0, stall = 0;
+  JerkRamp ramp;
   void start(App& a) override {
     const float tgt = has("heading_deg") ? deg2rad(argf("heading_deg", 0)) : a.heading.psi + deg2rad(argf("deg", 0));
     target = wrap(tgt);
+    ramp.reset();
   }
   Cmd update(App& a, float dt) override {
     const Config& c = a.params.active();
@@ -82,11 +85,10 @@ class Turn : public Prim {
     }
     settle = 0;
     const float wmax = deg2rad(c.motion_turn_rate_dps), alpha = deg2rad(c.motion_turn_acc_dps2);
-    float w = std::min(wmax, 0.8f * std::sqrt(2 * alpha * std::fabs(e)));
-    w = std::max(w, turnWMin(c));
-    w = std::min(w, std::fabs(w_prev) + alpha * dt);
-    w_prev = w;
-    return {0, sgn(e) * w, false};
+    float w_target = std::min(wmax, 0.4f * std::sqrt(2 * alpha * std::fabs(e)));
+    w_target = std::max(w_target, turnWMin(c));
+    const float w = ramp.step(sgn(e) * w_target, alpha, dt);
+    return {0, w, false};
   }
 };
 
@@ -109,7 +111,8 @@ class Hold : public Prim {
 class Follow : public Prim {
  public:
   Follow() { name = "FOLLOW"; }
-  float g_t = 0, g_min = 0, v_max = 0, integ = 0, v_prev = 0, dpsi_f = 0, hold = 0, hint = 0;
+  float g_t = 0, g_min = 0, v_max = 0, integ = 0, dpsi_f = 0, hold = 0, hint = 0;
+  JerkRamp ramp;
   bool has_limit = false, have_dpsi = false;
   float s_limit = 0;
   int edge = 0;
@@ -125,7 +128,7 @@ class Follow : public Prim {
     const uint32_t now = a.hal.nowMs();
     const bool fresh = a.has_meas && a.meas.valid && now - a.meas.t_ms < 200;
     a.kf.reset(fresh ? a.meas.rho : g_t, 0, c.range_sigma_mm);
-    v_prev = std::max(0.f, a.drive.vMeas());
+    ramp.reset(std::max(0.f, a.drive.vMeas()));
     hold = a.heading.psi;
     last_valid = now;
     last_dpsi = now > 10000 ? now - 10000 : 0;
@@ -160,10 +163,9 @@ class Follow : public Prim {
     if (a.relay_valid && now - a.relay_t < 300) a.kf.updateV(a.relay_v, 40.f);
     const float e = a.kf.g - g_t;
     integ = clampf(integ + c.follow_ki_g * e * dt, -60.f, 60.f);
-    float v = a.kf.vL + c.follow_kp_g * e + integ;
+    float v_target = a.kf.vL + c.follow_kp_g * e + integ;
     const float acc = c.motion_a_max;
-    v = clampf(v, 0, v_max);
-    v = std::min(v, v_prev + acc * dt);
+    v_target = clampf(v_target, 0, v_max);
     if (has_limit) {
       const float rem = s_limit - a.odo.s;
       if (rem <= c.motion_stop_tol_mm) {
@@ -172,13 +174,14 @@ class Follow : public Prim {
         finish();
         return BRAKE;
       }
-      v = std::min(v, std::sqrt(2 * acc * rem));
+      v_target = std::min(v_target, std::sqrt(2 * acc * rem));
     }
     if (a.kf.g < g_min) {
-      v = 0;
       integ = std::min(integ, 0.f);
+      ramp.reset();
+      return BRAKE;
     }
-    v_prev = v;
+    const float v = ramp.step(v_target, acc, dt);
     // Hướng: song song leader theo Δψ (ToF); mất Δψ thì giữ hướng bằng gyro
     dpsi_f -= a.heading.w * dt;
     float w;

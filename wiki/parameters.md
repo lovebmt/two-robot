@@ -111,6 +111,8 @@ Quy ước áp dụng: hình học và cảm biến áp dụng khi **idle**; h�
 | `corner.align_tol_deg` | ngưỡng căn song song | 1.5 |
 | `corner.reacquire_tol_mm`, `corner.scan_deg` | | 40, 10 |
 | `corner.step_timeout_ms` | timeout mỗi bước | 8000 |
+| `corner.follow_start_mm` | leader ra khỏi góc bấy nhiêu thì follower bắt đầu tiến | 80 |
+| `corner.follow_exit_vmax_mm_s` | tốc độ tối đa của follower khi thoát góc | 60 |
 | `gap.lost_timeout_ms` | mất leader trên đoạn thẳng | 400 |
 
 ## Kiểm tra trước khi chạy (chung 2 xe)

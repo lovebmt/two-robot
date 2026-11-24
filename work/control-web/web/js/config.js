@@ -1,5 +1,6 @@
 // Tab Cấu hình: form sinh tự động từ schema chung, Apply (RAM) / Save (flash) / Revert...
 import { api, guard, toast } from './api.js';
+import { gapClearance } from './config-gap.js?v=gap-view-11';
 import { cssVar, drawRobot, fitCanvas } from './draw.js';
 import { downloadJSON, emit, on, store } from './store.js';
 
@@ -11,6 +12,7 @@ let current = {};     // giá trị đang có trên robot (hoặc shared trên P
 let edits = {};       // chỉnh sửa chưa Apply
 let errors = {};
 let lastCfg = null;
+let pairGeometry = { leader: null, follower: null };
 
 function robotState(id) {
   const r = (store.frame?.robots || []).find((x) => x.id === id);
@@ -40,6 +42,11 @@ async function select(t) {
 async function pull() {
   if (target === SHARED) {
     current = await guard(() => api('GET', '/api/shared')) || {};
+    const leader = store.robots.find((r) => r.role === 'leader');
+    const follower = store.robots.find((r) => r.role === 'follower');
+    const loadRobot = async (r) => r ? (await api('GET', `/api/robots/${r.id}/config`).catch(() => null))?.params || null : null;
+    const [leaderCfg, followerCfg] = await Promise.all([loadRobot(leader), loadRobot(follower)]);
+    pairGeometry = { leader: leaderCfg, follower: followerCfg };
     lastCfg = null;
     $('cfgInfo').textContent = 'Tham số chung được lưu trên PC (project) và đẩy xuống cả 2 robot khi Apply.';
   } else {
@@ -61,6 +68,47 @@ function fmt(v, p) {
   return p.type === 'int' ? String(v) : String(Math.round(v * 10000) / 10000);
 }
 
+function gapVisualHtml() {
+  const target = Number('gap.target_mm' in edits ? edits['gap.target_mm'] : current['gap.target_mm']);
+  const followerX = Number(pairGeometry.follower?.['range.x_mm']);
+  const leaderRear = Number(pairGeometry.leader?.['body.axle_to_rear_mm']);
+  const clear = gapClearance(target, followerX, leaderRear);
+  if (clear === null) {
+    return '<div class="gap-figure gap-figure-missing">Cần kết nối leader và follower để tính khoảng hở thực tế.</div>';
+  }
+  const bad = clear < 0;
+  return `<div class="gap-figure ${bad ? 'bad' : ''}">
+    <div class="gap-figure-head"><b>Khoảng hở thực tế</b><span class="gap-clear">${clear.toFixed(1)} mm</span></div>
+    <svg viewBox="0 0 680 205" role="img" aria-label="Sơ đồ khoảng cách thực tế giữa follower và leader">
+      <defs>
+        <marker id="gap-arrow" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L7,3 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <rect x="45" y="55" width="160" height="75" rx="10" class="gap-body"/>
+      <rect x="475" y="55" width="160" height="75" rx="10" class="gap-body"/>
+      <text x="82" y="99" class="gap-label">follower</text>
+      <text x="510" y="99" class="gap-label">leader</text>
+      <rect x="198" y="78" width="9" height="30" rx="3" class="gap-sensor"/>
+      <rect x="470" y="64" width="7" height="58" rx="2" class="gap-rear"/>
+      <line x1="212" y1="93" x2="465" y2="93" class="gap-measure" marker-start="url(#gap-arrow)" marker-end="url(#gap-arrow)"/>
+      <text x="269" y="82" class="gap-value">${clear.toFixed(1)} mm</text>
+      <text x="279" y="119" class="gap-subtitle">mặt ToF → đuôi leader</text>
+      <line x1="125" y1="158" x2="555" y2="158" class="gap-center" marker-start="url(#gap-arrow)" marker-end="url(#gap-arrow)"/>
+      <line x1="125" y1="149" x2="125" y2="167" class="gap-center"/>
+      <line x1="555" y1="149" x2="555" y2="167" class="gap-center"/>
+      <text x="290" y="187" class="gap-subtitle">tâm trục → tâm trục: ${target.toFixed(1)} mm</text>
+    </svg>
+    <div class="gap-formula"><span>${target.toFixed(1)}</span> − <span>${followerX.toFixed(1)}</span> − <span>${leaderRear.toFixed(1)}</span> = <b>${clear.toFixed(1)} mm</b></div>
+    <p class="muted small">Đo từ mặt kính ToF của follower đến mặt đuôi của leader.</p>
+  </div>`;
+}
+
+function updateGapVisual() {
+  const box = $('gapVisual');
+  if (box) box.innerHTML = gapVisualHtml();
+}
+
 function renderForm() {
   const form = $('cfgForm');
   const params = visibleParams();
@@ -80,6 +128,7 @@ function renderForm() {
           ${errors[p.key] ? `<div class="perr">${errors[p.key]}</div>` : ''}
         </div>`;
       }).join('')}
+      ${target === SHARED && g.id === 'gap' ? `<div id="gapVisual">${gapVisualHtml()}</div>` : ''}
     </div>`).join('');
   form.querySelectorAll('input[data-k]').forEach((inp) => {
     inp.oninput = () => {
@@ -87,6 +136,7 @@ function renderForm() {
       const v = inp.type === 'checkbox' ? inp.checked : inp.value;
       if (String(v) === String(current[k])) delete edits[k]; else edits[k] = inp.type === 'checkbox' ? v : Number(v);
       inp.classList.toggle('dirty', k in edits);
+      if (k === 'gap.target_mm') updateGapVisual();
       renderSide();
     };
   });

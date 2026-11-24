@@ -152,7 +152,7 @@ void setup() {
   xTaskCreatePinnedToCore(rangeTask, "range", 4096, nullptr, 3, nullptr, 1);
 
   net::begin(hal.prefs, id);
-  net::startHttp(app, appMutex, &hal.prefs);
+  net::startHttp(app, appMutex);
   xTaskCreatePinnedToCore(net::httpTask, "http", 12288, nullptr, 2, nullptr, 0);
 }
 

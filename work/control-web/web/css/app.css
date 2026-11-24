@@ -161,6 +161,23 @@ summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .cfg-row input:disabled { opacity: .55; }
 .cfg-row .unit { font-size: 11px; color: var(--muted); }
 .cfg-row .perr { grid-column: 1 / -1; color: var(--danger); font-size: 12px; }
+.gap-figure { margin-top: 9px; padding: 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.gap-figure-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.gap-clear { font: 700 18px var(--mono); color: var(--ok); }
+.gap-figure.bad .gap-clear { color: var(--danger); }
+.gap-figure svg { display: block; width: 100%; height: auto; margin: 4px 0; color: var(--accent); }
+.gap-body { fill: var(--surface); stroke: var(--text); stroke-width: 2; }
+.gap-label { fill: var(--text); font: 13px var(--font); text-anchor: middle; }
+.gap-sensor { fill: var(--ok); }
+.gap-rear { fill: var(--muted); }
+.gap-measure, .gap-center { stroke: currentColor; stroke-width: 2; }
+.gap-center { stroke: var(--muted); stroke-dasharray: 5 4; }
+.gap-value { fill: currentColor; font: 700 16px var(--mono); text-anchor: middle; }
+.gap-subtitle { fill: var(--muted); font: 11px var(--font); text-anchor: middle; }
+.gap-formula { font: 12px var(--mono); color: var(--muted); }
+.gap-formula b { color: var(--ok); }
+.gap-figure.bad .gap-formula b { color: var(--danger); }
+.gap-figure-missing { color: var(--muted); font-size: 12px; }
 .preview { width: 100%; height: 220px; background: var(--surface-2); border-radius: 6px; display: block; }
 
 /* ---------- run ---------- */
@@ -230,3 +247,32 @@ body.mode-follow .follow-only { display: inline-flex; align-items: center; gap: 
 /* Ô chọn xe: chỉ hiện ở chế độ 1 xe / bám tấm */
 .single-only { display: none; }
 body.mode-single .single-only { display: inline-block; }
+
+.manual-control { display: none; }
+body.mode-solo .manual-control { display: block; }
+.manual-keyboard-enable { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+.manual-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  grid-template-rows: repeat(3, 64px);
+  gap: 8px;
+  justify-content: center;
+  margin: 8px auto 12px;
+}
+.manual-btn, .manual-stop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.manual-btn small, .manual-stop small { font-size: 10px; }
+.manual-btn.active { background: var(--accent); color: var(--accent-text); }
+.manual-stop { background: var(--danger); border-color: var(--danger); color: white; font-weight: 700; }
+.manual-btn:disabled, .manual-stop:disabled { opacity: .45; cursor: not-allowed; }

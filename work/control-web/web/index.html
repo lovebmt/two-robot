@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Two-Robot Control</title>
-  <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/app.css?v=gap400-13">
 </head>
 <body>
   <header class="topbar">
@@ -285,6 +285,27 @@
           </div>
         </div>
         <div class="run-side">
+          <div class="card manual-control" id="manualControl">
+            <div class="card-h">
+              <h2>Điều khiển tay</h2>
+              <span id="manualState" class="badge">Không khả dụng</span>
+            </div>
+            <label class="chk manual-keyboard-enable">
+              <input type="checkbox" id="manualKeyboard"> Bật bàn phím WASD
+            </label>
+            <div class="manual-grid">
+              <span></span>
+              <button class="manual-btn" data-jog="fwd" aria-label="Tiến, phím W">▲<small>Tiến · W</small></button>
+              <span></span>
+              <button class="manual-btn" data-jog="left" aria-label="Quay trái, phím A">◀<small>Trái · A</small></button>
+              <button class="manual-stop" id="manualStop" aria-label="Dừng">■<small>STOP</small></button>
+              <button class="manual-btn" data-jog="right" aria-label="Quay phải, phím D">▶<small>Phải · D</small></button>
+              <span></span>
+              <button class="manual-btn" data-jog="back" aria-label="Lùi, phím S">▼<small>Lùi · S</small></button>
+              <span></span>
+            </div>
+            <p class="muted small">Nhấn W/A/S/D để nhích, giữ để chạy, nhả để dừng. Chỉ dùng ở chế độ 1 xe.</p>
+          </div>
           <div class="card">
             <div class="card-h"><h2>Điều phối</h2><span id="coordState" class="badge">IDLE</span></div>
             <div id="coordSeg" class="muted small"></div>
@@ -338,6 +359,6 @@
   </main>
 
   <div id="toasts" class="toasts" aria-live="polite"></div>
-  <script type="module" src="/js/main.js"></script>
+  <script type="module" src="/js/main.js?v=gap400-13"></script>
 </body>
 </html>

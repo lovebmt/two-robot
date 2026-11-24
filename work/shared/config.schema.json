@@ -111,10 +111,12 @@
     {"key": "motion.stall_time_s",   "type": "float", "unit": "s",     "min": 0.1,"max": 5,    "default": 0.6, "group": "motion", "scope": "shared", "apply": "live", "desc": "Đứng yên bao lâu thì coi là kẹt (áp dụng 2 ngưỡng trên)"},
     {"key": "motion.turn_tol_deg",   "type": "float", "unit": "°",     "min": 0.1,"max": 10,   "default": 0.8, "group": "motion", "scope": "shared", "apply": "live", "desc": "Sai số chấp nhận khi quay"},
 
-    {"key": "gap.target_mm",         "type": "float", "unit": "mm", "min": 100, "max": 2000, "default": 320, "group": "gap", "scope": "shared", "apply": "live", "desc": "Gap tâm–tâm mong muốn trên đoạn thẳng"},
+    {"key": "gap.target_mm",         "type": "float", "unit": "mm", "min": 100, "max": 2000, "default": 400, "group": "gap", "scope": "shared", "apply": "live", "desc": "Gap tâm–tâm mong muốn trên đoạn thẳng"},
     {"key": "gap.hold_mm",           "type": "float", "unit": "mm", "min": 0,   "max": 2000, "default": 0,   "group": "gap", "scope": "shared", "apply": "idle", "desc": "Gap chờ khi leader quay (0 = tự tính)"},
 
     {"key": "corner.exit_dist_mm",   "type": "float", "unit": "mm", "min": 0,   "max": 2000, "default": 0,   "group": "corner", "scope": "shared", "apply": "idle", "desc": "Leader tiến thêm sau khi quay (0 = tự tính)"},
+    {"key": "corner.follow_start_mm","type": "float", "unit": "mm", "min": 0,   "max": 300,  "default": 80,  "group": "corner", "scope": "shared", "apply": "live", "desc": "Leader ra khỏi góc bấy nhiêu thì follower bắt đầu tiến"},
+    {"key": "corner.follow_exit_vmax_mm_s","type":"float","unit":"mm/s","min":20,"max":300,"default":60,"group":"corner","scope":"shared","apply":"live","desc":"Tốc độ tối đa của follower khi tiến theo leader thoát góc"},
     {"key": "corner.margin_mm",      "type": "float", "unit": "mm", "min": 0,   "max": 200,  "default": 30,  "group": "corner", "scope": "shared", "apply": "idle", "desc": "Biên an toàn"},
     {"key": "corner.snapshot_n",     "type": "int",   "unit": "mẫu","min": 3,   "max": 100,  "default": 12,  "group": "corner", "scope": "shared", "apply": "live", "desc": "Số mẫu ToF khi SNAPSHOT"},
     {"key": "corner.align_tol_deg",  "type": "float", "unit": "°",  "min": 0.2, "max": 10,   "default": 1.5, "group": "corner", "scope": "shared", "apply": "live", "desc": "Ngưỡng căn song song"},
@@ -128,6 +130,8 @@
     {"key": "start.align_dpsi_deg",  "type": "float", "unit": "°",  "min": 0.2,"max": 10,  "default": 1.5, "group": "start", "scope": "shared", "apply": "live", "desc": "Xe sau lệch góc quá mức này → tự ALIGN trước khi chạy"},
     {"key": "start.front_clear_mm",  "type": "float", "unit": "mm", "min": 50, "max": 2000,"default": 250, "group": "start", "scope": "shared", "apply": "live", "desc": "Phía trước xe đầu phải trống ít nhất bấy nhiêu"},
     {"key": "safety.allow_tune_while_running", "type": "bool", "unit": "", "default": true, "group": "safety", "scope": "robot", "apply": "live", "desc": "Cho chỉnh tham số live khi đang chạy"},
-    {"key": "safety.link_timeout_ms","type": "int", "unit": "ms", "min": 100, "max": 5000, "default": 1500, "group": "safety", "scope": "robot", "apply": "live", "desc": "Mất heartbeat PC → phanh"}
+    {"key": "safety.link_timeout_ms","type": "int", "unit": "ms", "min": 100, "max": 5000, "default": 1500, "group": "safety", "scope": "robot", "apply": "live", "desc": "Mất heartbeat PC → phanh"},
+    {"key": "safety.tof_anomaly_jump_mm", "type": "float", "unit": "mm", "default": 120, "min": 20, "max": 600, "group": "safety", "scope": "robot", "apply": "live", "desc": "Một mắt ToF ngắn đột ngột quá ngưỡng → dừng"},
+    {"key": "safety.tof_anomaly_samples", "type": "int", "unit": "mẫu", "default": 2, "min": 1, "max": 10, "group": "safety", "scope": "robot", "apply": "live", "desc": "Số mẫu bất thường liên tiếp để báo vật cản"}
   ]
 }

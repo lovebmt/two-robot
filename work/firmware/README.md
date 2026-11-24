@@ -17,7 +17,7 @@ lib/core/src/        C++17 thuần, KHÔNG phụ thuộc Arduino → test đư�
 src/
   board/pins.h       GPIO CỐ ĐỊNH (⚠ kiểm tra theo dây thật)
   hal_esp32.*        L298N (LEDC), encoder (PCNT x4), MPU6050 (I2C 21/22), 2× VL53L0X (I2C 25/26 + XSHUT), LittleFS, NVS
-  net.*              WiFi STA / AP cài WiFi, WebServer cổng 80
+  net.*              WiFi STA cố định/NVS, WebServer cổng 80
   main.cpp           task: control 100 Hz (core 1), range ~30 Hz (core 1), http (core 0)
 test/test_core/      test native: params, KF, ToF, App; ĐỐI CHIẾU với Python (test/vectors/*.json)
 tools/gen_vectors.py sinh dữ liệu đối chiếu từ firmware ảo Python
@@ -75,12 +75,12 @@ macOS có thể hỏi cho phép Python nhận kết nối đến (espota mở c�
 - `status`: số đo 2 ToF, hướng/bias/nhiệt độ gyro, tick encoder, tốc độ bánh, trạng thái.
 - `watch`: bật/tắt in `status` 2 lần/giây.
 - Log 10 s/lần và log OTA cũng hiện trên telnet.
-- `wifi <ssid> <mật khẩu>`: lưu WiFi rồi khởi động lại (không cần vào AP).
+- `wifi <ssid> <mật khẩu>`: lưu WiFi dự phòng vào NVS rồi khởi động lại.
 - `reboot`
 
 ## Chạy lần đầu (mỗi xe)
-1. Nạp firmware. Mở monitor: thấy `AP "TwoRobot-xxxxxx"`.
-2. Điện thoại/PC vào WiFi `TwoRobot-xxxxxx` (mật khẩu `tworobot`) → mở `http://192.168.4.1` → nhập WiFi → robot khởi động lại, monitor in IP.
+1. Nạp firmware có `src/secrets.h` (SSID/mật khẩu WiFi). Không còn chế độ AP cài đặt.
+2. Mở monitor để xem IP LAN. Khôi phục WiFi khẩn cấp qua USB: `wifi <ssid> <mật khẩu>` (lưu NVS, reboot).
 3. Web Control (`tworobot-server`) → **Thiết bị** → Quét subnet (hoặc nhập IP) → gán leader/follower.
 4. **Cấu hình**: nhập kích thước thật → **Save flash** (robot mới có cờ `CFG_DEFAULT` và từ chối chạy cho tới khi Save).
 5. **Kiểm tra chiều** (kê bánh lên): tab Chạy → jog nhẹ. Bánh quay ngược → bật `motor.invert_l/r`. Xe tiến mà `s` giảm → `enc.invert_l/r`. Quay trái mà góc giảm → `imu.invert_z`.

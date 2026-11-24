@@ -84,11 +84,14 @@ class NetLink(RobotLink):
     """Robot thật qua HTTP. base: 'http://192.168.1.42' (hoặc kèm cổng)."""
     source = "REAL"
 
-    def __init__(self, base: str, poll_hz: float = 20.0):
+    def __init__(self, base: str, poll_hz: float = 20.0, poll_timeout_s: float = 1.0):
         super().__init__()
         self.base = base.rstrip("/")
         self.period = 1.0 / poll_hz
-        self.client = httpx.AsyncClient(timeout=httpx.Timeout(1.0, connect=0.5),
+        self.poll_timeout_s = poll_timeout_s
+        # Robot heartbeat timeout is 1.5 s. Allow WiFi retransmission spikes while
+        # keeping polling comfortably below that safety limit.
+        self.client = httpx.AsyncClient(timeout=httpx.Timeout(1.2, connect=0.75),
                                         limits=httpx.Limits(max_keepalive_connections=4))
         self.eseq = 0
         self.online = False
@@ -106,7 +109,8 @@ class NetLink(RobotLink):
         while True:
             t0 = time.perf_counter()
             try:
-                r = await self.client.get(f"{self.base}/api/state", params={"since": self.eseq}, timeout=0.5)
+                r = await self.client.get(f"{self.base}/api/state", params={"since": self.eseq},
+                                          timeout=self.poll_timeout_s)
                 d = r.json()
                 self.rtt_ms = (time.perf_counter() - t0) * 1000
                 self.online = True
