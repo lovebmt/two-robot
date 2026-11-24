@@ -280,6 +280,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="two-robot Web Control", version=__version__, lifespan=lifespan)
 
 
+@app.middleware("http")
+async def no_store_api(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 def _sess(rid: str) -> RobotSession:
     try:
         return S.reg.get(rid)
